@@ -1,0 +1,80 @@
+{
+	"translations": {
+		"de": {
+			"OpenSprinkler - Irrigation system": "OpenSprinkler - Bewässerungssystem",
+
+			"__function__": "CheckConfiguration",
+            "Host must be specified": "Hostname muss angegeben sein",
+            "Password must be specified": "Passwort muss angegeben sein",
+
+			"__properties__": "",
+			"Disable instance": "Instanz deaktivieren",
+
+            "Access configuration": "Zugangskonfiguration",
+            "Host": "Host",
+            "Use HTTPS": "HTTPS verwenden",
+            "Port": "Port",
+            "Password": "Passwort",
+
+			"MQTT topic": "MQTT-Topic",
+
+			"Retrive configuration": "Konfiguration abrufen",
+
+			"Configuration": "Konfiguration",
+
+			"Zones": "Zonen",
+			"Sensors": "Sensoren",
+			"Programs": "Programme",
+
+			"No": "Nr",
+			"Name": "Name",
+			"Information": "Information",
+			"Use": "verwenden",
+			"Group": "Gruppe",
+			"Interface": "Anschluss",
+
+			"Rain sensor": "Regensensor",
+			"Flow sensor": "Durchflusssensor",
+			"Soil sensor": "Bodensensor",
+			"Contact is normally open": "Kontakt ist normalerweise offen",
+			"Contact is normally closed": "Kontakt ist normalerweise geschlossen",
+			"Resolution is {$fpr} l/pulse": "Auflösung ist {$fpr} l/Impuls",
+
+			"ignore rain delay": "Regenverzögerung ignorieren",
+            "ignore sensor 1": "Sensor 1 ignorieren",
+            "ignore sensor 2": "Sensor 2 ignorieren",
+
+			"RF": "RF",
+			"remote": "remote",
+			"GPIO": "GPIO",
+			"HTTP": "HTTP",
+			"HTTPS": "HTTPS",
+			"remote (OTC)": "remote (OTC)",
+
+			"Disabled": "Deaktiviert",
+			"Weather adjustment": " Wetterbasierte Anpassung",
+			"Total duration is {$total_duration}m": "Gesamtdauer: {$total_duration}m",
+
+			"Update interval": "Aktualisierungsintervall",
+			"Seconds": "Sekunden",
+
+			"__variables__": "",
+			"Controller state": "Steuergerät-Status",
+			"Watering level": "Bewässerungsniveau",
+			"Rain delay until": "Regenbedingte Unterbrechung bis",
+			"Device time": "Gerätezeit",
+			"Wifi signal strenght": "WLAN-Signalstärke",
+			"Last update": "Letzte Aktualisierung",
+
+			"Timestamp of last weather information": "Zeitstempel der letzten Wetterinformationen",
+			"Status of last weather query": "Status der letzten Wetterabfrage",
+			"Timestamp of last reboot": "Zeitstempel des letzten Neustarts",
+			"Cause of last reboot": "Ursache des letzten Neustarts",
+
+			"__actions__": "",
+			"Update status": "Aktualisiere Status",
+
+			"__end__": ""
+		}
+	}
+}

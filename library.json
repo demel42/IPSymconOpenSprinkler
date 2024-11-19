@@ -1,12 +1,12 @@
 {
-	"id": "{0DCE4B6F-9176-DC9A-5502-1AF2B7573EB5}",
-	"name": "ModuleTemplate",
+	"id": "{E91B516D-3191-FEFF-A392-14E3BEB0956E}",
+	"name": "OpenSprinkler",
 	"author": "Ch. Damsky",
-	"url": "https://github.com/demel42/ModuleTenmplate.git",
+	"url": "https://github.com/demel42/IPSymconOpenSprinkler.git",
 	"compatibility": {
 		"version": "6.0"
 	},
 	"version": "0.9",
 	"build": 0,
-	"date": 0
+	"date": 1732035616
 }
