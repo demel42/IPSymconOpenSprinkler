@@ -41,6 +41,8 @@ class OpenSprinkler extends IPSModule
 
         $this->RegisterPropertyInteger('update_interval', 60);
 
+        $this->RegisterAttributeInteger('timezone_offset', 0);
+
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
         $this->RegisterAttributeString('ModuleStats', json_encode([]));
 
@@ -146,11 +148,13 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, true);
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
-        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, true);
+        $this->MaintainVariable('TotalCurrentDraw', $this->Translate('Actual total current draw'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
 
         $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
         $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, true);
+
+        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, true);
 
         $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
         $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, true);
@@ -248,11 +252,13 @@ class OpenSprinkler extends IPSModule
                     'name'    => 'host',
                     'caption' => 'Host',
                 ],
+                /*
                 [
                     'type'    => 'CheckBox',
                     'name'    => 'use_https',
                     'caption' => 'Use HTTPS',
                 ],
+                 */
                 [
                     'type'    => 'NumberSpinner',
                     'name'    => 'port',
@@ -476,6 +482,22 @@ class OpenSprinkler extends IPSModule
         $this->MaintainTimer('UpdateStatus', $sec * 1000);
     }
 
+    private function SaveTimezoneOffset($tz)
+    {
+        $tz_offs = ($tz - 48) / 4 * 3600;
+        $this->SendDebug(__FUNCTION__, 'tz=' . $tz . ' (' . $this->seconds2duration($tz_offs) . ')', 0);
+        $this->WriteAttributeInteger('timezone_offset', $tz_offs);
+    }
+
+    private function AdjustTimestamp($tstamp)
+    {
+        if ($tstamp > 0) {
+            $tz_offs = $this->ReadAttributeInteger('timezone_offset');
+            $tstamp -= $tz_offs;
+        }
+        return $tstamp;
+    }
+
     private function UpdateStatus()
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
@@ -504,6 +526,9 @@ class OpenSprinkler extends IPSModule
 
         $fnd = true;
 
+        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
+        $this->SaveTimezoneOffset($tz);
+
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
             $i = $en ? self::$CONTROLLER_STATE_ENABLED : self::$CONTROLLER_STATE_DISABLED;
@@ -523,13 +548,9 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('RainDelayUntil', $rdst);
         }
 
-        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
-        $tz_offs = ($tz - 48) / 4 * 3600;
-        $this->SendDebug(__FUNCTION__, '... tz=' . $tz . ' (' . $this->seconds2duration($tz_offs) . ')', 0);
-
         $devt = $this->GetArrayElem($jdata, 'settings.devt', 0, $fnd);
         if ($fnd) {
-            $devt_gm = $devt - $tz_offs;
+            $devt_gm = $this->AdjustTimestamp($devt);
             $this->SendDebug(__FUNCTION__, '... DeviceTime (settings.devt)=' . $devt . ' => ' . $devt_gm, 0);
             $this->SetValue('DeviceTime', $devt_gm);
         }
@@ -542,7 +563,7 @@ class OpenSprinkler extends IPSModule
 
         $lswc = $this->GetArrayElem($jdata, 'settings.lswc', 0, $fnd);
         if ($fnd) {
-            $lswc_gm = $lswc - $tz_offs;
+            $lswc_gm = $this->AdjustTimestamp($lswc);
             $this->SendDebug(__FUNCTION__, '... WeatherQueryTstamp (settings.lswc)=' . $lswc . ' => ' . $lswc_gm, 0);
             $this->SetValue('WeatherQueryTstamp', $lswc_gm);
         }
@@ -555,7 +576,7 @@ class OpenSprinkler extends IPSModule
 
         $lupt = $this->GetArrayElem($jdata, 'settings.lupt', 0, $fnd);
         if ($fnd) {
-            $lupt_gm = $lupt - $tz_offs;
+            $lupt_gm = $this->AdjustTimestamp($lupt);
             $this->SendDebug(__FUNCTION__, '... LastRebootTstamp (settings.lupt)=' . $lupt . ' => ' . $lupt_gm, 0);
             $this->SetValue('LastRebootTstamp', $lupt_gm);
         }
@@ -566,10 +587,73 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('LastRebootCause', $lrbtc);
         }
 
+        $curr = $this->GetArrayElem($jdata, 'settings.curr', 0, $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... TotalCurrentDraw (settings.curr)=' . $curr, 0);
+            $this->SetValue('TotalCurrentDraw', $curr);
+        }
+
+        $sn1 = $this->GetArrayElem($jdata, 'settings.sn1', 0, $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... ?? (settings.sn1)=' . $sn1, 0);
+            //$this->SetValue('??', $sn1);
+        }
+        $sn2 = $this->GetArrayElem($jdata, 'settings.sn2', 0, $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... ?? (settings.sn2)=' . $sn2, 0);
+            //$this->SetValue('??', $sn2);
+        }
+
         /*
-        settings.sn1:
-        settings.sn2:
-        settings.lrun:
+            Last run record, which stores the [station index, program index, duration, end time] of the last run station.
+         */
+        $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... ?? (settings.lrun)=' . print_r($lrun, true), 0);
+            $sid = $lrun[0];
+            $pid = $lrun[1];
+            $dur = $lrun[2];
+            $end = $this->AdjustTimestamp($lrun[3]);
+            $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', dur=' . $dur . ', end=' . ($end ? date('d.m.y H:i:s', $end) : '-'), 0);
+        }
+
+        /*
+            Station status bits. Each byte in this array corresponds to an 8-station board and represents the bit field (LSB).
+            For example, 1 means the 1st station on the board is open, 192 means the 7th and 8th stations are open.
+         */
+        $sbits = (array) $this->GetArrayElem($jdata, 'settings.sbits', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... ?? (settings.sbits)=' . print_r($sbits, true), 0);
+            for ($sid = 0; $sid < count($sbits) * 8; $sid++) {
+                $active = $this->idx_in_bytes($sid, $sbits);
+                $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', active=' . $this->bool2str($active), 0);
+            }
+        }
+
+        /*
+            Program status data: each element is a 4-field array that stores the [pid,rem,start,gid] of a station,
+            where
+                pid is the program index (0 means none),
+                rem is the remaining water time (in seconds),
+                start is the start time, and
+                gid is the (sequential) group id of the station.
+            If a station is not running (sbit is 0) but has a non-zero pid, that means the station is in the queue waiting to run.
+         */
+        $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... ?? (settings.ps)=' . print_r($ps, true), 0);
+            for ($sid = 0; $sid < count($ps); $sid++) {
+                $pid = $ps[$sid][0];
+                $rem = $ps[$sid][1];
+                $start = $this->AdjustTimestamp($ps[$sid][2]);
+                $gid = $ps[$sid][3];
+                $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, $start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+            }
+        }
+
+        /*
+            flwrt: flow count window in unit of seconds (the firmware defines this as 30 seconds by default).
+            flcrt: real-time flow count (i.e. number of flow sensor clicks during the last flwrt seconds).
          */
 
         $this->SetValue('LastUpdate', $now);

@@ -155,6 +155,8 @@ trait OpenSprinklerLocalLib
             ['Wert' => self::$REBOOT_CAUSE_POWERON, 'Name' => $this->Translate('Power on'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.RebootCause', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', '', $reInstall);
     }
 
     private function Group2String($grp)

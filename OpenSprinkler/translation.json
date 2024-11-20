@@ -65,6 +65,7 @@
 			"Device time": "Gerätezeit",
 			"Wifi signal strenght": "WLAN-Signalstärke",
 			"Last update": "Letzte Aktualisierung",
+			"Actual total current draw": "Aktuelle Gesamtstromaufnahme",
 
 			"Timestamp of last weather information": "Zeitstempel der letzten Wetterinformationen",
 			"Status of last weather query": "Status der letzten Wetterabfrage",
