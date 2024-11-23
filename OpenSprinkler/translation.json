@@ -4,23 +4,23 @@
 			"OpenSprinkler - Irrigation system": "OpenSprinkler - Bewässerungssystem",
 
 			"__function__": "CheckConfiguration",
-            "Host must be specified": "Hostname muss angegeben sein",
-            "Password must be specified": "Passwort muss angegeben sein",
+			"Host must be specified": "Hostname muss angegeben sein",
+			"Password must be specified": "Passwort muss angegeben sein",
 
 			"__properties__": "",
 			"Disable instance": "Instanz deaktivieren",
 
-            "Access configuration": "Zugangskonfiguration",
-            "Host": "Host",
-            "Use HTTPS": "HTTPS verwenden",
-            "Port": "Port",
-            "Password": "Passwort",
+			"Access configuration": "Zugangskonfiguration",
+			"Host": "Host",
+			"Use HTTPS": "HTTPS verwenden",
+			"Port": "Port",
+			"Password": "Passwort",
 
 			"MQTT topic": "MQTT-Topic",
 
 			"Retrive configuration": "Konfiguration abrufen",
 
-			"Configuration": "Konfiguration",
+			"Controller configuration": "Konfiguration der Steuereinheit",
 
 			"Zones": "Zonen",
 			"Sensors": "Sensoren",
@@ -33,16 +33,13 @@
 			"Group": "Gruppe",
 			"Interface": "Anschluss",
 
-			"Rain sensor": "Regensensor",
-			"Flow sensor": "Durchflusssensor",
-			"Soil sensor": "Bodensensor",
-			"Contact is normally open": "Kontakt ist normalerweise offen",
-			"Contact is normally closed": "Kontakt ist normalerweise geschlossen",
-			"Resolution is {$fpr} l/pulse": "Auflösung ist {$fpr} l/Impuls",
+			"Contact variant": "Kontaktausführung",
+			"Resolution: {$fpr} l/pulse": "Auflösung: {$fpr} l/Impuls",
 
 			"ignore rain delay": "Regenverzögerung ignorieren",
-            "ignore sensor 1": "Sensor 1 ignorieren",
-            "ignore sensor 2": "Sensor 2 ignorieren",
+			"no flow measuring": "Keine Durchflussmessung",
+			"ignore sensor 1": "Sensor 1 ignorieren",
+			"ignore sensor 2": "Sensor 2 ignorieren",
 
 			"RF": "RF",
 			"remote": "remote",
@@ -55,6 +52,12 @@
 			"Weather adjustment": " Wetterbasierte Anpassung",
 			"Total duration is {$total_duration}m": "Gesamtdauer: {$total_duration}m",
 
+			"External sensor values": "Externe Sensorwerte",
+			"MQTT topic für sensor values": "MQTT-Thema für Sensorwerte",
+			"Variables to be transferred": "Zu übertragende Variablen",
+			"Reference variable": "Referenzvariable",
+			"Ident on the controller (\"MQTT filter\")": "Ident auf dem Controller (\"MQTT-Filter\")",
+
 			"Update interval": "Aktualisierungsintervall",
 			"Seconds": "Sekunden",
 
@@ -65,7 +68,8 @@
 			"Device time": "Gerätezeit",
 			"Wifi signal strenght": "WLAN-Signalstärke",
 			"Last update": "Letzte Aktualisierung",
-			"Actual total current draw": "Aktuelle Gesamtstromaufnahme",
+			"Actual current draw": "Aktuelle Gesamtstromaufnahme",
+			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
 
 			"Timestamp of last weather information": "Zeitstempel der letzten Wetterinformationen",
 			"Status of last weather query": "Status der letzten Wetterabfrage",

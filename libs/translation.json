@@ -2,8 +2,12 @@
 	"translations": {
 		"de": {
 			"__variableprofile__": "OpenSprinkler.ControllerState",
-			"enabled": "Aktiviert",
-			"disabled": "Deaktiviert",
+			"enabled": "aktiviert",
+			"disabled": "deaktiviert",
+
+			"__variableprofile__": "OpenSprinkler.SensorState",
+			"active": "aktiv",
+			"inactive": "inaktiv",
 
 			"__variableprofile__": "OpenSprinkler.WeatherStatus",
 			"Ok": "OK",
@@ -47,6 +51,18 @@
 			"Reboot due to first-time NTP sync": "Neustart aufgrund erstmaliger NTP-Synchronisierung",
 			"Triggered by program": "Durch Programm ausgelöst",
 			"Power on": "Einschalten",
+
+			"__options__": "SensorType",
+			"Rain sensor": "Regensensor",
+			"Flow sensor": "Durchflusssensor",
+			"Soil sensor": "Bodenfeuchtesensor",
+			"Program switch": "Programmschalter",
+			"Unknown sensor type": "Unbekannter Sensortyp",
+
+			"__options__": "SensorOption",
+			"normally open": "normalerweise offen",
+			"normally closed": "normalerweise geschlossen",
+			"Unknown sensor option": "Unbekannter Sensor-Option",
 
 			"__status__": "",
 			"Instance is inactive (unauthorized)": "Instanz ist inaktiv (Authorisierung fehlerhaft)",

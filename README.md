@@ -69,5 +69,5 @@ Es werden folgende Variablenprofile angelegt:
 
 ## 7. Versions-Historie
 
-- 0.9 @ 19.11.2024 18:00 (initial)
+- 0.9 @ 23.11.2024 18:35 (initial)
   - Initiale Version

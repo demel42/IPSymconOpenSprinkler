@@ -10,6 +10,9 @@ class OpenSprinkler extends IPSModule
     use OpenSprinkler\StubsCommonLib;
     use OpenSprinklerLocalLib;
 
+    public static $MAX_INT_SENSORS = 2;
+    public static $MAX_ZONES = 200;
+
     public function __construct(string $InstanceID)
     {
         parent::__construct($InstanceID);
@@ -35,13 +38,17 @@ class OpenSprinkler extends IPSModule
 
         $this->RegisterPropertyString('mqtt_topic', 'opensprinkler');
 
-        $this->RegisterPropertyString('zones', json_encode([]));
-        $this->RegisterPropertyString('sensors', json_encode([]));
-        $this->RegisterPropertyString('programs', json_encode([]));
+        $this->RegisterPropertyString('zone_list', json_encode([]));
+        $this->RegisterPropertyString('sensor_list', json_encode([]));
+        $this->RegisterPropertyString('program_list', json_encode([]));
+
+        $this->RegisterPropertyString('variables_mqtt_topic', 'opensprinkler/variables');
+        $this->RegisterPropertyString('variable_list', json_encode([]));
 
         $this->RegisterPropertyInteger('update_interval', 60);
 
         $this->RegisterAttributeInteger('timezone_offset', 0);
+        $this->RegisterAttributeInteger('pulse_volume', 0);
 
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
         $this->RegisterAttributeString('ModuleStats', json_encode([]));
@@ -61,6 +68,10 @@ class OpenSprinkler extends IPSModule
 
         if ($message == IPS_KERNELMESSAGE && $data[0] == KR_READY) {
             $this->SetUpdateInterval();
+        }
+
+        if (IPS_GetKernelRunlevel() == KR_READY && $message == VM_UPDATE && $data[1] == true /* changed */) {
+            $this->SendDebug(__FUNCTION__, 'timestamp=' . $timestamp . ', senderID=' . $senderID . ', message=' . $message . ', data=' . print_r($data, true), 0);
         }
     }
 
@@ -123,6 +134,17 @@ class OpenSprinkler extends IPSModule
         parent::ApplyChanges();
 
         $this->MaintainReferences();
+        $varIDs = [];
+        $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
+        foreach ($variable_list as $variable) {
+            $varID = $variable['varID'];
+            if ($this->IsValidID($varID) && IPS_VariableExists($varID)) {
+                $this->RegisterReference($varID);
+                $varIDs[] = $varID;
+            }
+        }
+
+        $this->UnregisterMessages([VM_UPDATE]);
 
         if ($this->CheckPrerequisites() != false) {
             $this->MaintainTimer('UpdateStatus', 0);
@@ -142,13 +164,14 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
+        // 1..100: Controller
         $vpos = 1;
 
         $this->MaintainVariable('ControllerState', $this->Translate('Controller state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ControllerState', $vpos++, true);
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, true);
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
-        $this->MaintainVariable('TotalCurrentDraw', $this->Translate('Actual total current draw'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
+        $this->MaintainVariable('CurrentDraw', $this->Translate('Actual current draw'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
 
         $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
         $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, true);
@@ -161,30 +184,40 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
+        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $f_use = false;
+        // 200+n_sensors*100+1: 2 Sensoren
+        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
+            $vpos = 200 + $i * 100 + 1;
+            $post = '_' . ($i + 1);
+            $s = ' (SN' . ($i + 1) . ')';
+
+            $snt = $this->GetArrayElem($sensor_list, $i . '.type', self::$SENSOR_TYPE_NONE);
+            $use = (bool) $this->GetArrayElem($sensor_list, $i . '.use', false);
+
+            $c_use = $use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL]);
+            $this->MaintainVariable('SensorState' . $post, $this->SensorType2String($snt) . $s, VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $c_use);
+
+            if ($use && $snt == self::$SENSOR_TYPE_FLOW) {
+                $f_use = true;
+                $this->MaintainVariable('WaterFlowrate', $this->Translate('Water flow rate (actual)') . $s, VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $f_use);
+                /*
+                    $this->MaintainVariable('DailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
+                 */
+            }
+        }
+        if ($f_use == false) {
+            $this->UnregisterVariable('WaterFlowrate');
+        }
+
+        $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        $n_zones = count($zone_list);
+        // 1000+n_zones*100+1: x Zonen
+        for ($i = 0; $i < self::$MAX_ZONES; $i++) {
+            $use = (bool) $this->GetArrayElem($zone_list, $i . '.use', false);
+        }
+
         /*
-            1..100: Controller
-
-
-            200+n_sensors*100+1: 2 Sensoren
-
-                self::$SENSOR_RAIN:
-                self::$SENSOR_FLOW_METER:
-                self::$SENSOR_SOIL:
-                self::$SENSOR_PROGRAM_SWITCH:
-
-                self::$SENSOR_OPTION_NORMALLY_OPEN:
-                self::$SENSOR_OPTION_NORMALLY_CLOSE:
-
-                // Flowmeter
-                $this->MaintainVariable('WaterFlowrate', $this->Translate('Water flow rate (current)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $with_flowrate);
-                $this->MaintainVariable('DailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
-
-                // Other
-                $this->MaintainVariable('State', $this->Translate('State'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.Sensor', $vpos++, true);
-
-
-            1000+n_zones*100+1: x Zonen
-
                 // letzter Bewässerungszyklus
                 $this->MaintainVariable('LastRun', $this->Translate('Last run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
                 $this->MaintainVariable('LastDuration', $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, true);
@@ -221,7 +254,12 @@ class OpenSprinkler extends IPSModule
         }
 
         $mqtt_topic = $this->ReadPropertyString('mqtt_topic');
+        // $this->SetReceiveDataFilter(".*\"Topic\":\"".$this->ReadPropertyString("Topic")."/.*");
         $this->SetReceiveDataFilter('.*' . $mqtt_topic . '.*');
+
+        foreach ($varIDs as $varID) {
+            $this->RegisterMessage($varID, VM_UPDATE);
+        }
 
         $this->MaintainStatus(IS_ACTIVE);
 
@@ -279,16 +317,16 @@ class OpenSprinkler extends IPSModule
             'caption' => 'Access configuration',
         ];
 
-        $zones = @json_decode($this->ReadPropertyString('zones'), true);
-        $sensors = @json_decode($this->ReadPropertyString('sensors'), true);
-        $programs = @json_decode($this->ReadPropertyString('programs'), true);
+        $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
 
         $formElements[] = [
             'type'    => 'ExpansionPanel',
             'items'   => [
                 [
                     'type'     => 'List',
-                    'name'     => 'zones',
+                    'name'     => 'zone_list',
                     'columns'  => [
                         [
                             'caption' => 'No',
@@ -329,20 +367,25 @@ class OpenSprinkler extends IPSModule
                             ],
                         ],
                     ],
-                    'values'   => $zones,
-                    'rowCount' => count($zones) > 0 ? count($zones) : 1,
+                    'values'   => $zone_list,
+                    'rowCount' => count($zone_list) > 0 ? count($zone_list) : 1,
                     'add'      => false,
                     'delete'   => false,
                     'caption'  => 'Zones',
                 ],
                 [
                     'type'     => 'List',
-                    'name'     => 'sensors',
+                    'name'     => 'sensor_list',
                     'columns'  => [
                         [
                             'caption' => 'No',
                             'name'    => 'no',
                             'width'   => '50px',
+                            'save'    => true,
+                        ],
+                        [
+                            'name'    => 'type',
+                            'visible' => false,
                             'save'    => true,
                         ],
                         [
@@ -366,15 +409,15 @@ class OpenSprinkler extends IPSModule
                             ],
                         ],
                     ],
-                    'values'   => $sensors,
-                    'rowCount' => count($sensors) > 0 ? count($sensors) : 1,
+                    'values'   => $sensor_list,
+                    'rowCount' => count($sensor_list) > 0 ? count($sensor_list) : 1,
                     'add'      => false,
                     'delete'   => false,
-                    'caption'  => 'Zones',
+                    'caption'  => 'Sensors',
                 ],
                 [
                     'type'     => 'List',
-                    'name'     => 'programs',
+                    'name'     => 'program_list',
                     'columns'  => [
                         [
                             'caption' => 'No',
@@ -403,11 +446,11 @@ class OpenSprinkler extends IPSModule
                             ],
                         ],
                     ],
-                    'values'   => $programs,
-                    'rowCount' => count($programs) > 0 ? count($programs) : 1,
+                    'values'   => $program_list,
+                    'rowCount' => count($program_list) > 0 ? count($program_list) : 1,
                     'add'      => false,
                     'delete'   => false,
-                    'caption'  => 'Zones',
+                    'caption'  => 'Programs',
                 ],
                 [
                     'type'    => 'Button',
@@ -415,7 +458,67 @@ class OpenSprinkler extends IPSModule
                     'onClick' => 'IPS_RequestAction($id, "RetriveConfiguration", "");',
                 ],
             ],
-            'caption' => 'Configuration',
+            'caption' => 'Controller configuration',
+        ];
+
+        /*
+            variables
+                varID
+                mqtt_filter
+
+
+            beijeden Neustart (ApplyChanges?) alle Variablen übertragen
+            übertragungs-intervall
+            passender timestamp
+
+         */
+
+        $formElements[] = [
+            'type'    => 'ExpansionPanel',
+            'items'   => [
+                [
+                    'type'   => 'ValidationTextBox',
+                    'name'   => 'variables_mqtt_topic',
+                    'caption'=> 'MQTT topic für sensor values',
+                ],
+                [
+                    'type'    => 'List',
+                    'name'    => 'variable_list',
+                    'columns' => [
+                        [
+                            'name'    => 'varID',
+                            'add'     => 0,
+                            'edit'    => [
+                                'type' => 'SelectVariable',
+                            ],
+                            'width'   => 'auto',
+                            'caption' => 'Reference variable',
+                        ],
+                        [
+                            'name'    => 'mqtt_filter',
+                            'add'     => '',
+                            'edit'    => [
+                                'type' => 'ValidationTextBox',
+                            ],
+                            'width'   => '300px',
+                            'caption' => 'Ident on the controller ("MQTT filter")',
+                        ],
+                        [
+                            'add'     => true,
+                            'name'    => 'use',
+                            'width'   => '90px',
+                            'edit'    => [
+                                'type' => 'CheckBox'
+                            ],
+                            'caption' => 'Use',
+                        ],
+                    ],
+                    'add'      => true,
+                    'delete'   => true,
+                    'caption'  => 'Variables to be transferred',
+                ],
+            ],
+            'caption' => 'External sensor values',
         ];
 
         $formElements[] = [
@@ -482,11 +585,15 @@ class OpenSprinkler extends IPSModule
         $this->MaintainTimer('UpdateStatus', $sec * 1000);
     }
 
-    private function SaveTimezoneOffset($tz)
+    private function SaveTimezoneOffset($options)
     {
-        $tz_offs = ($tz - 48) / 4 * 3600;
-        $this->SendDebug(__FUNCTION__, 'tz=' . $tz . ' (' . $this->seconds2duration($tz_offs) . ')', 0);
-        $this->WriteAttributeInteger('timezone_offset', $tz_offs);
+        $fnd = true;
+        $tz = $this->GetArrayElem($options, 'tz', 0, $fnd);
+        if ($fnd) {
+            $tz_offs = ($tz - 48) / 4 * 3600;
+            $this->SendDebug(__FUNCTION__, 'tz=' . $tz . ' => ' . $this->seconds2duration($tz_offs), 0);
+            $this->WriteAttributeInteger('timezone_offset', $tz_offs);
+        }
     }
 
     private function AdjustTimestamp($tstamp)
@@ -496,6 +603,26 @@ class OpenSprinkler extends IPSModule
             $tstamp -= $tz_offs;
         }
         return $tstamp;
+    }
+
+    private function SaveFlowVolume4Pulse($options)
+    {
+        $fnd = true;
+        $fpr0 = $this->GetArrayElem($options, 'fpr0', 0, $fnd);
+        if ($fnd) {
+            $fpr1 = $this->GetArrayElem($options, 'fpr1', 0, $fnd);
+            if ($fnd) {
+                $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
+                $this->SendDebug(__FUNCTION__, 'fpr0=' . $fpr0 . ', fpr1=' . $fpr1 . ' => ' . $fpr . 'l/pulse', 0);
+                $this->WriteAttributeInteger('pulse_volume', $fpr);
+            }
+        }
+    }
+
+    private function ConvertPulses2Volume($count)
+    {
+        $vol = $this->ReadAttributeInteger('pulse_volume');
+        return $count * $vol;
     }
 
     private function UpdateStatus()
@@ -514,6 +641,8 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
+        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+
         $now = time();
 
         $this->SendDebug(__FUNCTION__, 'jdata=' . print_r($jdata, true), 0);
@@ -523,11 +652,13 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'options=' . print_r($options, true), 0);
         $stations = $jdata['stations'];
         $this->SendDebug(__FUNCTION__, 'stations=' . print_r($stations, true), 0);
+        $programs = $jdata['programs'];
+        $this->SendDebug(__FUNCTION__, 'programs=' . print_r($programs, true), 0);
+
+        $this->SaveTimezoneOffset($options);
+        $this->SaveFlowVolume4Pulse($options);
 
         $fnd = true;
-
-        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
-        $this->SaveTimezoneOffset($tz);
 
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
@@ -589,19 +720,34 @@ class OpenSprinkler extends IPSModule
 
         $curr = $this->GetArrayElem($jdata, 'settings.curr', 0, $fnd);
         if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... TotalCurrentDraw (settings.curr)=' . $curr, 0);
-            $this->SetValue('TotalCurrentDraw', $curr);
+            $this->SendDebug(__FUNCTION__, '... CurrentDraw (settings.curr)=' . $curr, 0);
+            $this->SetValue('CurrentDraw', $curr);
         }
 
-        $sn1 = $this->GetArrayElem($jdata, 'settings.sn1', 0, $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... ?? (settings.sn1)=' . $sn1, 0);
-            //$this->SetValue('??', $sn1);
-        }
-        $sn2 = $this->GetArrayElem($jdata, 'settings.sn2', 0, $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... ?? (settings.sn2)=' . $sn2, 0);
-            //$this->SetValue('??', $sn2);
+        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
+            $post = '_' . ($i + 1);
+
+            $snt = $this->GetArrayElem($sensor_list, $i . '.type', self::$SENSOR_TYPE_NONE);
+            $use = (bool) $this->GetArrayElem($sensor_list, $i . '.use', false);
+
+            if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+                $sn = $this->GetArrayElem($jdata, 'settings.sn' . ($i + 1), 0, $fnd);
+                if ($fnd) {
+                    $ident = 'SensorState' . $post;
+                    $this->SendDebug(__FUNCTION__, '... ' . $ident . ' (settings.sn' . ($i + 1) . ')=' . $sn, 0);
+                    $this->SetValue($ident, $sn);
+                }
+            }
+
+            if ($use && $snt == self::$SENSOR_TYPE_FLOW) {
+                $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
+                $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
+                if ($fnd) {
+                    $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
+                    $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
+                    $this->SetValue('WaterFlowrate', $flow_rate);
+                }
+            }
         }
 
         /*
@@ -647,17 +793,13 @@ class OpenSprinkler extends IPSModule
                 $rem = $ps[$sid][1];
                 $start = $this->AdjustTimestamp($ps[$sid][2]);
                 $gid = $ps[$sid][3];
-                $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, $start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+                $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
             }
         }
 
-        /*
-            flwrt: flow count window in unit of seconds (the firmware defines this as 30 seconds by default).
-            flcrt: real-time flow count (i.e. number of flow sensor clicks during the last flwrt seconds).
-         */
-
         $this->SetValue('LastUpdate', $now);
 
+        // $this->PublishVariables();
         $this->SendDebug(__FUNCTION__, $this->PrintTimer('UpdateStatus'), 0);
     }
 
@@ -677,41 +819,48 @@ class OpenSprinkler extends IPSModule
         if ($data === false) {
             return;
         }
-        $jdata = json_decode($data, true);
-        $stations = $jdata['stations'];
-        $this->SendDebug(__FUNCTION__, 'stations=' . print_r($stations, true), 0);
-        $options = $jdata['options'];
-        $this->SendDebug(__FUNCTION__, 'options=' . print_r($options, true), 0);
-        $program_data = $jdata['programs'];
-        $this->SendDebug(__FUNCTION__, 'program_data=' . print_r($program_data, true), 0);
+        $ja_data = json_decode($data, true);
+        $this->SendDebug(__FUNCTION__, 'stations=' . print_r($ja_data['stations'], true), 0);
+        $this->SendDebug(__FUNCTION__, 'options=' . print_r($ja_data['options'], true), 0);
+        $this->SendDebug(__FUNCTION__, 'programs=' . print_r($ja_data['programs'], true), 0);
 
         $data = $this->do_HttpRequest('je', []);
         $special_stations = json_decode($data, true);
         $this->SendDebug(__FUNCTION__, 'special_stations=' . print_r($special_stations, true), 0);
 
-        $zones = [];
-        $maxlen = $this->GetArrayElem($stations, 'maxlen', 0);
-        $ignore_rain = $this->GetArrayElem($stations, 'ignore_rain', 0);
-        $ignore_sn1 = $this->GetArrayElem($stations, 'ignore_sn1', 0);
-        $ignore_sn2 = $this->GetArrayElem($stations, 'ignore_sn2', 0);
-        $stn_dis = (array) $this->GetArrayElem($stations, 'stn_dis', []);
-        $stn_grp = (array) $this->GetArrayElem($stations, 'stn_grp', []);
-        $stn_spe = (array) $this->GetArrayElem($stations, 'stn_spe', []);
+        $zone_list = [];
+        $maxlen = $this->GetArrayElem($ja_data, 'stations.maxlen', 0);
+        $ignore_rain = $this->GetArrayElem($ja_data, 'stations.ignore_rain', 0);
+        $ignore_sn1 = $this->GetArrayElem($ja_data, 'stations.ignore_sn1', 0);
+        $ignore_sn2 = $this->GetArrayElem($ja_data, 'stations.ignore_sn2', 0);
+        $stn_dis = (array) $this->GetArrayElem($ja_data, 'stations.stn_dis', []);
+        $stn_grp = (array) $this->GetArrayElem($ja_data, 'stations.stn_grp', []);
+        $stn_spe = (array) $this->GetArrayElem($ja_data, 'stations.stn_spe', []);
         for ($idx = 0; $idx < $maxlen; $idx++) {
             if ($this->idx_in_bytes($idx, $stn_dis)) {
                 continue;
             }
-            $sname = $this->GetArrayElem($stations, 'snames.' . $idx, '');
-            $stn_grp = $this->GetArrayElem($stations, 'stn_grp.' . $idx, 0);
+            $sname = $this->GetArrayElem($ja_data, 'stations.snames.' . $idx, '');
+            $stn_grp = $this->GetArrayElem($ja_data, 'stations.stn_grp.' . $idx, 0);
             $infos = [];
             if ($this->idx_in_bytes($idx, $ignore_rain)) {
                 $infos[] = $this->Translate('ignore rain delay');
             }
             if ($this->idx_in_bytes($idx, $ignore_sn1)) {
-                $infos[] = $this->Translate('ignore sensor 1');
+                $snt = $this->GetArrayElem($ja_data, 'options.sn1t', 0);
+                if ($snt == self::$SENSOR_TYPE_FLOW) {
+                    $infos[] = $this->Translate('no flow measuring');
+                } else {
+                    $infos[] = $this->Translate('ignore sensor 1');
+                }
             }
             if ($this->idx_in_bytes($idx, $ignore_sn2)) {
-                $infos[] = $this->Translate('ignore sensor 2');
+                $snt = $this->GetArrayElem($ja_data, 'options.sn2t', 0);
+                if ($snt == self::$SENSOR_TYPE_FLOW) {
+                    $infos[] = $this->Translate('no flow measuring');
+                } else {
+                    $infos[] = $this->Translate('ignore sensor 2');
+                }
             }
             if ($this->idx_in_bytes($idx, $stn_spe)) {
                 $st = $this->GetArrayElem($special_stations, $idx . '.st', 0);
@@ -748,7 +897,7 @@ class OpenSprinkler extends IPSModule
                 $interface = sprintf('S%02d', $idx + 1);
             }
 
-            $zones[] = [
+            $zone_list[] = [
                 'no'        => $idx,
                 'name'      => $sname,
                 'group'     => $this->Group2String($stn_grp),
@@ -758,124 +907,73 @@ class OpenSprinkler extends IPSModule
             ];
         }
 
-        $this->SendDebug(__FUNCTION__, 'zones=' . print_r($zones, true), 0);
+        if ($zone_list != @json_decode($this->ReadPropertyString('zone_list'), true)) {
+            $this->SendDebug(__FUNCTION__, 'update zone_list=' . print_r($zone_list, true), 0);
+            $this->UpdateFormField('zone_list', 'values', json_encode($zone_list));
+            $this->UpdateFormField('zone_list', 'rowCount', count($zone_list) > 0 ? count($zone_list) : 1);
+        } else {
+            $this->SendDebug(__FUNCTION__, 'unchanges zone_list=' . print_r($zone_list, true), 0);
+        }
 
-        $this->UpdateFormField('zones', 'values', json_encode($zones));
-        $this->UpdateFormField('zones', 'rowCount', count($zones) > 0 ? count($zones) : 1);
-
-        $sensors = [];
+        $sensor_list = [];
         for ($idx = 1; $idx <= 2; $idx++) {
-            $snt = $this->GetArrayElem($options, 'sn' . $idx . 't', 0);
+            $snt = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 't', 0);
             switch ($snt) {
-                case 1: // rain sensor
-                    $sno = $this->GetArrayElem($options, 'sn' . $idx . 'o', 0);
-                    $sensors[] = [
+                case self::$SENSOR_TYPE_RAIN:
+                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 'o', 0);
+                    $sensor_list[] = [
                         'no'    => $idx,
-                        'name'  => $this->Translate('Rain sensor'),
-                        'info'  => $this->Translate($sno ? 'Contact is normally open' : 'Contact is normally closed'),
+                        'type'  => $snt,
+                        'name'  => $this->SensorType2String($snt),
+                        'info'  => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
                         'use'   => true,
                     ];
                     break;
-                case 2: // flow sensor
-                    $fpr0 = $this->GetArrayElem($options, 'fpr0', 0);
-                    $fpr1 = $this->GetArrayElem($options, 'fpr1', 0);
+                case self::$SENSOR_TYPE_FLOW:
+                    $fpr0 = $this->GetArrayElem($ja_data, 'options.fpr0', 0);
+                    $fpr1 = $this->GetArrayElem($ja_data, 'options.fpr1', 0);
                     $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
-                    $sensors[] = [
+                    $sensor_list[] = [
                         'no'              => $idx,
-                        'name'            => $this->Translate('Flow sensor'),
-                        'info'            => $this->TranslateFormat('Resolution is {$fpr} l/pulse', ['{$fpr}' => $fpr]),
+                        'type'            => $snt,
+                        'name'            => $this->SensorType2String($snt),
+                        'info'            => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
                         'use'             => true,
-                        'flow_pulse_rate' => $fpr,
                     ];
                     break;
-                case 3: // soil sensor
-                    $sno = $this->GetArrayElem($options, 'sn' . $idx . 'o', 0);
-                    $sensors[] = [
+                case self::$SENSOR_TYPE_SOIL:
+                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 'o', 0);
+                    $sensor_list[] = [
                         'no'    => $idx,
-                        'name'  => $this->Translate('Soil sensor'),
+                        'type'  => $snt,
+                        'name'  => $this->SensorType2String($snt),
                         'use'   => true,
                         'info'  => $this->Translate($sno ? 'normally open' : 'normally closed'),
                     ];
                     break;
-                case 0: // not using sensor
-                case 240: // program switch
                 default:
                     break;
             }
         }
-        $this->SendDebug(__FUNCTION__, 'sensors=' . print_r($sensors, true), 0);
 
-        $this->UpdateFormField('sensors', 'values', json_encode($sensors));
-        $this->UpdateFormField('sensors', 'rowCount', count($sensors) > 0 ? count($sensors) : 1);
+        if ($sensor_list != @json_decode($this->ReadPropertyString('sensor_list'), true)) {
+            $this->SendDebug(__FUNCTION__, 'update sensor_list=' . print_r($sensor_list, true), 0);
+            $this->UpdateFormField('sensor_list', 'values', json_encode($sensor_list));
+            $this->UpdateFormField('sensor_list', 'rowCount', count($sensor_list) > 0 ? count($sensor_list) : 1);
+        } else {
+            $this->SendDebug(__FUNCTION__, 'unchanges sensor_list=' . print_r($sensor_list, true), 0);
+        }
 
-        /*
-        17.11.2024, 17:12:49 | RetriveConfiguration | program_data=Array
-        (
-            [nprogs] => 6
-            [nboards] => 4
-            [mnp] => 40
-            [mnst] => 4
-            [pnsize] => 32
-            [pd] => Array
-                (
-                    [0] => Array
-                        (
-                            [0] => 115
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array ( [0] => 420 [1] => -1 [2] => -1 [3] => -1)
-                            [4] => Array ( [0] => 0 [1] => 0 [2] => 0 [3] => 0 [4] => 0 [5] => 600 [6] => 600 [7] => 600 [8] => 600 [9] => 0 [10] => 0 ... )
-                            [5] => Beete
-                            [6] => Array ( [0] => 0 [1] => 33 [2] => 415)
-                        )
-                )
-
-        )
-
-
-        [[flag, days0, days1, [start0, start1, start2, start3], [dur0, dur1, dur2...], name, [endr, from, to]]]
-        ● flag: a bit field storing program flags
-            o bit 0: program enable 'en' bit (1: enabled; 0: disabled)
-            o bit 1: use weather adjustment 'uwt' bit (1: yes; 0: no)
-            o bit 2-3: odd/even restriction (0: none; 1: odd-day restriction; 2: even-day restriction; 3: undefined)
-            o bit 4-5: program schedule type (0: weekday; 1: undefined; 2: undefined; 3: interval day)
-            o bit 6: start time type (0: repeating type; 1: fixed time type)
-            o bit 7: enable date range (0: do not use date range; 1: use date range)
-        ● days0/days1:
-            o If(flag.bits[4..5]==0), this is a weekday schedule:
-                ▪ days0.bits[0..6] store the binary selection bit from Monday to Sunday; days1 is unused.
-                For example, days0=127 means the program runs every day of the week; days0=21 (0b0010101) means the program runs on Monday, Wednesday, Friday every week.
-            o If(flag.bits[4..5]==3), this is an interval day schedule:
-                ▪ days1 stores the interval day, days0 stores the remainder (i.e. starting in day).
-                For example, days1=3 and days0=0 means the program runs every 3 days, starting from today.
-        ● start0/start1/start2/start3 (a value of -1 means the start time is disabled):
-            o Starttimes support using sunrise or sunset with a maximum offset value of +/- 4 hours in minute granularity:
-                ▪ If bits 13 and 14 are both cleared (i.e. 0), this defines the start time in terms of minutes since midnight.
-                ▪ If bit 13 is 1, this defines sunset time as start time. Similarly, if bit 14 is 1, this defines sunrise time.
-                ▪ If either bit 13 or 14 is 1, the remaining 12 bits then define the offset. Specifically, bit 12 is the sign (if true, it is negative); the absolute value of the offset is the remaining 11 bits (i.e. start_time&0x7FF).
-            o If(flag.bit6==1), this is a fixed starttime type:
-                ▪ start0, start1, start2, start3 store up to 4 fixed start times (minutes from midnight). Acceptable range is -1 to 1440. If set to -1, the
-        specific start time is disabled.
-            o If(flag.bit6==0), this is a repeating starttime type:
-                ▪ start0 stores the first start time (minutes from midnight), start1 stores the repeat count, start2 stores the interval time (in minutes); start3 is unused. For example, [480,5,120,0] means: start at 8:00 AM, repeat every 2 hours (120 minutes) for 5 times.
-        ● dur0,dur1...: The water time (in seconds) of each station. 0 means the station will not run. The number of elements here must match the number of stations. Unlike the previous firmwares, this firmware allows full second-level precision water time from 0 to 64800 seconds (18 hours). The two special values are: 1) 65534 represents sunrise to sunset duration; 2) 65535 represents sunset to sunrise duration.
-        ● name: Program name
-        ● [endr,from,to]: daterange parameters, inclusive on both 'from' and 'to'.
-            o endr: daterange enable (the same value as bit 7 of flag).
-            o from: integer value storing the start date. It's encoded as (month<<5)+day. For example, Feb 3 is encoded as (2<<5)+3=67. The default value is 33 (Jan 1).
-            o to: the end date (encoded the same way as 'from'). The default value is 415 (Dec 31). Note that 'from' can be either smaller than, larger than, or equal to 'to'. If 'from' is larger than 'to', the range goes from 'from' to the 'to' date of the following year.
-
-         */
-        $programs = [];
-        $nprogs = $this->GetArrayElem($program_data, 'nprogs', 0);
+        $program_list = [];
+        $nprogs = $this->GetArrayElem($ja_data, 'programs.nprogs', 0);
         for ($idx = 0; $idx < $nprogs; $idx++) {
-            $flag = $this->GetArrayElem($program_data, 'pd.' . $idx . '.0', '');
-            $days0 = $this->GetArrayElem($program_data, 'pd.' . $idx . '.1', '');
-            $days1 = $this->GetArrayElem($program_data, 'pd.' . $idx . '.2', '');
-            $start = $this->GetArrayElem($program_data, 'pd.' . $idx . '.3', '');
-            $duration = $this->GetArrayElem($program_data, 'pd.' . $idx . '.4', '');
-            $name = $this->GetArrayElem($program_data, 'pd.' . $idx . '.5', '');
-            $daterange = $this->GetArrayElem($program_data, 'pd.' . $idx . '.6', '');
+            $flag = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.0', '');
+            $days0 = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.1', '');
+            $days1 = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.2', '');
+            $start = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.3', '');
+            $duration = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.4', '');
+            $name = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.5', '');
+            $daterange = $this->GetArrayElem($ja_data, 'programs.pd.' . $idx . '.6', '');
 
             $infos = [];
             if ($this->bit_test($flag, 0) == false) {
@@ -887,17 +985,21 @@ class OpenSprinkler extends IPSModule
             $total_duration = array_sum($duration);
             $infos[] = $this->TranslateFormat('Total duration is {$total_duration}m', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
 
-            $programs[] = [
+            $program_list[] = [
                 'no'   => $idx,
                 'name' => $name,
                 'info' => implode(', ', $infos),
                 'use'  => true,
             ];
         }
-        $this->SendDebug(__FUNCTION__, 'programs=' . print_r($programs, true), 0);
 
-        $this->UpdateFormField('programs', 'values', json_encode($programs));
-        $this->UpdateFormField('programs', 'rowCount', count($programs) > 0 ? count($programs) : 1);
+        if ($program_list != @json_decode($this->ReadPropertyString('program_list'), true)) {
+            $this->SendDebug(__FUNCTION__, 'update program_list=' . print_r($program_list, true), 0);
+            $this->UpdateFormField('program_list', 'values', json_encode($program_list));
+            $this->UpdateFormField('program_list', 'rowCount', count($program_list) > 0 ? count($program_list) : 1);
+        } else {
+            $this->SendDebug(__FUNCTION__, 'unchanged program_list=' . print_r($program_list, true), 0);
+        }
     }
 
     public function ReceiveData($data)
@@ -924,6 +1026,47 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'topic=' . $topic . ', payload=' . print_r($payload, true), 0);
 
         $this->MaintainStatus(IS_ACTIVE);
+    }
+
+    protected function PublishVariables()
+    {
+        $variables_mqtt_topic = $this->ReadPropertyString('variables_mqtt_topic');
+
+        $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
+        foreach ($variable_list as $variable) {
+            $varID = $variable['varID'];
+            if (IPS_VariableExists($varID) == false) {
+                continue;
+            }
+            $payload = [
+                $variable['mqtt_filter'] => GetValue($varID),
+            ];
+            $jdata = [
+                'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
+                'PacketType'       => 3,
+                'QualityOfService' => 0,
+                'Retain'           => false,
+                'Topic'            => $variables_mqtt_topic,
+                'Payload'          => json_encode($payload),
+            ];
+
+            $data = json_encode($jdata);
+            $this->SendDataToParent($data);
+            $this->SendDebug(__FUNCTION__, 'SendDataToParent(' . $data . ')', 0);
+        }
+    }
+
+    public function ForwardData($data)
+    {
+        $this->SendDebug(__FUNCTION__, 'data=' . $data, 0);
+
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $jdata = @json_decode($data, true);
+        $this->SendDebug(__FUNCTION__, 'jdata=' . print_r($jdata, true), 0);
     }
 
     private function LocalRequestAction($ident, $value)
@@ -1146,7 +1289,7 @@ class OpenSprinkler extends IPSModule
 
 /*
 
-stations.stn_fas=Strömungsüberwachun-Grenzmenge in l/min (/100)
+stations.stn_fas=Strömungsüberwachungs-Grenzmenge in l/min (/100)
 stations.stn_favg=Durchschnittliche Strömungsmenge in l/min (/100)
 
 17.11.2024, 14:11:53 | RetriveConfiguration | jdata=Array
@@ -2219,3 +2362,61 @@ stations.stn_favg=Durchschnittliche Strömungsmenge in l/min (/100)
 )
 
  */
+        /*
+        17.11.2024, 17:12:49 | RetriveConfiguration | program_data=Array
+        (
+            [nprogs] => 6
+            [nboards] => 4
+            [mnp] => 40
+            [mnst] => 4
+            [pnsize] => 32
+            [pd] => Array
+                (
+                    [0] => Array
+                        (
+                            [0] => 115
+                            [1] => 0
+                            [2] => 1
+                            [3] => Array ( [0] => 420 [1] => -1 [2] => -1 [3] => -1)
+                            [4] => Array ( [0] => 0 [1] => 0 [2] => 0 [3] => 0 [4] => 0 [5] => 600 [6] => 600 [7] => 600 [8] => 600 [9] => 0 [10] => 0 ... )
+                            [5] => Beete
+                            [6] => Array ( [0] => 0 [1] => 33 [2] => 415)
+                        )
+                )
+
+        )
+
+
+        [[flag, days0, days1, [start0, start1, start2, start3], [dur0, dur1, dur2...], name, [endr, from, to]]]
+        ● flag: a bit field storing program flags
+            o bit 0: program enable 'en' bit (1: enabled; 0: disabled)
+            o bit 1: use weather adjustment 'uwt' bit (1: yes; 0: no)
+            o bit 2-3: odd/even restriction (0: none; 1: odd-day restriction; 2: even-day restriction; 3: undefined)
+            o bit 4-5: program schedule type (0: weekday; 1: undefined; 2: undefined; 3: interval day)
+            o bit 6: start time type (0: repeating type; 1: fixed time type)
+            o bit 7: enable date range (0: do not use date range; 1: use date range)
+        ● days0/days1:
+            o If(flag.bits[4..5]==0), this is a weekday schedule:
+                ▪ days0.bits[0..6] store the binary selection bit from Monday to Sunday; days1 is unused.
+                For example, days0=127 means the program runs every day of the week; days0=21 (0b0010101) means the program runs on Monday, Wednesday, Friday every week.
+            o If(flag.bits[4..5]==3), this is an interval day schedule:
+                ▪ days1 stores the interval day, days0 stores the remainder (i.e. starting in day).
+                For example, days1=3 and days0=0 means the program runs every 3 days, starting from today.
+        ● start0/start1/start2/start3 (a value of -1 means the start time is disabled):
+            o Starttimes support using sunrise or sunset with a maximum offset value of +/- 4 hours in minute granularity:
+                ▪ If bits 13 and 14 are both cleared (i.e. 0), this defines the start time in terms of minutes since midnight.
+                ▪ If bit 13 is 1, this defines sunset time as start time. Similarly, if bit 14 is 1, this defines sunrise time.
+                ▪ If either bit 13 or 14 is 1, the remaining 12 bits then define the offset. Specifically, bit 12 is the sign (if true, it is negative); the absolute value of the offset is the remaining 11 bits (i.e. start_time&0x7FF).
+            o If(flag.bit6==1), this is a fixed starttime type:
+                ▪ start0, start1, start2, start3 store up to 4 fixed start times (minutes from midnight). Acceptable range is -1 to 1440. If set to -1, the
+        specific start time is disabled.
+            o If(flag.bit6==0), this is a repeating starttime type:
+                ▪ start0 stores the first start time (minutes from midnight), start1 stores the repeat count, start2 stores the interval time (in minutes); start3 is unused. For example, [480,5,120,0] means: start at 8:00 AM, repeat every 2 hours (120 minutes) for 5 times.
+        ● dur0,dur1...: The water time (in seconds) of each station. 0 means the station will not run. The number of elements here must match the number of stations. Unlike the previous firmwares, this firmware allows full second-level precision water time from 0 to 64800 seconds (18 hours). The two special values are: 1) 65534 represents sunrise to sunset duration; 2) 65535 represents sunset to sunrise duration.
+        ● name: Program name
+        ● [endr,from,to]: daterange parameters, inclusive on both 'from' and 'to'.
+            o endr: daterange enable (the same value as bit 7 of flag).
+            o from: integer value storing the start date. It's encoded as (month<<5)+day. For example, Feb 3 is encoded as (2<<5)+3=67. The default value is 33 (Jan 1).
+            o to: the end date (encoded the same way as 'from'). The default value is 415 (Dec 31). Note that 'from' can be either smaller than, larger than, or equal to 'to'. If 'from' is larger than 'to', the range goes from 'from' to the 'to' date of the following year.
+
+         */

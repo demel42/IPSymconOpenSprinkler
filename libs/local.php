@@ -93,11 +93,26 @@ trait OpenSprinklerLocalLib
     public static $NUM_SEQUENTIAL_GROUPS = 4;
     public static $PARALLEL_GROUP = 255;
 
+    public static $SENSOR_TYPE_NONE = 0;
+    public static $SENSOR_TYPE_RAIN = 1;
+    public static $SENSOR_TYPE_FLOW = 2;
+    public static $SENSOR_TYPE_SOIL = 3;
+    public static $SENSOR_TYPE_PROGRAM_SWITCH = 240;
+
+    public static $SENSOR_OPTION_NORMALLY_CLOSE = 0;
+    public static $SENSOR_OPTION_NORMALLY_OPEN = 1;
+
     private function InstallVarProfiles(bool $reInstall = false)
     {
         if ($reInstall) {
             $this->SendDebug(__FUNCTION__, 'reInstall=' . $this->bool2str($reInstall), 0);
         }
+
+        $associations = [
+            ['Wert' => false, 'Name' => $this->Translate('inactive'), 'Farbe' => -1],
+            ['Wert' => true, 'Name' => $this->Translate('active'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
             ['Wert' => self::$CONTROLLER_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
@@ -157,6 +172,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.RebootCause', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', '', $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.WaterFlowrate', VARIABLETYPE_FLOAT, ' l/min', 0, 0, 0, 0, '', '', $reInstall);
     }
 
     private function Group2String($grp)
@@ -169,5 +185,46 @@ trait OpenSprinklerLocalLib
             $ret = '?';
         }
         return $ret;
+    }
+
+    private function SensorTypeMapping()
+    {
+        return [
+            self::$SENSOR_TYPE_NONE           => 'None',
+            self::$SENSOR_TYPE_RAIN           => 'Rain sensor',
+            self::$SENSOR_TYPE_FLOW           => 'Flow sensor',
+            self::$SENSOR_TYPE_SOIL           => 'Soil sensor',
+            self::$SENSOR_TYPE_PROGRAM_SWITCH => 'Program switch',
+        ];
+    }
+
+    private function SensorType2String($sensorType)
+    {
+        $sensorTypeMap = $this->SensorTypeMapping();
+        if (isset($sensorTypeMap[$sensorType])) {
+            $s = $this->Translate($sensorTypeMap[$sensorType]);
+        } else {
+            $s = $this->Translate('Unknown sensor type') . ' ' . $sensorType;
+        }
+        return $s;
+    }
+
+    private function SensorOptionMapping()
+    {
+        return [
+            self::$SENSOR_OPTION_NORMALLY_OPEN  => 'normally open',
+            self::$SENSOR_OPTION_NORMALLY_CLOSE => 'normally closed',
+        ];
+    }
+
+    private function SensorOption2String($sensorOption)
+    {
+        $sensorOptionMap = $this->SensorOptionMapping();
+        if (isset($sensorOptionMap[$sensorOption])) {
+            $s = $this->Translate($sensorOptionMap[$sensorOption]);
+        } else {
+            $s = $this->Translate('Unknown sensor option') . ' ' . $sensorOption;
+        }
+        return $s;
     }
 }
