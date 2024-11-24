@@ -6,6 +6,10 @@
 			"disabled": "deaktiviert",
 
 			"__variableprofile__": "OpenSprinkler.SensorState",
+			"triggered": "ausgelöst",
+			"released": "ruhig",
+
+			"__variableprofile__": "OpenSprinkler.ZoneState",
 			"active": "aktiv",
 			"inactive": "inaktiv",
 

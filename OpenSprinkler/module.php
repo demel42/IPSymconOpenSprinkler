@@ -202,10 +202,21 @@ class OpenSprinkler extends IPSModule
         for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
             $vpos = 200 + $i * 100 + 1;
             $post = '_' . ($i + 1);
-            $s = ' (SN' . ($i + 1) . ')';
+            $s = ' [SN' . ($i + 1) . ']';
 
-            $snt = $this->GetArrayElem($sensor_list, $i . '.type', self::$SENSOR_TYPE_NONE);
-            $use = (bool) $this->GetArrayElem($sensor_list, $i . '.use', false);
+            for ($n = 0; $n < count($sensor_list); $n++) {
+                if ($sensor_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($sensor_list)) {
+                $this->UnregisterVariable('SensorState' . $post);
+                continue;
+            }
+            $sensor_entry = $sensor_list[$n];
+
+            $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
+            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
 
             $c_use = $use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL]);
             $this->MaintainVariable('SensorState' . $post, $this->SensorType2String($snt) . $s, VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $c_use);
@@ -229,7 +240,24 @@ class OpenSprinkler extends IPSModule
         $n_zones = count($zone_list);
         // 1000+n_zones*100+1: x Zonen
         for ($i = 0; $i < self::$MAX_ZONES; $i++) {
-            $use = (bool) $this->GetArrayElem($zone_list, $i . '.use', false);
+            $vpos = 1000 + $i * 100 + 1;
+            $post = '_' . ($i + 1);
+            $s = ' [Z' . ($i + 1) . ']';
+
+            for ($n = 0; $n < count($zone_list); $n++) {
+                if ($zone_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($zone_list)) {
+                // $this->UnregisterVariable('xx' . $post);
+                continue;
+            }
+            $zone_entry = $zone_list[$n];
+
+            $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
+
+            $this->MaintainVariable('ZoneState' . $post, $this->Translate('Zone state') . $s, VARIABLETYPE_BOOLEAN, 'OpenSprinkler.ZoneState', $vpos++, $use);
         }
 
         /*
@@ -691,6 +719,10 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
+        $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        if ($zone_list === false) {
+            $zone_list = [];
+        }
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
         if ($sensor_list === false) {
             $sensor_list = [];
@@ -777,32 +809,6 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('CurrentDraw', $curr);
         }
 
-        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
-            $post = '_' . ($i + 1);
-
-            $snt = $this->GetArrayElem($sensor_list, $i . '.type', self::$SENSOR_TYPE_NONE);
-            $use = (bool) $this->GetArrayElem($sensor_list, $i . '.use', false);
-
-            if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
-                $sn = $this->GetArrayElem($jdata, 'settings.sn' . ($i + 1), 0, $fnd);
-                if ($fnd) {
-                    $ident = 'SensorState' . $post;
-                    $this->SendDebug(__FUNCTION__, '... ' . $ident . ' (settings.sn' . ($i + 1) . ')=' . $sn, 0);
-                    $this->SetValue($ident, $sn);
-                }
-            }
-
-            if ($use && $snt == self::$SENSOR_TYPE_FLOW) {
-                $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
-                $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
-                if ($fnd) {
-                    $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
-                    $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
-                    $this->SetValue('WaterFlowrate', $flow_rate);
-                }
-            }
-        }
-
         /*
             Last run record, which stores the [station index, program index, duration, end time] of the last run station.
          */
@@ -850,6 +856,71 @@ class OpenSprinkler extends IPSModule
             }
         }
 
+        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
+            for ($n = 0; $n < count($sensor_list); $n++) {
+                if ($sensor_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($sensor_list)) {
+                continue;
+            }
+            $sensor_entry = $sensor_list[$n];
+
+            $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
+            if ($use === false) {
+                continue;
+            }
+
+            $post = '_' . ($i + 1);
+            $sni = $i + 1;
+
+            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
+            if (in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+                $sn = $this->GetArrayElem($jdata, 'settings.sn' . $sni, 0, $fnd);
+                if ($fnd) {
+                    $this->SendDebug(__FUNCTION__, '... SensorState' . $post . ' (settings.sn' . $sni . ')=' . $sn, 0);
+                    $this->SetValue('SensorState' . $post, $sn);
+                }
+            }
+            if ($snt == self::$SENSOR_TYPE_FLOW) {
+                $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
+                $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
+                if ($fnd) {
+                    $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
+                    $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
+                    $this->SetValue('WaterFlowrate', $flow_rate);
+                }
+            }
+        }
+
+        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
+        for ($i = 0; $i < $maxlen; $i++) {
+            for ($n = 0; $n < count($zone_list); $n++) {
+                if ($zone_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($zone_list)) {
+                continue;
+            }
+            $zone_entry = $zone_list[$n];
+
+            $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
+            if ($use === false) {
+                continue;
+            }
+
+            $post = '_' . ($i + 1);
+
+            $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', [], $fnd);
+            if ($fnd) {
+                $en = $this->idx_in_bytes($i, $stn_dis) ? false : true;
+                $this->SendDebug(__FUNCTION__, '... ZoneState' . $post . ' (settings.stn_dis)=' . implode('/', $stn_dis) . ' => ' . $this->bool2str($en), 0);
+                $this->SetValue('ZoneState' . $post, $en);
+            }
+        }
+
         $this->SetValue('LastUpdate', $now);
 
         $this->SendDebug(__FUNCTION__, $this->PrintTimer('QueryStatus'), 0);
@@ -889,9 +960,11 @@ class OpenSprinkler extends IPSModule
         $stn_grp = (array) $this->GetArrayElem($ja_data, 'stations.stn_grp', []);
         $stn_spe = (array) $this->GetArrayElem($ja_data, 'stations.stn_spe', []);
         for ($idx = 0; $idx < $maxlen; $idx++) {
+            /*
             if ($this->idx_in_bytes($idx, $stn_dis)) {
                 continue;
             }
+             */
             $sname = $this->GetArrayElem($ja_data, 'stations.snames.' . $idx, '');
             $stn_grp = $this->GetArrayElem($ja_data, 'stations.stn_grp.' . $idx, 0);
             $infos = [];
@@ -968,17 +1041,18 @@ class OpenSprinkler extends IPSModule
         }
 
         $sensor_list = [];
-        for ($idx = 1; $idx <= 2; $idx++) {
-            $snt = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 't', 0);
+        for ($idx = 0; $idx <= 1; $idx++) {
+            $sni = $idx + 1;
+            $snt = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 't', 0);
             switch ($snt) {
                 case self::$SENSOR_TYPE_RAIN:
-                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 'o', 0);
+                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
                     $sensor_list[] = [
-                        'no'    => $idx,
-                        'type'  => $snt,
-                        'name'  => $this->SensorType2String($snt),
-                        'info'  => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
-                        'use'   => true,
+                        'no'   => $idx,
+                        'type' => $snt,
+                        'name' => $this->SensorType2String($snt),
+                        'info' => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
+                        'use'  => true,
                     ];
                     break;
                 case self::$SENSOR_TYPE_FLOW:
@@ -986,21 +1060,21 @@ class OpenSprinkler extends IPSModule
                     $fpr1 = $this->GetArrayElem($ja_data, 'options.fpr1', 0);
                     $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
                     $sensor_list[] = [
-                        'no'              => $idx,
-                        'type'            => $snt,
-                        'name'            => $this->SensorType2String($snt),
-                        'info'            => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
-                        'use'             => true,
+                        'no'   => $idx,
+                        'type' => $snt,
+                        'name' => $this->SensorType2String($snt),
+                        'info' => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
+                        'use'  => true,
                     ];
                     break;
                 case self::$SENSOR_TYPE_SOIL:
-                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $idx . 'o', 0);
+                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
                     $sensor_list[] = [
-                        'no'    => $idx,
-                        'type'  => $snt,
-                        'name'  => $this->SensorType2String($snt),
-                        'use'   => true,
-                        'info'  => $this->Translate($sno ? 'normally open' : 'normally closed'),
+                        'no'   => $idx,
+                        'type' => $snt,
+                        'name' => $this->SensorType2String($snt),
+                        'use'  => true,
+                        'info' => $this->Translate($sno ? 'normally open' : 'normally closed'),
                     ];
                     break;
                 default:
@@ -1251,36 +1325,6 @@ class OpenSprinkler extends IPSModule
 
         $statuscode = 0;
         $err = '';
-
-        /*
-        #define HTML_OK               0x00
-        #define HTML_SUCCESS          0x01
-        #define HTML_UNAUTHORIZED     0x02
-        #define HTML_MISMATCH         0x03
-        #define HTML_DATA_MISSING     0x10
-        #define HTML_DATA_OUTOFBOUND  0x11
-        #define HTML_DATA_FORMATERROR 0x12
-        #define HTML_RFCODE_ERROR     0x13
-        #define HTML_PAGE_NOT_FOUND   0x20
-        #define HTML_NOT_PERMITTED    0x30
-        #define HTML_UPLOAD_FAILED    0x40
-        #define HTML_REDIRECT_HOME    0xFF
-
-        "result":1} {"result":2} {"result":3} {"result":16} {"result":17} {"result":18} {"result":19} {"result":32} {"result":48}
-        Major Changes
-
-
-
-        (e.g. missing password or password is incorrect)
-        (e.g. new password and confirmation password do not match)
-        (e.g. missing required parameters)
-        (e.g. value exceeds the acceptable range)
-        (e.g. provided data does not match required format)
-        (e.g. RF code does not match required format)
-        (e.g. page not found or requested file missing)
-        (e.g. cannot operate on the requested station)
-
-         */
 
         if ($cerrno) {
             $statuscode = self::$IS_SERVERERROR;

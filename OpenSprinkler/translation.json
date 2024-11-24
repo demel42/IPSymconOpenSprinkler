@@ -64,6 +64,8 @@
 
 			"__variables__": "",
 			"Controller state": "Steuergerät-Status",
+			"Sensor state": "Sensor-Status",
+			"Zone state": "Zonen-Status",
 			"Watering level": "Bewässerungsniveau",
 			"Rain delay until": "Regenbedingte Unterbrechung bis",
 			"Device time": "Gerätezeit",

@@ -109,10 +109,16 @@ trait OpenSprinklerLocalLib
         }
 
         $associations = [
+            ['Wert' => false, 'Name' => $this->Translate('released'), 'Farbe' => -1],
+            ['Wert' => true, 'Name' => $this->Translate('triggered'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
+
+        $associations = [
             ['Wert' => false, 'Name' => $this->Translate('inactive'), 'Farbe' => -1],
             ['Wert' => true, 'Name' => $this->Translate('active'), 'Farbe' => -1],
         ];
-        $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
             ['Wert' => self::$CONTROLLER_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
