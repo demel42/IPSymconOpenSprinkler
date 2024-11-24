@@ -58,7 +58,8 @@
 			"Reference variable": "Referenzvariable",
 			"Ident on the controller (\"MQTT filter\")": "Ident auf dem Controller (\"MQTT-Filter\")",
 
-			"Update interval": "Aktualisierungsintervall",
+			"Query interval": "Abfrageintervall",
+			"Send interval": "Sendeintervall",
 			"Seconds": "Sekunden",
 
 			"__variables__": "",
@@ -77,7 +78,8 @@
 			"Cause of last reboot": "Ursache des letzten Neustarts",
 
 			"__actions__": "",
-			"Update status": "Aktualisiere Status",
+			"Query status": "Status abfragen",
+			"Send variables": "Variablen übertragen",
 
 			"__end__": ""
 		}

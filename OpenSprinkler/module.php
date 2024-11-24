@@ -36,6 +36,8 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyInteger('port', 0);
         $this->RegisterPropertyString('password', '');
 
+        $this->RegisterPropertyInteger('query_interval', 60);
+
         $this->RegisterPropertyString('mqtt_topic', 'opensprinkler');
 
         $this->RegisterPropertyString('zone_list', json_encode([]));
@@ -44,8 +46,7 @@ class OpenSprinkler extends IPSModule
 
         $this->RegisterPropertyString('variables_mqtt_topic', 'opensprinkler/variables');
         $this->RegisterPropertyString('variable_list', json_encode([]));
-
-        $this->RegisterPropertyInteger('update_interval', 60);
+        $this->RegisterPropertyInteger('send_interval', 300);
 
         $this->RegisterAttributeInteger('timezone_offset', 0);
         $this->RegisterAttributeInteger('pulse_volume', 0);
@@ -55,7 +56,8 @@ class OpenSprinkler extends IPSModule
 
         $this->InstallVarProfiles(false);
 
-        $this->RegisterTimer('UpdateStatus', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "UpdateStatus", "");');
+        $this->RegisterTimer('QueryStatus', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "QueryStatus", "");');
+        $this->RegisterTimer('SendVariables', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "SendVariables", "");');
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
@@ -67,7 +69,8 @@ class OpenSprinkler extends IPSModule
         parent::MessageSink($timestamp, $senderID, $message, $data);
 
         if ($message == IPS_KERNELMESSAGE && $data[0] == KR_READY) {
-            $this->SetUpdateInterval();
+            $this->SetQueryInterval();
+            $this->SetSendInterval();
         }
 
         if (IPS_GetKernelRunlevel() == KR_READY && $message == VM_UPDATE && $data[1] == true /* changed */) {
@@ -136,6 +139,9 @@ class OpenSprinkler extends IPSModule
         $this->MaintainReferences();
         $varIDs = [];
         $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
+        if ($variable_list === false) {
+            $variable_list = [];
+        }
         foreach ($variable_list as $variable) {
             $varID = $variable['varID'];
             if ($this->IsValidID($varID) && IPS_VariableExists($varID)) {
@@ -147,19 +153,22 @@ class OpenSprinkler extends IPSModule
         $this->UnregisterMessages([VM_UPDATE]);
 
         if ($this->CheckPrerequisites() != false) {
-            $this->MaintainTimer('UpdateStatus', 0);
+            $this->MaintainTimer('QueryStatus', 0);
+            $this->MaintainTimer('SendVariables', 0);
             $this->MaintainStatus(self::$IS_INVALIDPREREQUISITES);
             return;
         }
 
         if ($this->CheckUpdate() != false) {
-            $this->MaintainTimer('UpdateStatus', 0);
+            $this->MaintainTimer('QueryStatus', 0);
+            $this->MaintainTimer('SendVariables', 0);
             $this->MaintainStatus(self::$IS_UPDATEUNCOMPLETED);
             return;
         }
 
         if ($this->CheckConfiguration() != false) {
-            $this->MaintainTimer('UpdateStatus', 0);
+            $this->MaintainTimer('QueryStatus', 0);
+            $this->MaintainTimer('SendVariables', 0);
             $this->MaintainStatus(self::$IS_INVALIDCONFIG);
             return;
         }
@@ -185,6 +194,9 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+        if ($sensor_list === false) {
+            $sensor_list = [];
+        }
         $f_use = false;
         // 200+n_sensors*100+1: 2 Sensoren
         for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
@@ -211,6 +223,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        if ($zone_list === false) {
+            $zone_list = [];
+        }
         $n_zones = count($zone_list);
         // 1000+n_zones*100+1: x Zonen
         for ($i = 0; $i < self::$MAX_ZONES; $i++) {
@@ -248,13 +263,13 @@ class OpenSprinkler extends IPSModule
 
         $module_disable = $this->ReadPropertyBoolean('module_disable');
         if ($module_disable) {
-            $this->MaintainTimer('UpdateStatus', 0);
+            $this->MaintainTimer('QueryStatus', 0);
+            $this->MaintainTimer('SendVariables', 0);
             $this->MaintainStatus(IS_INACTIVE);
             return;
         }
 
         $mqtt_topic = $this->ReadPropertyString('mqtt_topic');
-        // $this->SetReceiveDataFilter(".*\"Topic\":\"".$this->ReadPropertyString("Topic")."/.*");
         $this->SetReceiveDataFilter('.*' . $mqtt_topic . '.*');
 
         foreach ($varIDs as $varID) {
@@ -264,7 +279,8 @@ class OpenSprinkler extends IPSModule
         $this->MaintainStatus(IS_ACTIVE);
 
         if (IPS_GetKernelRunlevel() == KR_READY) {
-            $this->SetUpdateInterval();
+            $this->SetQueryInterval();
+            $this->SetSendInterval();
         }
     }
 
@@ -318,8 +334,17 @@ class OpenSprinkler extends IPSModule
         ];
 
         $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        if ($zone_list === false) {
+            $zone_list = [];
+        }
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+        if ($sensor_list === false) {
+            $sensor_list = [];
+        }
         $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
+        if ($program_list === false) {
+            $program_list = [];
+        }
 
         $formElements[] = [
             'type'    => 'ExpansionPanel',
@@ -482,6 +507,13 @@ class OpenSprinkler extends IPSModule
                     'caption'=> 'MQTT topic für sensor values',
                 ],
                 [
+                    'type'    => 'NumberSpinner',
+                    'name'    => 'send_interval',
+                    'suffix'  => 'Seconds',
+                    'minimum' => 0,
+                    'caption' => 'Send variables interval',
+                ],
+                [
                     'type'    => 'List',
                     'name'    => 'variable_list',
                     'columns' => [
@@ -523,10 +555,10 @@ class OpenSprinkler extends IPSModule
 
         $formElements[] = [
             'type'    => 'NumberSpinner',
-            'name'    => 'update_interval',
+            'name'    => 'query_interval',
             'suffix'  => 'Seconds',
             'minimum' => 0,
-            'caption' => 'Update interval',
+            'caption' => 'Query interval',
         ];
 
         return $formElements;
@@ -546,9 +578,19 @@ class OpenSprinkler extends IPSModule
         }
 
         $formActions[] = [
-            'type'    => 'Button',
-            'caption' => 'Update status',
-            'onClick' => 'IPS_RequestAction($id, "UpdateStatus", "");',
+            'type'      => 'RowLayout',
+            'items'     => [
+                [
+                    'type'    => 'Button',
+                    'caption' => 'Query status',
+                    'onClick' => 'IPS_RequestAction($id, "QueryStatus", "");',
+                ],
+                [
+                    'type'    => 'Button',
+                    'caption' => 'Send variables',
+                    'onClick' => 'IPS_RequestAction($id, "SendVariables", "");',
+                ],
+            ],
         ];
 
         $formActions[] = [
@@ -577,12 +619,20 @@ class OpenSprinkler extends IPSModule
         return $formActions;
     }
 
-    private function SetUpdateInterval(int $sec = null)
+    private function SetQueryInterval(int $sec = null)
     {
         if (is_null($sec)) {
-            $sec = $this->ReadPropertyInteger('update_interval');
+            $sec = $this->ReadPropertyInteger('query_interval');
         }
-        $this->MaintainTimer('UpdateStatus', $sec * 1000);
+        $this->MaintainTimer('QueryStatus', $sec * 1000);
+    }
+
+    private function SetSendInterval(int $sec = null)
+    {
+        if (is_null($sec)) {
+            $sec = $this->ReadPropertyInteger('send_interval');
+        }
+        $this->MaintainTimer('SendVariables', $sec * 1000);
     }
 
     private function SaveTimezoneOffset($options)
@@ -625,7 +675,7 @@ class OpenSprinkler extends IPSModule
         return $count * $vol;
     }
 
-    private function UpdateStatus()
+    private function QueryStatus()
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -642,6 +692,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
+        if ($sensor_list === false) {
+            $sensor_list = [];
+        }
 
         $now = time();
 
@@ -799,8 +852,7 @@ class OpenSprinkler extends IPSModule
 
         $this->SetValue('LastUpdate', $now);
 
-        // $this->PublishVariables();
-        $this->SendDebug(__FUNCTION__, $this->PrintTimer('UpdateStatus'), 0);
+        $this->SendDebug(__FUNCTION__, $this->PrintTimer('QueryStatus'), 0);
     }
 
     private function idx_in_bytes($idx, $val)
@@ -1028,32 +1080,47 @@ class OpenSprinkler extends IPSModule
         $this->MaintainStatus(IS_ACTIVE);
     }
 
-    protected function PublishVariables()
+    protected function SendVariables()
     {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
         $variables_mqtt_topic = $this->ReadPropertyString('variables_mqtt_topic');
 
         $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
+        if ($variable_list === false) {
+            $variable_list = [];
+        }
+        $payload = [];
         foreach ($variable_list as $variable) {
             $varID = $variable['varID'];
             if (IPS_VariableExists($varID) == false) {
                 continue;
             }
-            $payload = [
-                $variable['mqtt_filter'] => GetValue($varID),
-            ];
-            $jdata = [
-                'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
-                'PacketType'       => 3,
-                'QualityOfService' => 0,
-                'Retain'           => false,
-                'Topic'            => $variables_mqtt_topic,
-                'Payload'          => json_encode($payload),
-            ];
-
-            $data = json_encode($jdata);
-            $this->SendDataToParent($data);
-            $this->SendDebug(__FUNCTION__, 'SendDataToParent(' . $data . ')', 0);
+            $payload[$variable['mqtt_filter']] = GetValue($varID);
         }
+        $r = $this->PublishToOpenSprinkler($variables_mqtt_topic, $payload);
+
+        $this->SendDebug(__FUNCTION__, $this->PrintTimer('SendVariables'), 0);
+    }
+
+    protected function PublishToOpenSprinkler($topic, $payload)
+    {
+        $jdata = [
+            'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
+            'PacketType'       => 3,
+            'QualityOfService' => 0,
+            'Retain'           => false,
+            'Topic'            => $topic,
+            'Payload'          => json_encode($payload),
+        ];
+
+        $data = json_encode($jdata);
+        $r = $this->SendDataToParent($data);
+        $this->SendDebug(__FUNCTION__, 'SendDataToParent(' . $data . ') => ' . $r, 0);
+        return $r;
     }
 
     public function ForwardData($data)
@@ -1073,8 +1140,11 @@ class OpenSprinkler extends IPSModule
     {
         $r = true;
         switch ($ident) {
-            case 'UpdateStatus':
-                $this->UpdateStatus();
+            case 'QueryStatus':
+                $this->QueryStatus();
+                break;
+            case 'SendVariables':
+                $this->SendVariables();
                 break;
             case 'RetriveConfiguration':
                 $this->RetriveConfiguration();
