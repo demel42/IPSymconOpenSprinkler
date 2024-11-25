@@ -102,6 +102,11 @@ trait OpenSprinklerLocalLib
     public static $SENSOR_OPTION_NORMALLY_CLOSE = 0;
     public static $SENSOR_OPTION_NORMALLY_OPEN = 1;
 
+    public static $ZONE_STATE_DISABLED = 0;
+    public static $ZONE_STATE_READY = 1;
+    public static $ZONE_STATE_QUEUED = 2;
+    public static $ZONE_STATE_WATERING = 3;
+
     private function InstallVarProfiles(bool $reInstall = false)
     {
         if ($reInstall) {
@@ -115,16 +120,20 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
-            ['Wert' => false, 'Name' => $this->Translate('inactive'), 'Farbe' => -1],
-            ['Wert' => true, 'Name' => $this->Translate('active'), 'Farbe' => -1],
+            ['Wert' => self::$ZONE_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
+            ['Wert' => self::$ZONE_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
+            ['Wert' => self::$ZONE_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
+            ['Wert' => self::$ZONE_STATE_WATERING, 'Name' => $this->Translate('watering'), 'Farbe' => -1],
         ];
-        $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
             ['Wert' => self::$CONTROLLER_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
             ['Wert' => self::$CONTROLLER_STATE_ENABLED, 'Name' => $this->Translate('enabled'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.ControllerState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.Duration', VARIABLETYPE_INTEGER, ' s', 0, 0, 0, 0, 'Hourglass', [], $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.WateringLevel', VARIABLETYPE_INTEGER, '%', 0, 0, 0, 1, '', '', $reInstall);
 

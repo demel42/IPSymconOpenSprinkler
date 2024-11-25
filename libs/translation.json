@@ -10,8 +10,10 @@
 			"released": "ruhig",
 
 			"__variableprofile__": "OpenSprinkler.ZoneState",
-			"active": "aktiv",
-			"inactive": "inaktiv",
+			"disabled": "deaktiviert",
+			"ready": "bereit",
+			"queued": "anstehend",
+			"watering": "bewässert",
 
 			"__variableprofile__": "OpenSprinkler.WeatherStatus",
 			"Ok": "OK",
