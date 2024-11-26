@@ -74,7 +74,6 @@
 			"Last update": "Letzte Aktualisierung",
 			"Next run": "nächste Bewässerung",
 			"Rain delay until": "Regenbedingte Unterbrechung bis",
-			"Sensor state": "Sensor-Status",
 			"Status of last weather query": "Status der letzten Wetterabfrage",
 			"Time left": "verbleibende Zeit",
 			"Timestamp of last reboot": "Zeitstempel des letzten Neustarts",
@@ -82,7 +81,15 @@
 			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
 			"Watering level": "Bewässerungsniveau",
 			"Wifi signal strenght": "WLAN-Signalstärke",
+
+			"Sensor state": "Sensor-Status",
+
 			"Zone state": "Zonen-Status",
+			"Enabled": "Betriebsbereit",
+			"Disabled": "Ausgeschaltet",
+			"Ignore rain delay": "Ignoriere Regenverzögerung",
+			"Ignore sensor 1": "Ignoriere Sensor 1",
+			"Ignore sensor 2": "Ignoriere Sensor 2",
 
 			"__actions__": "",
 			"Query status": "Status abfragen",

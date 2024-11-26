@@ -114,6 +114,12 @@ trait OpenSprinklerLocalLib
         }
 
         $associations = [
+            ['Wert' => false, 'Name' => $this->Translate('no'), 'Farbe' => -1],
+            ['Wert' => true, 'Name' => $this->Translate('yes'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.YesNo', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
+
+        $associations = [
             ['Wert' => false, 'Name' => $this->Translate('released'), 'Farbe' => -1],
             ['Wert' => true, 'Name' => $this->Translate('triggered'), 'Farbe' => -1],
         ];

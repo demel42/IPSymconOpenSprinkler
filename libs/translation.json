@@ -1,6 +1,10 @@
 {
 	"translations": {
 		"de": {
+			"__variableprofile__": "OpenSprinkler.YesNo",
+			"yes": "Ja",
+			"no": "Nein",
+
 			"__variableprofile__": "OpenSprinkler.ControllerState",
 			"enabled": "aktiviert",
 			"disabled": "deaktiviert",
