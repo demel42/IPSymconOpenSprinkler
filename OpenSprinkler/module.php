@@ -193,102 +193,117 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
-        // 200+n_sensors*100+1: 2 Sensoren
+        $varList = [];
+
+        // 201..399: internal Sensors (max 2)
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
         if ($sensor_list === false) {
             $sensor_list = [];
         }
-        $f_use = false;
-        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
-            $vpos = 200 + $i * 100 + 1;
-            $post = '_' . ($i + 1);
-            $s = sprintf('SN%d: ', $i + 1);
-
-            for ($n = 0; $n < count($sensor_list); $n++) {
-                if ($sensor_list[$n]['no'] == $i) {
-                    break;
-                }
-            }
-            if ($n == count($sensor_list)) {
-                $this->UnregisterVariable('SensorState' . $post);
+        for ($sensor_n = 0; $sensor_n < count($sensor_list); $sensor_n++) {
+            $sensor_entry = $sensor_list[$sensor_n];
+            if ($sensor_entry['no'] > self::$MAX_INT_SENSORS) {
                 continue;
             }
-            $sensor_entry = $sensor_list[$n];
+
+            $vpos = 200 + $sensor_n * 100 + 1;
+            $post = '_' . ($sensor_n + 1);
+            $s = sprintf('SN%d: ', $sensor_n + 1);
 
             $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
             $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
 
-            $c_use = $use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL]);
-            $this->MaintainVariable('SensorState' . $post, $s . $this->SensorType2String($snt), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $c_use);
+            if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+                $this->MaintainVariable('SensorState' . $post, $s . $this->SensorType2String($snt), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $use);
+                $varList[] = 'SensorState' . $post;
+            }
 
             if ($use && $snt == self::$SENSOR_TYPE_FLOW) {
-                $f_use = true;
-                $this->MaintainVariable('WaterFlowrate', $s . $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $f_use);
+                $this->MaintainVariable('WaterFlowrate', $s . $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $use);
+                $varList[] = 'WaterFlowrate';
                 // $this->MaintainVariable('DailyWaterUsage', $s . $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
             }
         }
-        if ($f_use == false) {
-            $this->UnregisterVariable('WaterFlowrate');
-        }
 
-        // 1000+n_zones*100+1: x Zonen
+        // 1001..8299: Zones (max 72)
         $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
         if ($zone_list === false) {
             $zone_list = [];
         }
-        $n_zones = count($zone_list);
-        for ($i = 0; $i < self::$MAX_ZONES; $i++) {
-            $vpos = 1000 + $i * 100 + 1;
-            $post = '_' . ($i + 1);
-            $s = ' [Z' . ($i + 1) . ']';
-            $s = sprintf('Z%02d: ', $i + 1);
+        for ($zone_n = 0; $zone_n < count($zone_list); $zone_n++) {
+            $zone_entry = $zone_list[$zone_n];
 
-            for ($n = 0; $n < count($zone_list); $n++) {
-                if ($zone_list[$n]['no'] == $i) {
-                    break;
-                }
-            }
-            if ($n == count($zone_list)) {
-                $this->UnregisterVariable('ZoneState' . $post);
-                $this->UnregisterVariable('ZoneTimeLeft' . $post);
-                $this->UnregisterVariable('ZoneLastRun' . $post);
-                $this->UnregisterVariable('ZoneLastDuration' . $post);
-                $this->UnregisterVariable('ZoneNextRun' . $post);
-                $this->UnregisterVariable('ZoneNextDuration' . $post);
-                $this->UnregisterVariable('ZoneDisabled' . $post);
-                $this->UnregisterVariable('ZoneIgnoreRain' . $post);
-                $this->UnregisterVariable('ZoneIgnoreSensor1' . $post);
-                $this->UnregisterVariable('ZoneIgnoreSensor2' . $post);
-                continue;
-            }
-            $zone_entry = $zone_list[$n];
-            $this->UnregisterVariable('ZoneEnabled' . $post);
+            $vpos = 1000 + $zone_n * 100 + 1;
+            $post = '_' . ($zone_n + 1);
+            $s = sprintf('Z%02d[%s]: ', $zone_n + 1, $zone_entry['name']);
 
             $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
 
             $this->MaintainVariable('ZoneState' . $post, $s . $this->Translate('Zone state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ZoneState', $vpos++, $use);
+            $varList[] = 'ZoneState' . $post;
 
             $this->MaintainVariable('ZoneDisabled' . $post, $s . $this->Translate('Disabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ZoneDisabled' . $post;
+            if ($use) {
+                $this->MaintainAction('ZoneDisabled' . $post, true);
+            }
             $this->MaintainVariable('ZoneIgnoreRain' . $post, $s . $this->Translate('Ignore rain delay'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ZoneIgnoreRain' . $post;
+            if ($use) {
+                $this->MaintainAction('ZoneIgnoreRain' . $post, true);
+            }
             $this->MaintainVariable('ZoneIgnoreSensor1' . $post, $s . $this->Translate('Ignore sensor 1'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ZoneIgnoreSensor1' . $post;
+            if ($use) {
+                $this->MaintainAction('ZoneIgnoreSensor1' . $post, true);
+            }
             $this->MaintainVariable('ZoneIgnoreSensor2' . $post, $s . $this->Translate('Ignore sensor 2'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ZoneIgnoreSensor2' . $post;
+            if ($use) {
+                $this->MaintainAction('ZoneIgnoreSensor2' . $post, true);
+            }
 
             // aktueller Bewässerungszyklus
             $this->MaintainVariable('ZoneTimeLeft' . $post, $s . $this->Translate('Time left'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $use);
+            $varList[] = 'ZoneTimeLeft' . $post;
 
             // letzter Bewässerungszyklus
             $this->MaintainVariable('ZoneLastRun' . $post, $s . $this->Translate('Last run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $use);
+            $varList[] = 'ZoneLastRun' . $post;
             $this->MaintainVariable('ZoneLastDuration' . $post, $s . $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $use);
+            $varList[] = 'ZoneLastDuration' . $post;
 
             // nächster Bewässerungszyklus
             $this->MaintainVariable('ZoneNextRun' . $post, $s . $this->Translate('Next run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $use);
+            $varList[] = 'ZoneNextRun' . $post;
             $this->MaintainVariable('ZoneNextDuration' . $post, $s . $this->Translate('Duration of next run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $use);
+            $varList[] = 'ZoneNextDuration' . $post;
+        }
 
+        // 10001..14999: Programs (max 40)
+        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
+        if ($program_list === false) {
+            $program_list = [];
+        }
+        for ($program_n = 0; $program_n < count($program_list); $program_n++) {
+            $program_entry = $program_list[$program_n];
+
+            $vpos = 20000 + $program_n * 100 + 1;
+            $post = '_' . ($program_n + 1);
+            $s = sprintf('P%02d[%s]: ', $program_n + 1, $program_entry['name']);
+
+            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
+
+            $this->MaintainVariable('ProgramEnabled' . $post, $s . $this->Translate('Enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ProgramEnabled' . $post;
             if ($use) {
-                $this->MaintainAction('ZoneDisabled' . $post, true);
-                $this->MaintainAction('ZoneIgnoreRain' . $post, true);
-                $this->MaintainAction('ZoneIgnoreSensor1' . $post, true);
-                $this->MaintainAction('ZoneIgnoreSensor2' . $post, true);
+                $this->MaintainAction('ProgramEnabled' . $post, true);
+            }
+
+            $this->MaintainVariable('ProgramWeatherAdjust' . $post, $s . $this->Translate('Weather adjustment'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
+            $varList[] = 'ProgramWeatherAdjust' . $post;
+            if ($use) {
+                $this->MaintainAction('ProgramWeatherAdjust' . $post, true);
             }
         }
 
@@ -311,6 +326,30 @@ class OpenSprinkler extends IPSModule
                 $this->MaintainVariable('DailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value && $with_waterusage);
 
          */
+
+        $objList = [];
+        $chldIDs = IPS_GetChildrenIDs($this->InstanceID);
+        foreach ($chldIDs as $chldID) {
+            $obj = IPS_GetObject($chldID);
+            if ($obj['ObjectType'] == OBJECTTYPE_VARIABLE) {
+                if (preg_match('#^Sensor[^_]+_[0-9]+$#', $obj['ObjectIdent'], $r)) {
+                    $objList[] = $obj;
+                }
+                if (preg_match('#^Zone[^_]+_[0-9]+$#', $obj['ObjectIdent'], $r)) {
+                    $objList[] = $obj;
+                }
+                if (preg_match('#^Program[^_]+_[0-9]+$#', $obj['ObjectIdent'], $r)) {
+                    $objList[] = $obj;
+                }
+            }
+        }
+        foreach ($objList as $obj) {
+            $ident = $obj['ObjectIdent'];
+            if (!in_array($ident, $varList)) {
+                $this->SendDebug(__FUNCTION__, 'unregister variable: ident=' . $ident, 0);
+                $this->UnregisterVariable($ident);
+            }
+        }
 
         $module_disable = $this->ReadPropertyBoolean('module_disable');
         if ($module_disable) {
@@ -750,6 +789,10 @@ class OpenSprinkler extends IPSModule
         if ($sensor_list === false) {
             $sensor_list = [];
         }
+        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
+        if ($program_list === false) {
+            $program_list = [];
+        }
 
         $now = time();
 
@@ -1044,11 +1087,36 @@ class OpenSprinkler extends IPSModule
         }
 
         $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
-        for ($idx = 0; $idx < $nprogs; $idx++) {
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $idx . '.0', '');
+        for ($i = 0; $i < $nprogs; $i++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
+            if ($use === false) {
+                continue;
+            }
+
+            $post = '_' . ($i + 1);
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
+
+            $varList[] = 'ProgramEnabled' . $post;
+            $varList[] = 'ProgramWeatherAdjust' . $post;
 
             $enabled = $this->bit_test($flag, 0);
+            $this->SendDebug(__FUNCTION__, '... ProgramEnabled' . $post . ' => ' . $this->bool2str($enabled), 0);
+            $this->SetValue('ProgramEnabled' . $post, $enabled);
+
             $weather_adjustment = $this->bit_test($flag, 1);
+            $this->SendDebug(__FUNCTION__, '... ProgramWeatherAdjust' . $post . ' => ' . $this->bool2str($weather_adjustment), 0);
+            $this->SetValue('ProgramWeatherAdjust' . $post, $weather_adjustment);
         }
 
         $this->SetValue('LastUpdate', $now);
@@ -1101,6 +1169,9 @@ class OpenSprinkler extends IPSModule
             $stn_grp = $this->GetArrayElem($ja_data, 'stations.stn_grp.' . $idx, 0);
             $infos = [];
 
+            if ($this->idx_in_bytes($idx, $stn_dis)) {
+                $infos[] = $this->Translate('Disabled');
+            }
             if ($idx == ($mas - 1)) {
                 $infos[] = $this->Translate('Master valve') . ' 1';
             }
@@ -1483,6 +1554,14 @@ class OpenSprinkler extends IPSModule
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneIgnoreSensor2((int) $ident_extent, (bool) $value);
                 break;
+            case 'ProgramEnabled':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetProgramEnabled((int) $ident_extent, (bool) $value);
+                break;
+            case 'ProgramWeatherAdjust':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetProgramWeatherAdjust((int) $ident_extent, (bool) $value);
+                break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
                 break;
@@ -1607,6 +1686,7 @@ class OpenSprinkler extends IPSModule
                 $s = isset($e[$r]) ? $e[$r] : 'unknown result ' . $r;
                 switch ($r) {
                     case 1: // Success
+                        $this->SendDebug(__FUNCTION__, '    result=' . $s, 0);
                         break;
                     case 2: // Unauthorized
                         $statuscode = self::$IS_UNAUTHORIZED;
@@ -1635,15 +1715,15 @@ class OpenSprinkler extends IPSModule
         return $body;
     }
 
-    public function SetZoneDisabled(int $idx, bool $value)
+    public function SetZoneDisabled(int $sid, bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
 
-        $byte = floor(($idx - 1) / 8);
-        $bit = ($idx - 1) % 8;
+        $byte = floor(($sid - 1) / 8);
+        $bit = ($sid - 1) % 8;
 
         $bval = 0;
         for ($i = 0; $i < 8; $i++) {
@@ -1673,8 +1753,8 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $byte = floor(($idx - 1) / 8);
-        $bit = ($idx - 1) % 8;
+        $byte = floor(($sid - 1) / 8);
+        $bit = ($sid - 1) % 8;
 
         $bval = 0;
         for ($i = 0; $i < 8; $i++) {
@@ -1704,8 +1784,8 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $byte = floor(($idx - 1) / 8);
-        $bit = ($idx - 1) % 8;
+        $byte = floor(($sid - 1) / 8);
+        $bit = ($sid - 1) % 8;
 
         $bval = 0;
         for ($i = 0; $i < 8; $i++) {
@@ -1735,8 +1815,8 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $byte = floor(($idx - 1) / 8);
-        $bit = ($idx - 1) % 8;
+        $byte = floor(($sid - 1) / 8);
+        $bit = ($sid - 1) % 8;
 
         $bval = 0;
         for ($i = 0; $i < 8; $i++) {
@@ -1756,6 +1836,36 @@ class OpenSprinkler extends IPSModule
             'k' . $byte => $bval,
         ];
         $data = $this->do_HttpRequest('cs', $params);
+        return $data != false;
+    }
+
+    public function SetProgramEnabled(int $pid, bool $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $params = [
+            'pid' => ($pid - 1),
+            'en'  => ($value ? 1 : 0),
+        ];
+        $data = $this->do_HttpRequest('cp', $params);
+        return $data != false;
+    }
+
+    public function SetProgramWeatherAdjust(int $pid, bool $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $params = [
+            'pid' => ($pid - 1),
+            'uwt' => ($value ? 1 : 0),
+        ];
+        $data = $this->do_HttpRequest('cp', $params);
         return $data != false;
     }
 }

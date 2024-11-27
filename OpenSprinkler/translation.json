@@ -49,7 +49,6 @@
 			"HTTPS": "HTTPS",
 			"remote (OTC)": "remote (OTC)",
 
-			"Disabled": "Deaktiviert",
 			"Weather adjustment": " Wetterbasierte Anpassung",
 			"Total duration is {$total_duration}m": "Gesamtdauer: {$total_duration}m",
 
@@ -85,11 +84,12 @@
 			"Sensor state": "Sensor-Status",
 
 			"Zone state": "Zonen-Status",
-			"Enabled": "Betriebsbereit",
 			"Disabled": "Ausgeschaltet",
 			"Ignore rain delay": "Ignoriere Regenverzögerung",
 			"Ignore sensor 1": "Ignoriere Sensor 1",
 			"Ignore sensor 2": "Ignoriere Sensor 2",
+
+			"Enabled": "Eingeschaltet",
 
 			"__actions__": "",
 			"Query status": "Status abfragen",
