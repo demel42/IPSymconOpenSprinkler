@@ -49,7 +49,7 @@
 			"HTTPS": "HTTPS",
 			"remote (OTC)": "remote (OTC)",
 
-			"Weather adjustment": " Wetterbasierte Anpassung",
+			"Weather adjustment": "Wetterbasierte Anpassung",
 			"Total duration is {$total_duration}m": "Gesamtdauer: {$total_duration}m",
 
 			"External sensor values": "Externe Sensorwerte",
@@ -94,6 +94,9 @@
 			"__actions__": "",
 			"Query status": "Status abfragen",
 			"Send variables": "Variablen übertragen",
+			"Adjust variable names": "Variablennamen anpassen",
+			"This adjusts the first part von the variable name acording to the retrived configuration":
+				"Hiermit wird der erste Teil des Variablennamens entsprechend der abgerufenen Konfiguration angepasst",
 
 			"__end__": ""
 		}

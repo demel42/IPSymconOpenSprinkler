@@ -109,29 +109,6 @@ class OpenSprinkler extends IPSModule
         return '';
     }
 
-    private function GetAllChildenIDs($objID, &$objIDs)
-    {
-        $cIDs = IPS_GetChildrenIDs($objID);
-        if ($cIDs != []) {
-            $objIDs = array_merge($objIDs, $cIDs);
-            foreach ($cIDs as $cID) {
-                $this->GetAllChildenIDs($cID, $objIDs);
-            }
-        }
-    }
-
-    private function GetAllIdents()
-    {
-        $objIDs = [];
-        $this->GetAllChildenIDs($this->InstanceID, $objIDs);
-        $map = [];
-        foreach ($objIDs as $objID) {
-            $obj = IPS_GetObject($objID);
-            $map[$obj['ObjectIdent']] = $objID;
-        }
-        return $map;
-    }
-
     public function ApplyChanges()
     {
         parent::ApplyChanges();
@@ -689,6 +666,12 @@ class OpenSprinkler extends IPSModule
             'expanded'  => false,
             'items'     => [
                 $this->GetInstallVarProfilesFormItem(),
+                [
+                    'type'      => 'Button',
+                    'caption'   => 'Adjust variable names',
+                    'confirm'   => 'This adjusts the first part von the variable name acording to the retrived configuration',
+                    'onClick'   => 'IPS_RequestAction($id, "AdjustVariablenames", "");',
+                ],
             ],
         ];
 
@@ -1509,6 +1492,9 @@ class OpenSprinkler extends IPSModule
             case 'RetriveConfiguration':
                 $this->RetriveConfiguration();
                 break;
+            case 'AdjustVariablenames':
+                $this->AdjustVariablenames();
+                break;
             default:
                 $r = false;
                 break;
@@ -1868,7 +1854,64 @@ class OpenSprinkler extends IPSModule
         $data = $this->do_HttpRequest('cp', $params);
         return $data != false;
     }
+
+    private function AdjustVariablenames()
+    {
+        $n_changed = 0;
+
+        $chldIDs = IPS_GetChildrenIDs($this->InstanceID);
+
+        $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
+        if ($zone_list === false) {
+            $zone_list = [];
+        }
+        for ($zone_n = 0; $zone_n < count($zone_list); $zone_n++) {
+            $zone_entry = $zone_list[$zone_n];
+
+            foreach ($chldIDs as $chldID) {
+                $obj = IPS_GetObject($chldID);
+                if ($obj['ObjectType'] == OBJECTTYPE_VARIABLE) {
+                    if (preg_match('#^Zone[^_]+_' . ($zone_n + 1) . '$#', $obj['ObjectIdent'], $r)) {
+                        if (preg_match('/Z[0-9]{2}\[[^\]]*\]:[ ]*(.*)$/', $obj['ObjectName'], $r)) {
+                            $s = sprintf('Z%02d[%s]: %s', $zone_n + 1, $zone_entry['name'], $r[1]);
+                            if ($obj['ObjectName'] != $s) {
+                                IPS_SetName($chldID, $s);
+                                $this->SendDebug(__FUNCTION__, 'id=' . $chldID . ', ident=' . $obj['ObjectIdent'] . ': rename from "' . $obj['ObjectName'] . '" to "' . $s . '"', 0);
+                                $n_changed++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
+        if ($program_list === false) {
+            $program_list = [];
+        }
+        for ($program_n = 0; $program_n < count($program_list); $program_n++) {
+            $program_entry = $program_list[$program_n];
+
+            foreach ($chldIDs as $chldID) {
+                $obj = IPS_GetObject($chldID);
+                if ($obj['ObjectType'] == OBJECTTYPE_VARIABLE) {
+                    if (preg_match('#^Program[^_]+_' . ($program_n + 1) . '$#', $obj['ObjectIdent'], $r)) {
+                        if (preg_match('/P[0-9]{2}\[[^\]]*\]:[ ]*(.*)$/', $obj['ObjectName'], $r)) {
+                            $s = sprintf('P%02d[%s]: %s', $program_n + 1, $program_entry['name'], $r[1]);
+                            if ($obj['ObjectName'] != $s) {
+                                IPS_SetName($chldID, $s);
+                                $this->SendDebug(__FUNCTION__, 'id=' . $chldID . ', ident=' . $obj['ObjectIdent'] . ': rename from "' . $obj['ObjectName'] . '" to "' . $s . '"', 0);
+                                $n_changed++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        $this->SendDebug(__FUNCTION__, 'name of ' . $n_changed . ' variables changed', 0);
+    }
 }
+
+// END
 
 /*
 
