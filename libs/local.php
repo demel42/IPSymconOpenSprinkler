@@ -120,7 +120,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.YesNo', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
-            ['Wert' => false, 'Name' => $this->Translate('released'), 'Farbe' => -1],
+            ['Wert' => false, 'Name' => '-', 'Farbe' => -1],
             ['Wert' => true, 'Name' => $this->Translate('triggered'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);

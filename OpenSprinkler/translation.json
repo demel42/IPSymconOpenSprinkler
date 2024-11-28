@@ -42,6 +42,8 @@
 			"ignore sensor 1": "Sensor 1 ignorieren",
 			"ignore sensor 2": "Sensor 2 ignorieren",
 
+			"Start at {$rep} with zone(s) {$zn}": "Start um {$rep} mit Zone(n) {$zn}",
+
 			"RF": "RF",
 			"remote": "remote",
 			"GPIO": "GPIO",
@@ -83,13 +85,18 @@
 
 			"Sensor state": "Sensor-Status",
 
+			"Zone selection": "Zonen-Auswahl",
 			"Zone state": "Zonen-Status",
-			"Disabled": "Ausgeschaltet",
-			"Ignore rain delay": "Ignoriere Regenverzögerung",
-			"Ignore sensor 1": "Ignoriere Sensor 1",
-			"Ignore sensor 2": "Ignoriere Sensor 2",
+			"Zone is disabled": "Zone ist deaktiviert",
+			"Zone ignores rain delay": "Zone ignoriert Regenverzögerung",
+			"Zone ignores sensor 1": "Zone ignoriert Sensor 1",
+			"Zone ignores sensor 2": "Zone ignoriert Sensor 2",
+			"Zone information": "Zonen-Informationen",
 
-			"Enabled": "Eingeschaltet",
+			"Program selection": "Programm-Auswahl",
+			"Program is enabled": "Programm ist eingeschaltet",
+			"Program with weather adjustments": "Programm mit wetterbasierten Anpassung",
+			"Program information": "Programm-Informationen",
 
 			"__actions__": "",
 			"Query status": "Status abfragen",

@@ -11,7 +11,6 @@
 
 			"__variableprofile__": "OpenSprinkler.SensorState",
 			"triggered": "ausgelöst",
-			"released": "ruhig",
 
 			"__variableprofile__": "OpenSprinkler.ZoneState",
 			"disabled": "deaktiviert",

@@ -11,13 +11,18 @@ class OpenSprinkler extends IPSModule
     use OpenSprinklerLocalLib;
 
     public static $MAX_INT_SENSORS = 2;
-    public static $MAX_ZONES = 200;
+
+    private $VarProf_Zones;
+    private $VarProf_Programs;
 
     public function __construct(string $InstanceID)
     {
         parent::__construct($InstanceID);
 
         $this->CommonConstruct(__DIR__);
+
+        $this->VarProf_Zones = 'OpenSprinkler.Zones_' . $this->InstanceID;
+        $this->VarProf_Programs = 'OpenSprinkler.Programs_' . $this->InstanceID;
     }
 
     public function __destruct()
@@ -51,10 +56,17 @@ class OpenSprinkler extends IPSModule
         $this->RegisterAttributeInteger('timezone_offset', 0);
         $this->RegisterAttributeInteger('pulse_volume', 0);
 
+        $this->RegisterAttributeString('zone_infos', json_encode([]));
+        $this->RegisterAttributeString('sensor_infos', json_encode([]));
+        $this->RegisterAttributeString('program_infos', json_encode([]));
+
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
         $this->RegisterAttributeString('ModuleStats', json_encode([]));
 
         $this->InstallVarProfiles(false);
+
+        $this->CreateVarProfile($this->VarProf_Zones, VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', [['Wert' => 0, 'Name' => '-']], false);
+        $this->CreateVarProfile($this->VarProf_Programs, VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', [['Wert' => 0, 'Name' => '-']], false);
 
         $this->RegisterTimer('QueryStatus', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "QueryStatus", "");');
         $this->RegisterTimer('SendVariables', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "SendVariables", "");');
@@ -202,6 +214,21 @@ class OpenSprinkler extends IPSModule
             }
         }
 
+        $vpos = 801;
+        $this->MaintainVariable('ZoneSelection', $this->Translate('Zone selection'), VARIABLETYPE_INTEGER, $this->VarProf_Zones, $vpos++, true);
+        $this->MaintainAction('ZoneSelection', true);
+
+        $this->MaintainVariable('ZoneState', $this->Translate('Zone state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ZoneState', $vpos++, $use);
+        $this->MaintainVariable('ZoneDisabled', $this->Translate('Zone is disabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ZoneDisabled', true);
+        $this->MaintainVariable('ZoneIgnoreRain', $this->Translate('Zone ignores rain delay'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ZoneIgnoreRain', true);
+        $this->MaintainVariable('ZoneIgnoreSensor1', $this->Translate('Zone ignores sensor 1'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ZoneIgnoreSensor1', true);
+        $this->MaintainVariable('ZoneIgnoreSensor2', $this->Translate('Zone ignores sensor 2'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ZoneIgnoreSensor2', true);
+        $this->MaintainVariable('ZoneInfo', $this->Translate('Zone information'), VARIABLETYPE_STRING, '', $vpos++, true);
+
         // 1001..8299: Zones (max 72)
         $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
         if ($zone_list === false) {
@@ -218,27 +245,6 @@ class OpenSprinkler extends IPSModule
 
             $this->MaintainVariable('ZoneState' . $post, $s . $this->Translate('Zone state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ZoneState', $vpos++, $use);
             $varList[] = 'ZoneState' . $post;
-
-            $this->MaintainVariable('ZoneDisabled' . $post, $s . $this->Translate('Disabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ZoneDisabled' . $post;
-            if ($use) {
-                $this->MaintainAction('ZoneDisabled' . $post, true);
-            }
-            $this->MaintainVariable('ZoneIgnoreRain' . $post, $s . $this->Translate('Ignore rain delay'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ZoneIgnoreRain' . $post;
-            if ($use) {
-                $this->MaintainAction('ZoneIgnoreRain' . $post, true);
-            }
-            $this->MaintainVariable('ZoneIgnoreSensor1' . $post, $s . $this->Translate('Ignore sensor 1'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ZoneIgnoreSensor1' . $post;
-            if ($use) {
-                $this->MaintainAction('ZoneIgnoreSensor1' . $post, true);
-            }
-            $this->MaintainVariable('ZoneIgnoreSensor2' . $post, $s . $this->Translate('Ignore sensor 2'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ZoneIgnoreSensor2' . $post;
-            if ($use) {
-                $this->MaintainAction('ZoneIgnoreSensor2' . $post, true);
-            }
 
             // aktueller Bewässerungszyklus
             $this->MaintainVariable('ZoneTimeLeft' . $post, $s . $this->Translate('Time left'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $use);
@@ -257,6 +263,15 @@ class OpenSprinkler extends IPSModule
             $varList[] = 'ZoneNextDuration' . $post;
         }
 
+        $vpos = 900;
+        $this->MaintainVariable('ProgramSelection', $this->Translate('Program selection'), VARIABLETYPE_INTEGER, $this->VarProf_Programs, $vpos++, true);
+        $this->MaintainAction('ProgramSelection', true);
+        $this->MaintainVariable('ProgramEnabled', $this->Translate('Program is enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ProgramEnabled', true);
+        $this->MaintainVariable('ProgramWeatherAdjust', $this->Translate('Program with weather adjustments'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ProgramWeatherAdjust', true);
+        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '', $vpos++, true);
+
         // 10001..14999: Programs (max 40)
         $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
         if ($program_list === false) {
@@ -268,20 +283,6 @@ class OpenSprinkler extends IPSModule
             $vpos = 20000 + $program_n * 100 + 1;
             $post = '_' . ($program_n + 1);
             $s = sprintf('P%02d[%s]: ', $program_n + 1, $program_entry['name']);
-
-            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
-
-            $this->MaintainVariable('ProgramEnabled' . $post, $s . $this->Translate('Enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ProgramEnabled' . $post;
-            if ($use) {
-                $this->MaintainAction('ProgramEnabled' . $post, true);
-            }
-
-            $this->MaintainVariable('ProgramWeatherAdjust' . $post, $s . $this->Translate('Weather adjustment'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $use);
-            $varList[] = 'ProgramWeatherAdjust' . $post;
-            if ($use) {
-                $this->MaintainAction('ProgramWeatherAdjust' . $post, true);
-            }
         }
 
         /*
@@ -800,18 +801,36 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, '... ControllerState (settings.en)=' . $en . ' => ' . $i, 0);
             $this->SetValue('ControllerState', $i);
         }
+        /*
+            Change Controller Variables [Keyword /cv]
+                /cv?pw=xxx&en=x
+                Parameters:
+                    ● en: Operation enable. Binary value.
+         */
 
         $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl, 0);
             $this->SetValue('WateringLevel', $wl);
         }
+        /*
+            Change Options [Keyword /co]
+                /co?pw=xxx&wl=x
+                Parameters:
+                    ● wl: Waterlevel (i.e. % Watering). Acceptable range is 0 to 250.
+         */
 
         $rdst = $this->GetArrayElem($jdata, 'settings.rdst', 0, $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... RainDelayUntil (settings.rdst)=' . $rdst, 0);
             $this->SetValue('RainDelayUntil', $rdst);
         }
+        /*
+            Change Controller Variables [Keyword /cv]
+                /cv?pw=xxx&rd=x
+                Parameters:
+                    ● rd: Set rain delay time (in hours). Range is 0 to 32767. A value of 0 turns off rain delay.
+         */
 
         $devt = $this->GetArrayElem($jdata, 'settings.devt', 0, $fnd);
         if ($fnd) {
@@ -983,7 +1002,37 @@ class OpenSprinkler extends IPSModule
                 $rem = $ps[$sid][1];
                 $start = $this->AdjustTimestamp($ps[$sid][2]);
                 $gid = $ps[$sid][3];
-                $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+                if ($pid != 0 || $rem != 0 || $start != 0) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+                }
+            }
+        }
+
+        /*
+            Strömungsüberwachungs-Grenzmenge in l/min (/100)
+                cmd=cs, opt=f
+         */
+        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (stations.stn_fas)=' . print_r($ps, true), 0);
+            for ($sid = 0; $sid < count($stn_fas); $sid++) {
+                if ($stn_fas[$sid] > 0) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', stn_fas=' . ($stn_fas[$sid] / 100), 0);
+                }
+            }
+        }
+
+        /*
+            Durchschnittliche Strömungsmenge in l/min (/100)
+                cmd=cs, opt=a
+         */
+        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (stations.stn_favg)=' . print_r($ps, true), 0);
+            for ($sid = 0; $sid < count($stn_favg); $sid++) {
+                if ($stn_favg[$sid] > 0) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', stn_favg=' . ($stn_favg[$sid] / 100), 0);
+                }
             }
         }
 
@@ -1051,22 +1100,20 @@ class OpenSprinkler extends IPSModule
                 $this->SendDebug(__FUNCTION__, '... ZoneLastDuration' . $post . ' => ' . $dur, 0);
                 $this->SetValue('ZoneLastDuration' . $post, $dur);
             }
+            /*
+            stations.stn_fas=Strömungsüberwachungs-Grenzmenge in l/min (/100)
+            stations.stn_favg=Durchschnittliche Strömungsmenge in l/min (/100)
+             */
 
-            $disabled = $this->idx_in_bytes($i, $stn_dis);
-            $this->SendDebug(__FUNCTION__, '... ZoneDisabled' . $post . ' => ' . $this->bool2str($disabled), 0);
-            $this->SetValue('ZoneDisabled' . $post, $disabled);
-
-            $ign_rain = $this->idx_in_bytes($i, $ignore_rain);
-            $this->SendDebug(__FUNCTION__, '... ZoneIgnoreRain' . $post . ' => ' . $this->bool2str($ign_rain), 0);
-            $this->SetValue('ZoneIgnoreRain' . $post, $ign_rain);
-
-            $ign_sn1 = $this->idx_in_bytes($i, $ignore_sn1);
-            $this->SendDebug(__FUNCTION__, '... ZoneIgnoreSensor1' . $post . ' => ' . $this->bool2str($ign_sn1), 0);
-            $this->SetValue('ZoneIgnoreSensor1' . $post, $ign_sn1);
-
-            $ign_sn2 = $this->idx_in_bytes($i, $ignore_sn2);
-            $this->SendDebug(__FUNCTION__, '... ZoneIgnoreSensor2' . $post . ' => ' . $this->bool2str($ign_sn2), 0);
-            $this->SetValue('ZoneIgnoreSensor2' . $post, $ign_sn2);
+            /*
+                12. Manual Station Run (previously manual override) [Keyword /cm]
+                    /cm?pw=xxx&sid=xx&en=x&t=xxx&ssta=xxx
+                    Parameters:
+                        ● sid: Stationindex(starting from 0)
+                        ● en: Enablebit(1: open the selected station; 0: close the selected station).
+                        ● t: Timer(inseconds). Acceptable range is 0 to 64800 (18 hours)
+                        ● ssta: shift remaining stations in the same sequential group (0: do not shift remaining stations; 1: shift remaining stations forward). Only if en=0)
+             */
         }
 
         $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
@@ -1088,23 +1135,254 @@ class OpenSprinkler extends IPSModule
 
             $post = '_' . ($i + 1);
 
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
-
-            $varList[] = 'ProgramEnabled' . $post;
-            $varList[] = 'ProgramWeatherAdjust' . $post;
-
-            $enabled = $this->bit_test($flag, 0);
-            $this->SendDebug(__FUNCTION__, '... ProgramEnabled' . $post . ' => ' . $this->bool2str($enabled), 0);
-            $this->SetValue('ProgramEnabled' . $post, $enabled);
-
-            $weather_adjustment = $this->bit_test($flag, 1);
-            $this->SendDebug(__FUNCTION__, '... ProgramWeatherAdjust' . $post . ' => ' . $this->bool2str($weather_adjustment), 0);
-            $this->SetValue('ProgramWeatherAdjust' . $post, $weather_adjustment);
+            /*
+                Manually Start a Program [Keyword /mp]
+                    /mp?pw=xxx&pid=xx&uwt=x
+                    Parameters:
+                    ● pid: programindex(startingfrom0asthefirstprogram)
+                    ● uwt: use weather (i.e. applying current water level / percentage). Binary value.
+             */
         }
+
+        /*
+            Pause Queue [Keyword /pq]
+                /pq?pw=x&dur=xxx
+                This command triggers (toggles) a pause with the specified duration (in units of seconds).
+                Calling it first with a non-zero duration will start the pause; calling it again (regardless of duration value) will cancel the pause and resume station runs (i.e. it's a toggle).
+         */
+        /*
+            Change Controller Variables [Keyword /cv]
+                /cv?pw=xxx&rsn=x
+                Parameters:
+                    ● rsn: Reset all stations (including those waiting to run). The value doesn’t matter: action is triggered if parameter appears
+            => stop alle stationen
+         */
 
         $this->SetValue('LastUpdate', $now);
 
-        $this->SendDebug(__FUNCTION__, $this->PrintTimer('QueryStatus'), 0);
+        $zone_infos = [];
+
+        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
+        $snames = (array) $this->GetArrayElem($jdata, 'stations.snames', '');
+        $ignore_rain = (array) $this->GetArrayElem($jdata, 'stations.ignore_rain', []);
+        $ignore_sn1 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn1', []);
+        $ignore_sn2 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn2', []);
+        $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', []);
+        $stn_grp = (array) $this->GetArrayElem($jdata, 'stations.stn_grp', []);
+        $stn_spe = (array) $this->GetArrayElem($jdata, 'stations.stn_spe', []);
+        $mas = $this->GetArrayElem($jdata, 'options.mas', 0);
+        $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
+        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
+        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
+
+        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
+
+        for ($i = 0; $i < $maxlen; $i++) {
+            for ($n = 0; $n < count($zone_list); $n++) {
+                if ($zone_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($zone_list)) {
+                continue;
+            }
+            $zone_entry = $zone_list[$n];
+
+            $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
+            if ($use === false) {
+                continue;
+            }
+
+            if ($i == ($mas - 1)) {
+                $master = 1;
+            } elseif ($i == ($mas2 - 1)) {
+                $master = 2;
+            } else {
+                $master = 0;
+            }
+
+            $prV = [];
+            for ($j = 0; $j < $nprogs; $j++) {
+                for ($n = 0; $n < count($program_list); $n++) {
+                    if ($program_list[$n]['no'] == $j) {
+                        break;
+                    }
+                }
+                if ($n == count($program_list)) {
+                    continue;
+                }
+                $program_entry = $program_list[$n];
+
+                $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
+                if ($use === false) {
+                    continue;
+                }
+
+                $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.4', []);
+                if ($duration[$i] == 0) {
+                    continue;
+                }
+
+                $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.0', '');
+                $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.3', []);
+                $name = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.5', '');
+
+                $repV = [];
+                if ($this->bit_test($flag, 6)) {
+                    for ($n = 0; $n < count($start); $n++) {
+                        $min = $start[$n];
+                        if ($min != -1) {
+                            $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                        }
+                    }
+                } else {
+                    $min = $start[0];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    for ($n = 0; $n < $start[1]; $n++) {
+                        $min += $start[2];
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+
+                $prV[] = $name . '[' . $this->seconds2duration($duration[$i]) . ' @ ' . implode('/', $repV) . ']';
+            }
+
+            $info = implode(', ', $prV);
+
+            $zone_infos[] = [
+                'sid'                 => $i + 1,
+                'name'                => $snames[$i],
+                'group'               => $this->Group2String($stn_grp[$i]),
+                'disabled'            => $this->idx_in_bytes($i, $stn_dis),
+                'ignore_rain'         => $this->idx_in_bytes($i, $ignore_rain),
+                'ignore_sn1'          => $this->idx_in_bytes($i, $ignore_sn1),
+                'ignore_sn2'          => $this->idx_in_bytes($i, $ignore_sn2),
+                'is_special'          => $this->idx_in_bytes($i, $stn_spe),
+                'master'              => $master,
+                'stn_fas'             => $stn_fas[$i],
+                'info'                => $info,
+            ];
+        }
+        $this->SendDebug(__FUNCTION__, 'zone_infos=' . print_r($zone_infos, true), 0);
+        $this->WriteAttributeString('zone_infos', json_encode($zone_infos));
+
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        foreach ($zone_infos as $info) {
+            $associations[] = [
+                'Value' => $info['sid'],
+                'Name'  => $info['name'],
+            ];
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Zones, $associations);
+
+        $program_infos = [];
+        for ($i = 0; $i < $nprogs; $i++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
+            if ($use === false) {
+                continue;
+            }
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
+            $days0 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.1', '');
+            $days1 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.2', '');
+            $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.3', []);
+            $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.4', []);
+            $name = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.5', '');
+            $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.6', []);
+
+            $repV = [];
+            if ($this->bit_test($flag, 6)) {
+                for ($n = 0; $n < count($start); $n++) {
+                    $min = $start[$n];
+                    if ($min != -1) {
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+            } else {
+                $min = $start[0];
+                $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                for ($n = 0; $n < $start[1]; $n++) {
+                    $min += $start[2];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                }
+            }
+
+            $znV = [];
+            for ($j = 0; $j < $maxlen; $j++) {
+                for ($n = 0; $n < count($zone_list); $n++) {
+                    if ($zone_list[$n]['no'] == $j) {
+                        break;
+                    }
+                }
+                if ($n == count($zone_list)) {
+                    continue;
+                }
+                $zone_entry = $zone_list[$n];
+
+                $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
+                if ($use === false) {
+                    continue;
+                }
+
+                if ($duration[$j] == 0) {
+                    continue;
+                }
+                $znV[] = $snames[$j] . '[' . $this->seconds2duration($duration[$j]) . ']';
+            }
+
+            $info = $this->TranslateFormat('Start at {$rep} with zone(s) {$zn}', ['{$rep}' => implode('/', $repV), '{$zn}' => implode(', ', $znV)]);
+
+            $program_infos[] = [
+                'pid'                 => $i + 1,
+                'name'                => $name,
+                'enabled'             => $this->bit_test($flag, 0),
+                'weather_adjustment'  => $this->bit_test($flag, 1),
+                'flag'                => $flag,
+                'days0'               => $days0,
+                'days1'               => $days1,
+                'start'               => $start,
+                'duration'            => $duration,
+                'daterange'           => $daterange,
+                'total_duration'      => array_sum($duration),
+                'info'                => $info,
+            ];
+        }
+        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
+        $this->WriteAttributeString('program_infos', json_encode($program_infos));
+
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        foreach ($program_infos as $info) {
+            $associations[] = [
+                'Value' => $info['pid'],
+                'Name'  => $info['name'],
+            ];
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
+
+        $this->SetZoneSelection($this->GetValue('ZoneSelection'));
+        $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+
+        $this->SetQueryInterval();
     }
 
     private function idx_in_bytes($idx, $val)
@@ -1138,7 +1416,6 @@ class OpenSprinkler extends IPSModule
         $ignore_sn1 = (array) $this->GetArrayElem($ja_data, 'stations.ignore_sn1', []);
         $ignore_sn2 = (array) $this->GetArrayElem($ja_data, 'stations.ignore_sn2', []);
         $stn_dis = (array) $this->GetArrayElem($ja_data, 'stations.stn_dis', []);
-        $stn_grp = (array) $this->GetArrayElem($ja_data, 'stations.stn_grp', []);
         $stn_spe = (array) $this->GetArrayElem($ja_data, 'stations.stn_spe', []);
         $mas = $this->GetArrayElem($ja_data, 'options.mas', 0);
         $mas2 = $this->GetArrayElem($ja_data, 'options.mas2', 0);
@@ -1524,29 +1801,37 @@ class OpenSprinkler extends IPSModule
 
         $r = false;
         switch ($ident_base) {
+            case 'ZoneSelection':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetZoneSelection((int) $value);
+                break;
             case 'ZoneDisabled':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetZoneDisabled((int) $ident_extent, (bool) $value);
+                $r = $this->SetZoneDisabled((bool) $value);
                 break;
             case 'ZoneIgnoreRain':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetZoneIgnoreRain((int) $ident_extent, (bool) $value);
+                $r = $this->SetZoneIgnoreRain((bool) $value);
                 break;
             case 'ZoneIgnoreSensor1':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetZoneIgnoreSensor1((int) $ident_extent, (bool) $value);
+                $r = $this->SetZoneIgnoreSensor1((bool) $value);
                 break;
             case 'ZoneIgnoreSensor2':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetZoneIgnoreSensor2((int) $ident_extent, (bool) $value);
+                $r = $this->SetZoneIgnoreSensor2((bool) $value);
+                break;
+            case 'ProgramSelection':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetProgramSelection((int) $value);
                 break;
             case 'ProgramEnabled':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetProgramEnabled((int) $ident_extent, (bool) $value);
+                $r = $this->SetProgramEnabled((bool) $value);
                 break;
             case 'ProgramWeatherAdjust':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetProgramWeatherAdjust((int) $ident_extent, (bool) $value);
+                $r = $this->SetProgramWeatherAdjust((bool) $value);
                 break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
@@ -1554,6 +1839,18 @@ class OpenSprinkler extends IPSModule
         }
         if ($r) {
             $this->SetValue($ident, $value);
+            switch ($ident_base) {
+                case 'ZoneDisabled':
+                case 'ZoneIgnoreRain':
+                case 'ZoneIgnoreSensor1':
+                case 'ZoneIgnoreSensor2':
+                case 'ProgramEnabled':
+                case 'ProgramWeatherAdjust':
+                    $this->MaintainTimer('QueryStatus', 500);
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
@@ -1701,12 +1998,15 @@ class OpenSprinkler extends IPSModule
         return $body;
     }
 
-    public function SetZoneDisabled(int $sid, bool $value)
+    public function SetZoneDisabled(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $sid = $this->GetValue('ZoneSelection');
+        // check 0
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -1732,12 +2032,15 @@ class OpenSprinkler extends IPSModule
         return $data != false;
     }
 
-    public function SetZoneIgnoreRain(int $sid, bool $value)
+    public function SetZoneIgnoreRain(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $sid = $this->GetValue('ZoneSelection');
+        // check 0
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -1763,12 +2066,15 @@ class OpenSprinkler extends IPSModule
         return $data != false;
     }
 
-    public function SetZoneIgnoreSensor1(int $sid, bool $value)
+    public function SetZoneIgnoreSensor1(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $sid = $this->GetValue('ZoneSelection');
+        // check 0
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -1794,12 +2100,15 @@ class OpenSprinkler extends IPSModule
         return $data != false;
     }
 
-    public function SetZoneIgnoreSensor2(int $sid, bool $value)
+    public function SetZoneIgnoreSensor2(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $sid = $this->GetValue('ZoneSelection');
+        // check 0
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -1825,12 +2134,15 @@ class OpenSprinkler extends IPSModule
         return $data != false;
     }
 
-    public function SetProgramEnabled(int $pid, bool $value)
+    public function SetProgramEnabled(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $pid = $this->GetValue('ProgramSelection');
+        // check 0
 
         $params = [
             'pid' => ($pid - 1),
@@ -1840,12 +2152,15 @@ class OpenSprinkler extends IPSModule
         return $data != false;
     }
 
-    public function SetProgramWeatherAdjust(int $pid, bool $value)
+    public function SetProgramWeatherAdjust(bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
             return;
         }
+
+        $pid = $this->GetValue('ProgramSelection');
+        // check 0
 
         $params = [
             'pid' => ($pid - 1),
@@ -1909,1140 +2224,110 @@ class OpenSprinkler extends IPSModule
         }
         $this->SendDebug(__FUNCTION__, 'name of ' . $n_changed . ' variables changed', 0);
     }
+
+    private function SetZoneSelection(int $idx)
+    {
+        $zone_infos = @json_decode($this->ReadAttributeString('zone_infos'), true);
+        if ($zone_infos == false) {
+            $this->SendDebug(__FUNCTION__, 'no zone_infos', 0);
+            return false;
+        }
+
+        if ($idx == 0) {
+            $this->SetValue('ZoneState', self::$CONTROLLER_STATE_DISABLED);
+            $this->SetValue('ZoneDisabled', false);
+            $this->SetValue('ZoneIgnoreRain', false);
+            $this->SetValue('ZoneIgnoreSensor1', false);
+            $this->SetValue('ZoneIgnoreSensor2', false);
+            $this->SetValue('ZoneInfo', '');
+
+            return true;
+        }
+
+        $zone_info = false;
+        for ($i = 0; $i < count($zone_infos); $i++) {
+            if ($zone_infos[$i]['sid'] == $idx) {
+                $zone_info = $zone_infos[$i];
+                break;
+            }
+        }
+        if ($zone_info === false) {
+            $this->SendDebug(__FUNCTION__, 'no zone_info for idx=' . $idx, 0);
+            return false;
+        }
+
+        $this->SendDebug(__FUNCTION__, 'zone_infos=' . print_r($zone_infos, true), 0);
+
+        $post = '_' . ($i + 1);
+
+        $this->SetValue('ZoneState', $this->GetValue('ZoneState' . $post));
+        $this->SetValue('ZoneDisabled', $zone_info['disabled']);
+        $this->SetValue('ZoneIgnoreRain', $zone_info['ignore_rain']);
+        $this->SetValue('ZoneIgnoreSensor1', $zone_info['ignore_sn1']);
+        $this->SetValue('ZoneIgnoreSensor2', $zone_info['ignore_sn2']);
+        $this->SetValue('ZoneInfo', $zone_info['info']);
+
+        return true;
+    }
+
+    private function SetProgramSelection(int $idx)
+    {
+        $program_infos = @json_decode($this->ReadAttributeString('program_infos'), true);
+        if ($program_infos == false) {
+            $this->SendDebug(__FUNCTION__, 'no program_infos', 0);
+            return false;
+        }
+
+        if ($idx == 0) {
+            $this->SetValue('ProgramEnabled', false);
+            $this->SetValue('ProgramWeatherAdjust', false);
+            $this->SetValue('ProgramInfo', '');
+
+            return true;
+        }
+
+        $program_info = false;
+        for ($i = 0; $i < count($program_infos); $i++) {
+            if ($program_infos[$i]['pid'] == $idx) {
+                $program_info = $program_infos[$i];
+                break;
+            }
+        }
+        if ($program_info === false) {
+            $this->SendDebug(__FUNCTION__, 'no program_info for idx=' . $idx, 0);
+            return false;
+        }
+
+        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
+
+        $this->SetValue('ProgramEnabled', $program_info['enabled']);
+        $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
+        $this->SetValue('ProgramInfo', $program_info['info']);
+
+        return true;
+    }
+
+    private function UpdateVarProfileAssociations(string $ident, $associations = null)
+    {
+        $varProfile = IPS_GetVariableProfile($ident);
+        $old_associations = $varProfile['Associations'];
+        foreach ($old_associations as $old_a) {
+            $fnd = false;
+            foreach ($associations as $a) {
+                if ($old_a['Value'] == $a['Value']) {
+                    $fnd = true;
+                    break;
+                }
+            }
+            if ($fnd == false) {
+                $associations[] = [
+                    'Value' => $old_a['Value'],
+                    'Name'  => '',
+                ];
+            }
+        }
+        foreach ($associations as $a) {
+            IPS_SetVariableProfileAssociation($ident, $a['Value'], $a['Name'], '', -1);
+        }
+    }
 }
-
-// END
-
-/*
-
-stations.stn_fas=Strömungsüberwachungs-Grenzmenge in l/min (/100)
-stations.stn_favg=Durchschnittliche Strömungsmenge in l/min (/100)
-
-17.11.2024, 14:11:53 | RetriveConfiguration | jdata=Array
-(
-    [settings] => Array
-        (
-            [devt] => 1731852712
-            [nbrd] => 4
-            [en] => 1
-            [sn1] => 0
-            [sn2] => 0
-            [rd] => 0
-            [rdst] => 0
-            [sunrise] => 474
-            [sunset] => 1001
-            [eip] => 2728303349
-            [lwc] => 1731841200
-            [lswc] => 1731841200
-            [lupt] => 1731765236
-            [lrbtc] => 99
-            [lrun] => Array
-                (
-                    [0] => 3
-                    [1] => 2
-                    [2] => 900
-                    [3] => 1731842101
-                )
-
-            [pq] => 0
-            [pt] => 0
-            [nq] => 0
-            [RSSI] => -43
-            [otc] => Array
-                (
-                    [en] => 1
-                    [token] => OT8a801789b8e5986d6c2771d8b192e7
-                    [server] => ws.cloud.openthings.io
-                    [port] => 80
-                )
-
-            [otcs] => 3
-            [mac] => 00:F9:E0:4B:03:9F
-            [loc] => 51.46101,7.15844
-            [jsp] => https://ui.opensprinklershop.de/js
-            [wsp] => weather.opensprinkler.com
-            [wto] => Array
-                (
-                    [scales] => Array
-                        (
-                            [0] => 100
-                            [1] => 100
-                            [2] => 100
-                            [3] => 100
-                            [4] => 100
-                            [5] => 100
-                            [6] => 100
-                            [7] => 100
-                            [8] => 100
-                            [9] => 100
-                            [10] => 100
-                            [11] => 100
-                        )
-
-                    [pws] => IBOCHUM22
-                    [key] => a7e2b3fcef09481da2b3fcef09281d41
-                )
-
-            [ifkey] =>
-            [mqtt] => Array
-                (
-                    [en] => 1
-                    [host] => 192.168.178.68
-                    [port] => 1883
-                    [user] => mqtt4ips
-                    [pass] => ws6#HL4(hn
-                    [pubt] => opensprinkler-controller
-                    [subt] => OS-00F9E04B039F
-                )
-
-            [wtdata] => Array
-                (
-                    [wp] => Manual
-                )
-
-            [wterr] => 0
-            [dname] => OpenSprinkler-Controller
-            [email] => Array
-                (
-                )
-
-            [curr] => 0
-            [flcrt] => 0
-            [flwrt] => 30
-            [sbits] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 0
-                    [4] => 0
-                )
-
-            [ps] => Array
-                (
-                    [0] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [1] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [2] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [3] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [4] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [5] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [6] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [7] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [8] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [9] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [10] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [11] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [12] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [13] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [14] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [15] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [16] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [17] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [18] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [19] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [20] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [21] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [22] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [23] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [24] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [25] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [26] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [27] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [28] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [29] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [30] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                    [31] => Array
-                        (
-                            [0] => 0
-                            [1] => 0
-                            [2] => 0
-                            [3] => 0
-                        )
-
-                )
-
-            [gpio] => Array
-                (
-                )
-
-            [influxdb] => Array
-                (
-                    [en] => 0
-                )
-
-        )
-
-    [programs] => Array
-        (
-            [nprogs] => 6
-            [nboards] => 4
-            [mnp] => 40
-            [mnst] => 4
-            [pnsize] => 32
-            [pd] => Array
-                (
-                    [0] => Array
-                        (
-                            [0] => 115
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array
-                                (
-                                    [0] => 420
-                                    [1] => -1
-                                    [2] => -1
-                                    [3] => -1
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                    [4] => 0
-                                    [5] => 600
-                                    [6] => 600
-                                    [7] => 600
-                                    [8] => 600
-                                    [9] => 0
-                                    [10] => 0
-                                    [11] => 0
-                                    [12] => 0
-                                    [13] => 0
-                                    [14] => 0
-                                    [15] => 0
-                                    [16] => 0
-                                    [17] => 0
-                                    [18] => 0
-                                    [19] => 0
-                                    [20] => 0
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 0
-                                    [25] => 0
-                                    [26] => 0
-                                    [27] => 0
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Beete
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                    [1] => Array
-                        (
-                            [0] => 3
-                            [1] => 127
-                            [2] => 0
-                            [3] => Array
-                                (
-                                    [0] => 660
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 900
-                                    [4] => 0
-                                    [5] => 0
-                                    [6] => 0
-                                    [7] => 0
-                                    [8] => 0
-                                    [9] => 0
-                                    [10] => 0
-                                    [11] => 0
-                                    [12] => 0
-                                    [13] => 0
-                                    [14] => 0
-                                    [15] => 0
-                                    [16] => 0
-                                    [17] => 0
-                                    [18] => 0
-                                    [19] => 0
-                                    [20] => 0
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 0
-                                    [25] => 0
-                                    [26] => 0
-                                    [27] => 0
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Pflanztrog
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                    [2] => Array
-                        (
-                            [0] => 51
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array
-                                (
-                                    [0] => 570
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 300
-                                    [1] => 0
-                                    [2] => 300
-                                    [3] => 0
-                                    [4] => 0
-                                    [5] => 0
-                                    [6] => 0
-                                    [7] => 0
-                                    [8] => 0
-                                    [9] => 0
-                                    [10] => 0
-                                    [11] => 0
-                                    [12] => 0
-                                    [13] => 0
-                                    [14] => 0
-                                    [15] => 0
-                                    [16] => 0
-                                    [17] => 0
-                                    [18] => 0
-                                    [19] => 0
-                                    [20] => 0
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 300
-                                    [25] => 300
-                                    [26] => 0
-                                    [27] => 0
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Gefäße
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                    [3] => Array
-                        (
-                            [0] => 51
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array
-                                (
-                                    [0] => 300
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 300
-                                    [2] => 0
-                                    [3] => 0
-                                    [4] => 0
-                                    [5] => 0
-                                    [6] => 0
-                                    [7] => 0
-                                    [8] => 0
-                                    [9] => 0
-                                    [10] => 300
-                                    [11] => 900
-                                    [12] => 600
-                                    [13] => 600
-                                    [14] => 420
-                                    [15] => 0
-                                    [16] => 0
-                                    [17] => 0
-                                    [18] => 0
-                                    [19] => 0
-                                    [20] => 0
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 300
-                                    [25] => 300
-                                    [26] => 0
-                                    [27] => 900
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Gefäße, Hochbeete morgens
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                    [4] => Array
-                        (
-                            [0] => 51
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array
-                                (
-                                    [0] => 900
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 300
-                                    [2] => 0
-                                    [3] => 0
-                                    [4] => 0
-                                    [5] => 0
-                                    [6] => 0
-                                    [7] => 0
-                                    [8] => 0
-                                    [9] => 0
-                                    [10] => 300
-                                    [11] => 900
-                                    [12] => 600
-                                    [13] => 600
-                                    [14] => 0
-                                    [15] => 0
-                                    [16] => 0
-                                    [17] => 0
-                                    [18] => 0
-                                    [19] => 0
-                                    [20] => 0
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 300
-                                    [25] => 300
-                                    [26] => 0
-                                    [27] => 900
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Gefäße, Hochbeete nachmittags
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                    [5] => Array
-                        (
-                            [0] => 2
-                            [1] => 1
-                            [2] => 0
-                            [3] => Array
-                                (
-                                    [0] => 330
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                )
-
-                            [4] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 0
-                                    [2] => 0
-                                    [3] => 0
-                                    [4] => 0
-                                    [5] => 0
-                                    [6] => 0
-                                    [7] => 0
-                                    [8] => 0
-                                    [9] => 0
-                                    [10] => 0
-                                    [11] => 0
-                                    [12] => 0
-                                    [13] => 0
-                                    [14] => 0
-                                    [15] => 600
-                                    [16] => 600
-                                    [17] => 600
-                                    [18] => 300
-                                    [19] => 300
-                                    [20] => 300
-                                    [21] => 0
-                                    [22] => 0
-                                    [23] => 0
-                                    [24] => 0
-                                    [25] => 0
-                                    [26] => 0
-                                    [27] => 0
-                                    [28] => 0
-                                    [29] => 0
-                                    [30] => 0
-                                    [31] => 0
-                                )
-
-                            [5] => Rasen
-                            [6] => Array
-                                (
-                                    [0] => 0
-                                    [1] => 33
-                                    [2] => 415
-                                )
-
-                        )
-
-                )
-
-        )
-
-    [options] => Array
-        (
-            [fwv] => 233
-            [tz] => 52
-            [ntp] => 1
-            [dhcp] => 0
-            [ip1] => 192
-            [ip2] => 168
-            [ip3] => 178
-            [ip4] => 94
-            [gw1] => 192
-            [gw2] => 168
-            [gw3] => 178
-            [gw4] => 1
-            [hp0] => 80
-            [hp1] => 0
-            [hwv] => 33
-            [ext] => 3
-            [sdt] => 0
-            [mas] => 0
-            [mton] => 0
-            [mtof] => 0
-            [wl] => 100
-            [den] => 1
-            [ipas] => 0
-            [devid] => 0
-            [dim] => 15
-            [uwt] => 4
-            [ntp1] => 192
-            [ntp2] => 168
-            [ntp3] => 178
-            [ntp4] => 1
-            [lg] => 1
-            [mas2] => 0
-            [mton2] => 0
-            [mtof2] => 0
-            [fwm] => 171
-            [fpr0] => 232
-            [fpr1] => 3
-            [re] => 0
-            [dns1] => 192
-            [dns2] => 168
-            [dns3] => 178
-            [dns4] => 2
-            [sar] => 0
-            [ife] => 255
-            [sn1t] => 2
-            [sn1o] => 1
-            [sn2t] => 1
-            [sn2o] => 1
-            [sn1on] => 0
-            [sn1of] => 0
-            [sn2on] => 0
-            [sn2of] => 0
-            [subn1] => 255
-            [subn2] => 255
-            [subn3] => 255
-            [subn4] => 0
-            [fwire] => 1
-            [ife2] => 31
-            [resv4] => 0
-            [resv5] => 0
-            [resv6] => 0
-            [resv7] => 0
-            [resv8] => 0
-            [wimod] => 42
-            [reset] => 0
-            [feature] => ASB
-            [dexp] => 2
-            [mexp] => 8
-            [hwt] => 172
-            [ms] => Array
-                (
-                    [0] => 0
-                    [1] => 120
-                    [2] => 120
-                    [3] => 0
-                    [4] => 120
-                    [5] => 120
-                )
-
-        )
-
-    [status] => Array
-        (
-            [sn] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 0
-                    [4] => 0
-                    [5] => 0
-                    [6] => 0
-                    [7] => 0
-                    [8] => 0
-                    [9] => 0
-                    [10] => 0
-                    [11] => 0
-                    [12] => 0
-                    [13] => 0
-                    [14] => 0
-                    [15] => 0
-                    [16] => 0
-                    [17] => 0
-                    [18] => 0
-                    [19] => 0
-                    [20] => 0
-                    [21] => 0
-                    [22] => 0
-                    [23] => 0
-                    [24] => 0
-                    [25] => 0
-                    [26] => 0
-                    [27] => 0
-                    [28] => 0
-                    [29] => 0
-                    [30] => 0
-                    [31] => 0
-                )
-
-            [nstations] => 32
-        )
-
-    [stations] => Array
-        (
-            [masop] => Array
-                (
-                    [0] => 255
-                    [1] => 255
-                    [2] => 255
-                    [3] => 255
-                )
-
-            [masop2] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 0
-                )
-
-            [ignore_rain] => Array
-                (
-                    [0] => 17
-                    [1] => 4
-                    [2] => 0
-                    [3] => 11
-                )
-
-            [ignore_sn1] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 10
-                )
-
-            [ignore_sn2] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 10
-                )
-
-            [stn_dis] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 224
-                    [3] => 224
-                )
-
-            [stn_spe] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 255
-                )
-
-            [stn_grp] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 0
-                    [4] => 0
-                    [5] => 0
-                    [6] => 0
-                    [7] => 0
-                    [8] => 0
-                    [9] => 0
-                    [10] => 0
-                    [11] => 0
-                    [12] => 0
-                    [13] => 0
-                    [14] => 0
-                    [15] => 0
-                    [16] => 0
-                    [17] => 0
-                    [18] => 0
-                    [19] => 0
-                    [20] => 0
-                    [21] => 0
-                    [22] => 0
-                    [23] => 0
-                    [24] => 0
-                    [25] => 0
-                    [26] => 0
-                    [27] => 0
-                    [28] => 0
-                    [29] => 0
-                    [30] => 0
-                    [31] => 0
-                )
-
-            [stn_fas] => Array
-                (
-                    [0] => 523
-                    [1] => 0
-                    [2] => 500
-                    [3] => 0
-                    [4] => 0
-                    [5] => 0
-                    [6] => 0
-                    [7] => 0
-                    [8] => 0
-                    [9] => 0
-                    [10] => 0
-                    [11] => 0
-                    [12] => 0
-                    [13] => 0
-                    [14] => 0
-                    [15] => 0
-                    [16] => 0
-                    [17] => 0
-                    [18] => 0
-                    [19] => 0
-                    [20] => 0
-                    [21] => 0
-                    [22] => 0
-                    [23] => 0
-                    [24] => 0
-                    [25] => 0
-                    [26] => 0
-                    [27] => 0
-                    [28] => 0
-                    [29] => 0
-                    [30] => 0
-                    [31] => 0
-                )
-
-            [stn_favg] => Array
-                (
-                    [0] => 0
-                    [1] => 0
-                    [2] => 0
-                    [3] => 0
-                    [4] => 0
-                    [5] => 0
-                    [6] => 0
-                    [7] => 0
-                    [8] => 0
-                    [9] => 0
-                    [10] => 0
-                    [11] => 0
-                    [12] => 0
-                    [13] => 0
-                    [14] => 0
-                    [15] => 0
-                    [16] => 0
-                    [17] => 0
-                    [18] => 0
-                    [19] => 0
-                    [20] => 0
-                    [21] => 0
-                    [22] => 0
-                    [23] => 0
-                    [24] => 0
-                    [25] => 0
-                    [26] => 0
-                    [27] => 0
-                    [28] => 0
-                    [29] => 0
-                    [30] => 0
-                    [31] => 0
-                )
-
-            [snames] => Array
-                (
-                    [0] => Gefäße (Terrasse)
-                    [1] => Gefäße (Wiese; Stellplatz)
-                    [2] => Gefäße (Beet)
-                    [3] => Pflanztrog (Garage)
-                    [4] => Brunnen
-                    [5] => Beet (Küche)
-                    [6] => Beet (Schuppen, rechts)
-                    [7] => Beet (Straße)
-                    [8] => Beet (links)
-                    [9] => Beet (rechts)
-                    [10] => Tomatenhaus
-                    [11] => Hochbeet (links)
-                    [12] => Hochbeet (mitte)
-                    [13] => Hochbeet (rechts)
-                    [14] => Hochbeet (Wiese)
-                    [15] => Rasen (Schuppen)
-                    [16] => Rasen (groß, links)
-                    [17] => Rasen (groß, rechts)
-                    [18] => Rasen (klein, links)
-                    [19] => Rasen (klein, mitte)
-                    [20] => Rasen (klein, rechts)
-                    [21] => S22
-                    [22] => S23
-                    [23] => S24
-                    [24] => Gefäße (Haustür)
-                    [25] => Gefäße (Küche, Vorplatz)
-                    [26] => Beet (Trockenmauer)
-                    [27] => Hochbeet (Küche)
-                    [28] => Rasen (neben Hochbeet)
-                    [29] => S30
-                    [30] => S31
-                    [31] => S32
-                )
-
-            [maxlen] => 32
-        )
-
-)
-
- */
-        /*
-        17.11.2024, 17:12:49 | RetriveConfiguration | program_data=Array
-        (
-            [nprogs] => 6
-            [nboards] => 4
-            [mnp] => 40
-            [mnst] => 4
-            [pnsize] => 32
-            [pd] => Array
-                (
-                    [0] => Array
-                        (
-                            [0] => 115
-                            [1] => 0
-                            [2] => 1
-                            [3] => Array ( [0] => 420 [1] => -1 [2] => -1 [3] => -1)
-                            [4] => Array ( [0] => 0 [1] => 0 [2] => 0 [3] => 0 [4] => 0 [5] => 600 [6] => 600 [7] => 600 [8] => 600 [9] => 0 [10] => 0 ... )
-                            [5] => Beete
-                            [6] => Array ( [0] => 0 [1] => 33 [2] => 415)
-                        )
-                )
-
-        )
-
-
-        [[flag, days0, days1, [start0, start1, start2, start3], [dur0, dur1, dur2...], name, [endr, from, to]]]
-        ● flag: a bit field storing program flags
-            o bit 0: program enable 'en' bit (1: enabled; 0: disabled)
-            o bit 1: use weather adjustment 'uwt' bit (1: yes; 0: no)
-            o bit 2-3: odd/even restriction (0: none; 1: odd-day restriction; 2: even-day restriction; 3: undefined)
-            o bit 4-5: program schedule type (0: weekday; 1: undefined; 2: undefined; 3: interval day)
-            o bit 6: start time type (0: repeating type; 1: fixed time type)
-            o bit 7: enable date range (0: do not use date range; 1: use date range)
-        ● days0/days1:
-            o If(flag.bits[4..5]==0), this is a weekday schedule:
-                ▪ days0.bits[0..6] store the binary selection bit from Monday to Sunday; days1 is unused.
-                For example, days0=127 means the program runs every day of the week; days0=21 (0b0010101) means the program runs on Monday, Wednesday, Friday every week.
-            o If(flag.bits[4..5]==3), this is an interval day schedule:
-                ▪ days1 stores the interval day, days0 stores the remainder (i.e. starting in day).
-                For example, days1=3 and days0=0 means the program runs every 3 days, starting from today.
-        ● start0/start1/start2/start3 (a value of -1 means the start time is disabled):
-            o Starttimes support using sunrise or sunset with a maximum offset value of +/- 4 hours in minute granularity:
-                ▪ If bits 13 and 14 are both cleared (i.e. 0), this defines the start time in terms of minutes since midnight.
-                ▪ If bit 13 is 1, this defines sunset time as start time. Similarly, if bit 14 is 1, this defines sunrise time.
-                ▪ If either bit 13 or 14 is 1, the remaining 12 bits then define the offset. Specifically, bit 12 is the sign (if true, it is negative); the absolute value of the offset is the remaining 11 bits (i.e. start_time&0x7FF).
-            o If(flag.bit6==1), this is a fixed starttime type:
-                ▪ start0, start1, start2, start3 store up to 4 fixed start times (minutes from midnight). Acceptable range is -1 to 1440. If set to -1, the
-        specific start time is disabled.
-            o If(flag.bit6==0), this is a repeating starttime type:
-                ▪ start0 stores the first start time (minutes from midnight), start1 stores the repeat count, start2 stores the interval time (in minutes); start3 is unused. For example, [480,5,120,0] means: start at 8:00 AM, repeat every 2 hours (120 minutes) for 5 times.
-        ● dur0,dur1...: The water time (in seconds) of each station. 0 means the station will not run. The number of elements here must match the number of stations. Unlike the previous firmwares, this firmware allows full second-level precision water time from 0 to 64800 seconds (18 hours). The two special values are: 1) 65534 represents sunrise to sunset duration; 2) 65535 represents sunset to sunrise duration.
-        ● name: Program name
-        ● [endr,from,to]: daterange parameters, inclusive on both 'from' and 'to'.
-            o endr: daterange enable (the same value as bit 7 of flag).
-            o from: integer value storing the start date. It's encoded as (month<<5)+day. For example, Feb 3 is encoded as (2<<5)+3=67. The default value is 33 (Jan 1).
-            o to: the end date (encoded the same way as 'from'). The default value is 415 (Dec 31). Note that 'from' can be either smaller than, larger than, or equal to 'to'. If 'from' is larger than 'to', the range goes from 'from' to the 'to' date of the following year.
-
-         */
