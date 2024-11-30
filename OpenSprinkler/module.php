@@ -11,6 +11,8 @@ class OpenSprinkler extends IPSModule
     use OpenSprinklerLocalLib;
 
     public static $MAX_INT_SENSORS = 2;
+    public static $ADHOC_PROGRAM = 254;
+    public static $MANUAL_ZONE_START = 99;
 
     private $VarProf_Zones;
     private $VarProf_Programs;
@@ -56,8 +58,8 @@ class OpenSprinkler extends IPSModule
         $this->RegisterAttributeInteger('timezone_offset', 0);
         $this->RegisterAttributeInteger('pulse_volume', 0);
 
+        $this->RegisterAttributeString('controller_infos', json_encode([]));
         $this->RegisterAttributeString('zone_infos', json_encode([]));
-        $this->RegisterAttributeString('sensor_infos', json_encode([]));
         $this->RegisterAttributeString('program_infos', json_encode([]));
 
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
@@ -74,6 +76,22 @@ class OpenSprinkler extends IPSModule
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
         $this->ConnectParent('{C6D2AEB3-6E1F-4B2E-8E69-3A1A00246850}');
+    }
+
+    public function Destroy()
+    {
+        if (IPS_InstanceExists($this->InstanceID) == false) {
+            $idents = [
+                $this->VarProf_Zones,
+                $this->VarProf_Programs
+            ];
+            foreach ($idents as $ident) {
+                if (IPS_VariableProfileExists($ident)) {
+                    IPS_DeleteVariableProfile($ident);
+                }
+            }
+        }
+        parent::Destroy();
     }
 
     public function MessageSink($timestamp, $senderID, $message, $data)
@@ -139,7 +157,9 @@ class OpenSprinkler extends IPSModule
             }
         }
 
+        /*
         $this->UnregisterMessages([VM_UPDATE]);
+         */
 
         if ($this->CheckPrerequisites() != false) {
             $this->MaintainTimer('QueryStatus', 0);
@@ -166,8 +186,11 @@ class OpenSprinkler extends IPSModule
         $vpos = 1;
 
         $this->MaintainVariable('ControllerState', $this->Translate('Controller state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ControllerState', $vpos++, true);
+        $this->MaintainAction('ControllerState', true);
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, true);
+        $this->MaintainAction('WateringLevel', true);
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $this->MaintainAction('RainDelayUntil', true);
 
         $this->MaintainVariable('CurrentDraw', $this->Translate('Current draw (actual)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
 
@@ -199,7 +222,7 @@ class OpenSprinkler extends IPSModule
             $post = '_' . ($sensor_n + 1);
             $s = sprintf('SN%d: ', $sensor_n + 1);
 
-            $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
+            $use = $sensor_entry['use'];
             $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
 
             if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
@@ -217,7 +240,6 @@ class OpenSprinkler extends IPSModule
         $vpos = 801;
         $this->MaintainVariable('ZoneSelection', $this->Translate('Zone selection'), VARIABLETYPE_INTEGER, $this->VarProf_Zones, $vpos++, true);
         $this->MaintainAction('ZoneSelection', true);
-
         $this->MaintainVariable('ZoneState', $this->Translate('Zone state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ZoneState', $vpos++, $use);
         $this->MaintainVariable('ZoneDisabled', $this->Translate('Zone is disabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
         $this->MaintainAction('ZoneDisabled', true);
@@ -227,7 +249,9 @@ class OpenSprinkler extends IPSModule
         $this->MaintainAction('ZoneIgnoreSensor1', true);
         $this->MaintainVariable('ZoneIgnoreSensor2', $this->Translate('Zone ignores sensor 2'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
         $this->MaintainAction('ZoneIgnoreSensor2', true);
-        $this->MaintainVariable('ZoneInfo', $this->Translate('Zone information'), VARIABLETYPE_STRING, '', $vpos++, true);
+        $this->MaintainVariable('ZoneInfo', $this->Translate('Zone information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
+        $this->MaintainVariable('ZoneRunning', $this->Translate('Zone current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
+        $this->MaintainVariable('ZoneLast', $this->Translate('Zone last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
 
         // 1001..8299: Zones (max 72)
         $zone_list = @json_decode($this->ReadPropertyString('zone_list'), true);
@@ -241,7 +265,7 @@ class OpenSprinkler extends IPSModule
             $post = '_' . ($zone_n + 1);
             $s = sprintf('Z%02d[%s]: ', $zone_n + 1, $zone_entry['name']);
 
-            $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
+            $use = $zone_entry['use'];
 
             $this->MaintainVariable('ZoneState' . $post, $s . $this->Translate('Zone state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ZoneState', $vpos++, $use);
             $varList[] = 'ZoneState' . $post;
@@ -270,7 +294,11 @@ class OpenSprinkler extends IPSModule
         $this->MaintainAction('ProgramEnabled', true);
         $this->MaintainVariable('ProgramWeatherAdjust', $this->Translate('Program with weather adjustments'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
         $this->MaintainAction('ProgramWeatherAdjust', true);
-        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '', $vpos++, true);
+        $this->MaintainVariable('ProgramStartManually', $this->Translate('Program start manually'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ProgramStart', $vpos++, true);
+        $this->MaintainAction('ProgramStartManually', true);
+        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
+        $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
+        $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
 
         // 10001..14999: Programs (max 40)
         $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
@@ -283,6 +311,8 @@ class OpenSprinkler extends IPSModule
             $vpos = 20000 + $program_n * 100 + 1;
             $post = '_' . ($program_n + 1);
             $s = sprintf('P%02d[%s]: ', $program_n + 1, $program_entry['name']);
+
+            $use = $program_entry['use'];
         }
 
         /*
@@ -340,11 +370,16 @@ class OpenSprinkler extends IPSModule
         $mqtt_topic = $this->ReadPropertyString('mqtt_topic');
         $this->SetReceiveDataFilter('.*' . $mqtt_topic . '.*');
 
+        /*
         foreach ($varIDs as $varID) {
             $this->RegisterMessage($varID, VM_UPDATE);
         }
+         */
 
         $this->MaintainStatus(IS_ACTIVE);
+
+        $this->SetZoneSelection($this->GetValue('ZoneSelection'));
+        $this->SetProgramSelection($this->GetValue('ProgramSelection'));
 
         if (IPS_GetKernelRunlevel() == KR_READY) {
             $this->SetQueryInterval();
@@ -709,43 +744,20 @@ class OpenSprinkler extends IPSModule
         $this->MaintainTimer('SendVariables', $sec * 1000);
     }
 
-    private function SaveTimezoneOffset($options)
-    {
-        $fnd = true;
-        $tz = $this->GetArrayElem($options, 'tz', 0, $fnd);
-        if ($fnd) {
-            $tz_offs = ($tz - 48) / 4 * 3600;
-            $this->SendDebug(__FUNCTION__, 'tz=' . $tz . ' => ' . $this->seconds2duration($tz_offs), 0);
-            $this->WriteAttributeInteger('timezone_offset', $tz_offs);
-        }
-    }
-
     private function AdjustTimestamp($tstamp)
     {
         if ($tstamp > 0) {
-            $tz_offs = $this->ReadAttributeInteger('timezone_offset');
+            $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
+            $tz_offs = isset($controller_infos['timezone_offset']) ? $controller_infos['timezone_offset'] : 0;
             $tstamp -= $tz_offs;
         }
         return $tstamp;
     }
 
-    private function SaveFlowVolume4Pulse($options)
-    {
-        $fnd = true;
-        $fpr0 = $this->GetArrayElem($options, 'fpr0', 0, $fnd);
-        if ($fnd) {
-            $fpr1 = $this->GetArrayElem($options, 'fpr1', 0, $fnd);
-            if ($fnd) {
-                $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
-                $this->SendDebug(__FUNCTION__, 'fpr0=' . $fpr0 . ', fpr1=' . $fpr1 . ' => ' . $fpr . 'l/pulse', 0);
-                $this->WriteAttributeInteger('pulse_volume', $fpr);
-            }
-        }
-    }
-
     private function ConvertPulses2Volume($count)
     {
-        $vol = $this->ReadAttributeInteger('pulse_volume');
+        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $vol = isset($controller_infos['pulse_volume']) ? $controller_infos['pulse_volume'] : 0;
         return $count * $vol;
     }
 
@@ -790,10 +802,398 @@ class OpenSprinkler extends IPSModule
         $programs = $jdata['programs'];
         $this->SendDebug(__FUNCTION__, 'programs=' . print_r($programs, true), 0);
 
-        $this->SaveTimezoneOffset($options);
-        $this->SaveFlowVolume4Pulse($options);
-
         $fnd = true;
+
+        $timezone_offset = 0;
+        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
+        if ($fnd) {
+            $timezone_offset = ($tz - 48) / 4 * 3600;
+        }
+
+        $pulse_volume = 0;
+        $fpr0 = $this->GetArrayElem($jdata, 'options.fpr0', 0, $fnd);
+        if ($fnd) {
+            $fpr1 = $this->GetArrayElem($jdata, 'options.fpr1', 0, $fnd);
+            if ($fnd) {
+                $pulse_volume = (($fpr1 << 8) + $fpr0) / 100.0;
+            }
+        }
+
+        $weather_method = self::$WEATHER_METHOD_MANUAL;
+        $uwt = $this->GetArrayElem($jdata, 'options.uwt', 0, $fnd);
+        if ($fnd) {
+            $weather_method = $this->bit_clear($uwt, 7);
+        }
+
+        /*
+            Program status data: each element is a 4-field array that stores the [pid,rem,start,gid] of a station,
+            where
+                pid is the program index (0 means none),
+                rem is the remaining water time (in seconds),
+                start is the start time, and
+                gid is the (sequential) group id of the station.
+            If a station is not running (sbit is 0) but has a non-zero pid, that means the station is in the queue waiting to run.
+         */
+        $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
+            for ($sid = 0; $sid < count($ps); $sid++) {
+                $pid = $ps[$sid][0];
+                $rem = $ps[$sid][1];
+                $start = $this->AdjustTimestamp($ps[$sid][2]);
+                $gid = $ps[$sid][3];
+                if ($pid != 0 || $rem != 0 || $start != 0) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+                }
+            }
+        }
+
+        $running_programsV = [];
+        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
+        for ($i = 0; $i < $nprogs; $i++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            if ($program_list[$n] == false) {
+                continue;
+            }
+
+            $post = '_' . ($i + 1);
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
+
+            $pid = 0;
+            $pname = '';
+            for ($j = 0; $j < count($ps); $j++) {
+                $pid = $ps[$j][0];
+                if ($pid == 0) {
+                    continue;
+                }
+                if ($pid == ($i + 1)) {
+                    $pname = $program_entry['name'];
+                } elseif ($pid == self::$ADHOC_PROGRAM) {
+                    $pname = $this->Translate('Adhoc program');
+                } elseif ($pid == self::$MANUAL_ZONE_START) {
+                    $pname = $this->Translate('Manual zone start');
+                } else {
+                    $pname = $this->Translate('Unknown program') . ' ' . $pid;
+                }
+                if (in_array($pname, $running_programsV) == false) {
+                    $running_programsV[] = $pname;
+                }
+            }
+        }
+
+        $running_zonesV = [];
+        /*
+            Station status bits. Each byte in this array corresponds to an 8-station board and represents the bit field (LSB).
+            For example, 1 means the 1st station on the board is open, 192 means the 7th and 8th stations are open.
+         */
+        $sbits = (array) $this->GetArrayElem($jdata, 'settings.sbits', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.sbits)=' . print_r($sbits, true), 0);
+            for ($sid = 0; $sid < count($sbits) * 8; $sid++) {
+                if ($this->idx_in_bytes($sid, $sbits)) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', active', 0);
+                    for ($n = 0; $n < count($zone_list); $n++) {
+                        $zone_entry = $zone_list[$n];
+                        if ($zone_entry['no'] == $sid) {
+                            if ($zone_entry['use']) {
+                                $running_zonesV[] = $zone_entry['name'];
+                            }
+                            break;
+                        }
+                    }
+                    if ($n == count($zone_list)) {
+                        $running_zonesV[] = $this->Translate('Unknown zone') . ' ' . $sid;
+                    }
+                }
+            }
+        }
+
+        $last_program = '';
+        $last_zone = '';
+        /*
+            Last run record, which stores the [station index, program index, duration, end time] of the last run station.
+         */
+        $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.lrun)=' . print_r($lrun, true), 0);
+            $sid = $lrun[0];
+            $pid = $lrun[1];
+            $dur = $lrun[2];
+            $end = $this->AdjustTimestamp($lrun[3]);
+            $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', dur=' . $dur . ', end=' . ($end ? date('d.m.y H:i:s', $end) : '-'), 0);
+            if ($pid != 0) {
+                if ($pid == self::$ADHOC_PROGRAM) {
+                    $last_program = $this->Translate('Adhoc program');
+                } elseif ($pid == self::$MANUAL_ZONE_START) {
+                    $last_program = $this->Translate('Manual zone start');
+                } else {
+                    for ($n = 0; $n < count($program_list); $n++) {
+                        $program_entry = $program_list[$n];
+                        if ($program_entry['no'] == ($pid - 1)) {
+                            if ($program_entry['use']) {
+                                $last_program = $program_entry['name'];
+                            }
+                            break;
+                        }
+                    }
+                    if ($n == count($program_list)) {
+                        $running_programsV[] = $this->Translate('Unknown program') . ' ' . $pid;
+                    }
+                }
+            }
+            if ($sid != 0) {
+                for ($n = 0; $n < count($zone_list); $n++) {
+                    $zone_entry = $zone_list[$n];
+                    if ($zone_entry['no'] == $sid) {
+                        if ($zone_entry['use']) {
+                            $last_zone = $zone_entry['name'];
+                        }
+                        break;
+                    }
+                }
+                if ($n == count($zone_list)) {
+                    $running_zonesV[] = $this->Translate('Unknown zone') . ' ' . $sid;
+                }
+            }
+        }
+
+        $controller_infos = [
+            'timezone_offset'  => $timezone_offset,
+            'pulse_volume'     => $pulse_volume,
+            'weather_method'   => $weather_method,
+            'running_programs' => implode(', ', $running_programsV),
+            'running_zones'    => implode(', ', $running_zonesV),
+            'last_program'     => $last_program,
+            'last_zone'        => $last_zone,
+        ];
+
+        $zone_infos = [];
+
+        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
+        $snames = (array) $this->GetArrayElem($jdata, 'stations.snames', '');
+        $ignore_rain = (array) $this->GetArrayElem($jdata, 'stations.ignore_rain', []);
+        $ignore_sn1 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn1', []);
+        $ignore_sn2 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn2', []);
+        $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', []);
+        $stn_grp = (array) $this->GetArrayElem($jdata, 'stations.stn_grp', []);
+        $stn_spe = (array) $this->GetArrayElem($jdata, 'stations.stn_spe', []);
+        $mas = $this->GetArrayElem($jdata, 'options.mas', 0);
+        $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
+        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
+        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
+
+        for ($i = 0; $i < $maxlen; $i++) {
+            for ($n = 0; $n < count($zone_list); $n++) {
+                if ($zone_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($zone_list)) {
+                continue;
+            }
+            $zone_entry = $zone_list[$n];
+
+            if ($zone_entry['use'] == false) {
+                continue;
+            }
+
+            if ($i == ($mas - 1)) {
+                $master = 1;
+            } elseif ($i == ($mas2 - 1)) {
+                $master = 2;
+            } else {
+                $master = 0;
+            }
+
+            $prV = [];
+            for ($j = 0; $j < $nprogs; $j++) {
+                for ($n = 0; $n < count($program_list); $n++) {
+                    if ($program_list[$n]['no'] == $j) {
+                        break;
+                    }
+                }
+                if ($n == count($program_list)) {
+                    continue;
+                }
+                $program_entry = $program_list[$n];
+
+                if ($program_entry['use'] == false) {
+                    continue;
+                }
+
+                $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.4', []);
+                if ($duration[$i] == 0) {
+                    continue;
+                }
+
+                $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.0', '');
+                $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.3', []);
+                $name = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.5', '');
+
+                $repV = [];
+                if ($this->bit_test($flag, 6)) {
+                    for ($n = 0; $n < count($start); $n++) {
+                        $min = $start[$n];
+                        if ($min != -1) {
+                            $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                        }
+                    }
+                } else {
+                    $min = $start[0];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    for ($n = 0; $n < $start[1]; $n++) {
+                        $min += $start[2];
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+
+                $prV[] = $name . '[' . $this->seconds2duration($duration[$i]) . ' @ ' . implode('/', $repV) . ']';
+            }
+
+            $info = implode(', ', $prV);
+
+            $zone_infos[] = [
+                'sid'                 => $i + 1,
+                'name'                => $snames[$i],
+                'group'               => $this->Group2String($stn_grp[$i]),
+                'disabled'            => $this->idx_in_bytes($i, $stn_dis),
+                'ignore_rain'         => $this->idx_in_bytes($i, $ignore_rain),
+                'ignore_sn1'          => $this->idx_in_bytes($i, $ignore_sn1),
+                'ignore_sn2'          => $this->idx_in_bytes($i, $ignore_sn2),
+                'is_special'          => $this->idx_in_bytes($i, $stn_spe),
+                'master'              => $master,
+                'stn_fas'             => $stn_fas[$i],
+                'info'                => $info,
+            ];
+        }
+
+        $program_infos = [];
+        for ($i = 0; $i < $nprogs; $i++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['no'] == $i) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            if ($program_entry['use'] == false) {
+                continue;
+            }
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
+            $days0 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.1', '');
+            $days1 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.2', '');
+            $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.3', []);
+            $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.4', []);
+            $name = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.5', '');
+            $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.6', []);
+
+            $repV = [];
+            if ($this->bit_test($flag, 6)) {
+                for ($n = 0; $n < count($start); $n++) {
+                    $min = $start[$n];
+                    if ($min != -1) {
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+            } else {
+                $min = $start[0];
+                $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                for ($n = 0; $n < $start[1]; $n++) {
+                    $min += $start[2];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                }
+            }
+
+            $znV = [];
+            for ($j = 0; $j < $maxlen; $j++) {
+                for ($n = 0; $n < count($zone_list); $n++) {
+                    if ($zone_list[$n]['no'] == $j) {
+                        break;
+                    }
+                }
+                if ($n == count($zone_list)) {
+                    continue;
+                }
+                $zone_entry = $zone_list[$n];
+
+                if ($zone_entry['use']) {
+                    continue;
+                }
+
+                if ($duration[$j] == 0) {
+                    continue;
+                }
+                $znV[] = $snames[$j] . '[' . $this->seconds2duration($duration[$j]) . ']';
+            }
+
+            $info = $this->TranslateFormat('Start at {$rep} with zone(s) {$zn}', ['{$rep}' => implode('/', $repV), '{$zn}' => implode(', ', $znV)]);
+
+            $program_infos[] = [
+                'pid'                 => $i + 1,
+                'name'                => $name,
+                'enabled'             => $this->bit_test($flag, 0),
+                'weather_adjustment'  => $this->bit_test($flag, 1),
+                'flag'                => $flag,
+                'days0'               => $days0,
+                'days1'               => $days1,
+                'start'               => $start,
+                'duration'            => $duration,
+                'daterange'           => $daterange,
+                'total_duration'      => array_sum($duration),
+                'info'                => $info,
+            ];
+        }
+
+        $this->SendDebug(__FUNCTION__, 'controller_infos=' . print_r($controller_infos, true), 0);
+        $this->WriteAttributeString('controller_infos', json_encode($controller_infos));
+
+        $this->SendDebug(__FUNCTION__, 'zone_infos=' . print_r($zone_infos, true), 0);
+        $this->WriteAttributeString('zone_infos', json_encode($zone_infos));
+
+        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
+        $this->WriteAttributeString('program_infos', json_encode($program_infos));
+
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        foreach ($zone_infos as $info) {
+            $associations[] = [
+                'Value' => $info['sid'],
+                'Name'  => $info['name'],
+            ];
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Zones, $associations);
+
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        foreach ($program_infos as $info) {
+            $associations[] = [
+                'Value' => $info['pid'],
+                'Name'  => $info['name'],
+            ];
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
 
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
@@ -801,36 +1201,18 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, '... ControllerState (settings.en)=' . $en . ' => ' . $i, 0);
             $this->SetValue('ControllerState', $i);
         }
-        /*
-            Change Controller Variables [Keyword /cv]
-                /cv?pw=xxx&en=x
-                Parameters:
-                    ● en: Operation enable. Binary value.
-         */
 
         $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl, 0);
             $this->SetValue('WateringLevel', $wl);
         }
-        /*
-            Change Options [Keyword /co]
-                /co?pw=xxx&wl=x
-                Parameters:
-                    ● wl: Waterlevel (i.e. % Watering). Acceptable range is 0 to 250.
-         */
 
         $rdst = $this->GetArrayElem($jdata, 'settings.rdst', 0, $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... RainDelayUntil (settings.rdst)=' . $rdst, 0);
             $this->SetValue('RainDelayUntil', $rdst);
         }
-        /*
-            Change Controller Variables [Keyword /cv]
-                /cv?pw=xxx&rd=x
-                Parameters:
-                    ● rd: Set rain delay time (in hours). Range is 0 to 32767. A value of 0 turns off rain delay.
-         */
 
         $devt = $this->GetArrayElem($jdata, 'settings.devt', 0, $fnd);
         if ($fnd) {
@@ -888,8 +1270,7 @@ class OpenSprinkler extends IPSModule
             }
             $sensor_entry = $sensor_list[$n];
 
-            $use = (bool) $this->GetArrayElem($sensor_entry, 'use', false);
-            if ($use === false) {
+            if ($sensor_entry['use'] === false) {
                 continue;
             }
 
@@ -915,22 +1296,6 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        /*
-            Last run record, which stores the [station index, program index, duration, end time] of the last run station.
-         */
-        $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.lrun)=' . print_r($lrun, true), 0);
-            $sid = $lrun[0];
-            $pid = $lrun[1];
-            $dur = $lrun[2];
-            $end = $this->AdjustTimestamp($lrun[3]);
-            $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', dur=' . $dur . ', end=' . ($end ? date('d.m.y H:i:s', $end) : '-'), 0);
-        }
-
-        /*
-            zone disable
-         */
         $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', [], $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... (stations.stn_dis)=' . print_r($stn_dis, true), 0);
@@ -971,50 +1336,10 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        /*
-            Station status bits. Each byte in this array corresponds to an 8-station board and represents the bit field (LSB).
-            For example, 1 means the 1st station on the board is open, 192 means the 7th and 8th stations are open.
-         */
-        $sbits = (array) $this->GetArrayElem($jdata, 'settings.sbits', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.sbits)=' . print_r($sbits, true), 0);
-            for ($sid = 0; $sid < count($sbits) * 8; $sid++) {
-                if ($this->idx_in_bytes($sid, $sbits)) {
-                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', active', 0);
-                }
-            }
-        }
-
-        /*
-            Program status data: each element is a 4-field array that stores the [pid,rem,start,gid] of a station,
-            where
-                pid is the program index (0 means none),
-                rem is the remaining water time (in seconds),
-                start is the start time, and
-                gid is the (sequential) group id of the station.
-            If a station is not running (sbit is 0) but has a non-zero pid, that means the station is in the queue waiting to run.
-         */
-        $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
-            for ($sid = 0; $sid < count($ps); $sid++) {
-                $pid = $ps[$sid][0];
-                $rem = $ps[$sid][1];
-                $start = $this->AdjustTimestamp($ps[$sid][2]);
-                $gid = $ps[$sid][3];
-                if ($pid != 0 || $rem != 0 || $start != 0) {
-                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', pid=' . $pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
-                }
-            }
-        }
-
-        /*
-            Strömungsüberwachungs-Grenzmenge in l/min (/100)
-                cmd=cs, opt=f
-         */
+        // Strömungsüberwachungs-Grenzmenge in l/min (/100)
         $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', [], $fnd);
         if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (stations.stn_fas)=' . print_r($ps, true), 0);
+            $this->SendDebug(__FUNCTION__, '... (stations.stn_fas)=' . print_r($stn_fas, true), 0);
             for ($sid = 0; $sid < count($stn_fas); $sid++) {
                 if ($stn_fas[$sid] > 0) {
                     $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', stn_fas=' . ($stn_fas[$sid] / 100), 0);
@@ -1022,13 +1347,10 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        /*
-            Durchschnittliche Strömungsmenge in l/min (/100)
-                cmd=cs, opt=a
-         */
+        // Durchschnittliche Strömungsmenge in l/min (/100)
         $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', [], $fnd);
         if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (stations.stn_favg)=' . print_r($ps, true), 0);
+            $this->SendDebug(__FUNCTION__, '... (stations.stn_favg)=' . print_r($stn_favg, true), 0);
             for ($sid = 0; $sid < count($stn_favg); $sid++) {
                 if ($stn_favg[$sid] > 0) {
                     $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', stn_favg=' . ($stn_favg[$sid] / 100), 0);
@@ -1048,8 +1370,7 @@ class OpenSprinkler extends IPSModule
             }
             $zone_entry = $zone_list[$n];
 
-            $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
-            if ($use === false) {
+            if ($zone_entry['use'] == false) {
                 continue;
             }
 
@@ -1104,280 +1425,9 @@ class OpenSprinkler extends IPSModule
             stations.stn_fas=Strömungsüberwachungs-Grenzmenge in l/min (/100)
             stations.stn_favg=Durchschnittliche Strömungsmenge in l/min (/100)
              */
-
-            /*
-                12. Manual Station Run (previously manual override) [Keyword /cm]
-                    /cm?pw=xxx&sid=xx&en=x&t=xxx&ssta=xxx
-                    Parameters:
-                        ● sid: Stationindex(starting from 0)
-                        ● en: Enablebit(1: open the selected station; 0: close the selected station).
-                        ● t: Timer(inseconds). Acceptable range is 0 to 64800 (18 hours)
-                        ● ssta: shift remaining stations in the same sequential group (0: do not shift remaining stations; 1: shift remaining stations forward). Only if en=0)
-             */
         }
-
-        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
-        for ($i = 0; $i < $nprogs; $i++) {
-            for ($n = 0; $n < count($program_list); $n++) {
-                if ($program_list[$n]['no'] == $i) {
-                    break;
-                }
-            }
-            if ($n == count($program_list)) {
-                continue;
-            }
-            $program_entry = $program_list[$n];
-
-            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
-            if ($use === false) {
-                continue;
-            }
-
-            $post = '_' . ($i + 1);
-
-            /*
-                Manually Start a Program [Keyword /mp]
-                    /mp?pw=xxx&pid=xx&uwt=x
-                    Parameters:
-                    ● pid: programindex(startingfrom0asthefirstprogram)
-                    ● uwt: use weather (i.e. applying current water level / percentage). Binary value.
-             */
-        }
-
-        /*
-            Pause Queue [Keyword /pq]
-                /pq?pw=x&dur=xxx
-                This command triggers (toggles) a pause with the specified duration (in units of seconds).
-                Calling it first with a non-zero duration will start the pause; calling it again (regardless of duration value) will cancel the pause and resume station runs (i.e. it's a toggle).
-         */
-        /*
-            Change Controller Variables [Keyword /cv]
-                /cv?pw=xxx&rsn=x
-                Parameters:
-                    ● rsn: Reset all stations (including those waiting to run). The value doesn’t matter: action is triggered if parameter appears
-            => stop alle stationen
-         */
 
         $this->SetValue('LastUpdate', $now);
-
-        $zone_infos = [];
-
-        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
-        $snames = (array) $this->GetArrayElem($jdata, 'stations.snames', '');
-        $ignore_rain = (array) $this->GetArrayElem($jdata, 'stations.ignore_rain', []);
-        $ignore_sn1 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn1', []);
-        $ignore_sn2 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn2', []);
-        $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', []);
-        $stn_grp = (array) $this->GetArrayElem($jdata, 'stations.stn_grp', []);
-        $stn_spe = (array) $this->GetArrayElem($jdata, 'stations.stn_spe', []);
-        $mas = $this->GetArrayElem($jdata, 'options.mas', 0);
-        $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
-        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
-        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
-
-        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
-
-        for ($i = 0; $i < $maxlen; $i++) {
-            for ($n = 0; $n < count($zone_list); $n++) {
-                if ($zone_list[$n]['no'] == $i) {
-                    break;
-                }
-            }
-            if ($n == count($zone_list)) {
-                continue;
-            }
-            $zone_entry = $zone_list[$n];
-
-            $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
-            if ($use === false) {
-                continue;
-            }
-
-            if ($i == ($mas - 1)) {
-                $master = 1;
-            } elseif ($i == ($mas2 - 1)) {
-                $master = 2;
-            } else {
-                $master = 0;
-            }
-
-            $prV = [];
-            for ($j = 0; $j < $nprogs; $j++) {
-                for ($n = 0; $n < count($program_list); $n++) {
-                    if ($program_list[$n]['no'] == $j) {
-                        break;
-                    }
-                }
-                if ($n == count($program_list)) {
-                    continue;
-                }
-                $program_entry = $program_list[$n];
-
-                $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
-                if ($use === false) {
-                    continue;
-                }
-
-                $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.4', []);
-                if ($duration[$i] == 0) {
-                    continue;
-                }
-
-                $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.0', '');
-                $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.3', []);
-                $name = $this->GetArrayElem($jdata, 'programs.pd.' . $j . '.5', '');
-
-                $repV = [];
-                if ($this->bit_test($flag, 6)) {
-                    for ($n = 0; $n < count($start); $n++) {
-                        $min = $start[$n];
-                        if ($min != -1) {
-                            $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                        }
-                    }
-                } else {
-                    $min = $start[0];
-                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    for ($n = 0; $n < $start[1]; $n++) {
-                        $min += $start[2];
-                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    }
-                }
-
-                $prV[] = $name . '[' . $this->seconds2duration($duration[$i]) . ' @ ' . implode('/', $repV) . ']';
-            }
-
-            $info = implode(', ', $prV);
-
-            $zone_infos[] = [
-                'sid'                 => $i + 1,
-                'name'                => $snames[$i],
-                'group'               => $this->Group2String($stn_grp[$i]),
-                'disabled'            => $this->idx_in_bytes($i, $stn_dis),
-                'ignore_rain'         => $this->idx_in_bytes($i, $ignore_rain),
-                'ignore_sn1'          => $this->idx_in_bytes($i, $ignore_sn1),
-                'ignore_sn2'          => $this->idx_in_bytes($i, $ignore_sn2),
-                'is_special'          => $this->idx_in_bytes($i, $stn_spe),
-                'master'              => $master,
-                'stn_fas'             => $stn_fas[$i],
-                'info'                => $info,
-            ];
-        }
-        $this->SendDebug(__FUNCTION__, 'zone_infos=' . print_r($zone_infos, true), 0);
-        $this->WriteAttributeString('zone_infos', json_encode($zone_infos));
-
-        $associations = [
-            [
-                'Value' => 0,
-                'Name'  => '-'
-            ],
-        ];
-        foreach ($zone_infos as $info) {
-            $associations[] = [
-                'Value' => $info['sid'],
-                'Name'  => $info['name'],
-            ];
-        }
-        $this->UpdateVarProfileAssociations($this->VarProf_Zones, $associations);
-
-        $program_infos = [];
-        for ($i = 0; $i < $nprogs; $i++) {
-            for ($n = 0; $n < count($program_list); $n++) {
-                if ($program_list[$n]['no'] == $i) {
-                    break;
-                }
-            }
-            if ($n == count($program_list)) {
-                continue;
-            }
-            $program_entry = $program_list[$n];
-
-            $use = (bool) $this->GetArrayElem($program_entry, 'use', false);
-            if ($use === false) {
-                continue;
-            }
-
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.0', '');
-            $days0 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.1', '');
-            $days1 = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.2', '');
-            $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.3', []);
-            $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.4', []);
-            $name = $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.5', '');
-            $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $i . '.6', []);
-
-            $repV = [];
-            if ($this->bit_test($flag, 6)) {
-                for ($n = 0; $n < count($start); $n++) {
-                    $min = $start[$n];
-                    if ($min != -1) {
-                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    }
-                }
-            } else {
-                $min = $start[0];
-                $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                for ($n = 0; $n < $start[1]; $n++) {
-                    $min += $start[2];
-                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                }
-            }
-
-            $znV = [];
-            for ($j = 0; $j < $maxlen; $j++) {
-                for ($n = 0; $n < count($zone_list); $n++) {
-                    if ($zone_list[$n]['no'] == $j) {
-                        break;
-                    }
-                }
-                if ($n == count($zone_list)) {
-                    continue;
-                }
-                $zone_entry = $zone_list[$n];
-
-                $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
-                if ($use === false) {
-                    continue;
-                }
-
-                if ($duration[$j] == 0) {
-                    continue;
-                }
-                $znV[] = $snames[$j] . '[' . $this->seconds2duration($duration[$j]) . ']';
-            }
-
-            $info = $this->TranslateFormat('Start at {$rep} with zone(s) {$zn}', ['{$rep}' => implode('/', $repV), '{$zn}' => implode(', ', $znV)]);
-
-            $program_infos[] = [
-                'pid'                 => $i + 1,
-                'name'                => $name,
-                'enabled'             => $this->bit_test($flag, 0),
-                'weather_adjustment'  => $this->bit_test($flag, 1),
-                'flag'                => $flag,
-                'days0'               => $days0,
-                'days1'               => $days1,
-                'start'               => $start,
-                'duration'            => $duration,
-                'daterange'           => $daterange,
-                'total_duration'      => array_sum($duration),
-                'info'                => $info,
-            ];
-        }
-        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
-        $this->WriteAttributeString('program_infos', json_encode($program_infos));
-
-        $associations = [
-            [
-                'Value' => 0,
-                'Name'  => '-'
-            ],
-        ];
-        foreach ($program_infos as $info) {
-            $associations[] = [
-                'Value' => $info['pid'],
-                'Name'  => $info['name'],
-            ];
-        }
-        $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
 
         $this->SetZoneSelection($this->GetValue('ZoneSelection'));
         $this->SetProgramSelection($this->GetValue('ProgramSelection'));
@@ -1638,7 +1688,7 @@ class OpenSprinkler extends IPSModule
                 $use = false;
             } else {
                 $zone_entry = $zone_list[$n];
-                $use = (bool) $this->GetArrayElem($zone_entry, 'use', false);
+                $use = $zone_entry['use'];
             }
 
             if ($use) {
@@ -1801,6 +1851,18 @@ class OpenSprinkler extends IPSModule
 
         $r = false;
         switch ($ident_base) {
+            case 'ControllerState':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetControllerState();
+                break;
+            case 'WateringLevel':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetWateringLevel();
+                break;
+            case 'RainDelayUntil':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetRainDelayUntil();
+                break;
             case 'ZoneSelection':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneSelection((int) $value);
@@ -1833,6 +1895,10 @@ class OpenSprinkler extends IPSModule
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetProgramWeatherAdjust((bool) $value);
                 break;
+            case 'ProgramStartManually':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->SetProgramStartManually((int) $value);
+                break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
                 break;
@@ -1846,6 +1912,7 @@ class OpenSprinkler extends IPSModule
                 case 'ZoneIgnoreSensor2':
                 case 'ProgramEnabled':
                 case 'ProgramWeatherAdjust':
+                case 'ProgramStartManually':
                     $this->MaintainTimer('QueryStatus', 500);
                     break;
                 default:
@@ -2006,7 +2073,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $sid = $this->GetValue('ZoneSelection');
-        // check 0
+        if ($sid == 0) {
+            return false;
+        }
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -2040,7 +2109,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $sid = $this->GetValue('ZoneSelection');
-        // check 0
+        if ($sid == 0) {
+            return false;
+        }
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -2074,7 +2145,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $sid = $this->GetValue('ZoneSelection');
-        // check 0
+        if ($sid == 0) {
+            return false;
+        }
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -2108,7 +2181,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $sid = $this->GetValue('ZoneSelection');
-        // check 0
+        if ($sid == 0) {
+            return false;
+        }
 
         $byte = floor(($sid - 1) / 8);
         $bit = ($sid - 1) % 8;
@@ -2142,7 +2217,9 @@ class OpenSprinkler extends IPSModule
         }
 
         $pid = $this->GetValue('ProgramSelection');
-        // check 0
+        if ($pid == 0) {
+            return false;
+        }
 
         $params = [
             'pid' => ($pid - 1),
@@ -2160,13 +2237,42 @@ class OpenSprinkler extends IPSModule
         }
 
         $pid = $this->GetValue('ProgramSelection');
-        // check 0
+        if ($pid == 0) {
+            return false;
+        }
 
         $params = [
             'pid' => ($pid - 1),
             'uwt' => ($value ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('cp', $params);
+        return $data != false;
+    }
+
+    public function SetProgramStartManually(int $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $pid = $this->GetValue('ProgramSelection');
+        if ($pid == 0) {
+            return false;
+        }
+
+        $this->SendDebug(__FUNCTION__, 'pid=' . $pid . ', mode=' . $value, 0);
+        if ($value == self::$PROGRAM_START_NOP) {
+            return false;
+        }
+
+        $uwt = $value == self::$PROGRAM_START_WITH_WEATHER ? 1 : 0;
+
+        $params = [
+            'pid' => ($pid - 1),
+            'uwt' => $uwt,
+        ];
+        $data = $this->do_HttpRequest('mp', $params);
         return $data != false;
     }
 
@@ -2232,6 +2338,11 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, 'no zone_infos', 0);
             return false;
         }
+        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
+        if ($controller_infos == false) {
+            $this->SendDebug(__FUNCTION__, 'no controller_infos', 0);
+            return false;
+        }
 
         if ($idx == 0) {
             $this->SetValue('ZoneState', self::$CONTROLLER_STATE_DISABLED);
@@ -2240,6 +2351,8 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('ZoneIgnoreSensor1', false);
             $this->SetValue('ZoneIgnoreSensor2', false);
             $this->SetValue('ZoneInfo', '');
+            $this->SetValue('ZoneRunning', '');
+            $this->SetValue('ZoneLast', '');
 
             return true;
         }
@@ -2256,16 +2369,32 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        $this->SendDebug(__FUNCTION__, 'zone_infos=' . print_r($zone_infos, true), 0);
+        $post = '_' . $idx;
 
-        $post = '_' . ($i + 1);
-
-        $this->SetValue('ZoneState', $this->GetValue('ZoneState' . $post));
-        $this->SetValue('ZoneDisabled', $zone_info['disabled']);
-        $this->SetValue('ZoneIgnoreRain', $zone_info['ignore_rain']);
-        $this->SetValue('ZoneIgnoreSensor1', $zone_info['ignore_sn1']);
-        $this->SetValue('ZoneIgnoreSensor2', $zone_info['ignore_sn2']);
-        $this->SetValue('ZoneInfo', $zone_info['info']);
+        if ($this->GetValue('ZoneState') != $this->GetValue('ZoneState' . $post)) {
+            $this->SetValue('ZoneState', $this->GetValue('ZoneState' . $post));
+        }
+        if ($this->GetValue('ZoneDisabled') != $zone_info['disabled']) {
+            $this->SetValue('ZoneDisabled', $zone_info['disabled']);
+        }
+        if ($this->GetValue('ZoneIgnoreRain') != $zone_info['ignore_rain']) {
+            $this->SetValue('ZoneIgnoreRain', $zone_info['ignore_rain']);
+        }
+        if ($this->GetValue('ZoneIgnoreSensor1') != $zone_info['ignore_sn1']) {
+            $this->SetValue('ZoneIgnoreSensor1', $zone_info['ignore_sn1']);
+        }
+        if ($this->GetValue('ZoneIgnoreSensor2') != $zone_info['ignore_sn2']) {
+            $this->SetValue('ZoneIgnoreSensor2', $zone_info['ignore_sn2']);
+        }
+        if ($this->GetValue('ZoneInfo') != $zone_info['info']) {
+            $this->SetValue('ZoneInfo', $zone_info['info']);
+        }
+        if ($this->GetValue('ZoneRunning') != $controller_infos['running_zones']) {
+            $this->SetValue('ZoneRunning', $controller_infos['running_zones']);
+        }
+        if ($this->GetValue('ZoneLast') != $controller_infos['last_zone']) {
+            $this->SetValue('ZoneLast', $controller_infos['last_zone']);
+        }
 
         return true;
     }
@@ -2277,11 +2406,19 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, 'no program_infos', 0);
             return false;
         }
+        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
+        if ($controller_infos == false) {
+            $this->SendDebug(__FUNCTION__, 'no controller_infos', 0);
+            return false;
+        }
 
         if ($idx == 0) {
             $this->SetValue('ProgramEnabled', false);
             $this->SetValue('ProgramWeatherAdjust', false);
+            $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
             $this->SetValue('ProgramInfo', '');
+            $this->SetValue('ZoneRunning', '');
+            $this->SetValue('ZoneLast', '');
 
             return true;
         }
@@ -2298,11 +2435,22 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
-
-        $this->SetValue('ProgramEnabled', $program_info['enabled']);
-        $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
-        $this->SetValue('ProgramInfo', $program_info['info']);
+        if ($this->GetValue('ProgramEnabled') != $program_info['enabled']) {
+            $this->SetValue('ProgramEnabled', $program_info['enabled']);
+        }
+        if ($this->GetValue('ProgramWeatherAdjust') != $program_info['weather_adjustment']) {
+            $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
+        }
+        $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
+        if ($this->GetValue('ProgramInfo') != $program_info['info']) {
+            $this->SetValue('ProgramInfo', $program_info['info']);
+        }
+        if ($this->GetValue('ProgramRunning') != $controller_infos['running_programs']) {
+            $this->SetValue('ProgramRunning', $controller_infos['running_programs']);
+        }
+        if ($this->GetValue('ProgramLast') != $controller_infos['last_program']) {
+            $this->SetValue('ProgramLast', $controller_infos['last_program']);
+        }
 
         return true;
     }
@@ -2330,4 +2478,78 @@ class OpenSprinkler extends IPSModule
             IPS_SetVariableProfileAssociation($ident, $a['Value'], $a['Name'], '', -1);
         }
     }
+
+    private function GetAllChildenIDs($objID, &$objIDs)
+    {
+        $cIDs = IPS_GetChildrenIDs($objID);
+        if ($cIDs != []) {
+            $objIDs = array_merge($objIDs, $cIDs);
+            foreach ($cIDs as $cID) {
+                $this->GetAllChildenIDs($cID, $objIDs);
+            }
+        }
+    }
+
+    private function GetAllIdents()
+    {
+        $objIDs = [];
+        $this->GetAllChildenIDs($this->InstanceID, $objIDs);
+        $map = [];
+        foreach ($objIDs as $objID) {
+            $obj = IPS_GetObject($objID);
+            $map[$obj['ObjectIdent']] = $objID;
+        }
+        return $map;
+    }
 }
+/*
+    Change Options [Keyword /co]
+        /co?pw=xxx&wl=x
+        Parameters:
+            ● wl: Waterlevel (i.e. % Watering). Acceptable range is 0 to 250.
+
+    Change Controller Variables [Keyword /cv]
+        /cv?pw=xxx&en=x
+        Parameters:
+            ● en: Operation enable. Binary value.
+
+    Change Controller Variables [Keyword /cv]
+        /cv?pw=xxx&rd=x
+        Parameters:
+            ● rd: Set rain delay time (in hours). Range is 0 to 32767. A value of 0 turns off rain delay.
+
+    Change Controller Variables [Keyword /cv]
+        /cv?pw=xxx&rsn=x
+        Parameters:
+            ● rsn: Reset all stations (including those waiting to run). The value doesn’t matter: action is triggered if parameter appears
+        => stop alle stationen
+
+    Manual Station Run (previously manual override) [Keyword /cm]
+        /cm?pw=xxx&sid=xx&en=x&t=xxx&ssta=xxx
+        Parameters:
+            ● sid: Stationindex(starting from 0)
+            ● en: Enablebit(1: open the selected station; 0: close the selected station).
+            ● t: Timer(inseconds). Acceptable range is 0 to 64800 (18 hours)
+            ● ssta: shift remaining stations in the same sequential group (0: do not shift remaining stations; 1: shift remaining stations forward). Only if en=0)
+
+    Change Station Names and Attributes [Keyword /cs]
+        /cs?pw=xxx&a=x
+        Parameters:
+            ● a: Durchschnittliche Strömungsmenge in l/min (/100)
+
+        /cs?pw=xxx&f=x
+        Parameters:
+            ● f: Strömungsüberwachungs-Grenzmenge in l/min (/100)
+
+    Manually Start a Program [Keyword /mp]
+        /mp?pw=xxx&pid=xx&uwt=x
+        Parameters:
+            ● pid: programindex(startingfrom0asthefirstprogram)
+            ● uwt: use weather (i.e. applying current water level / percentage). Binary value.
+
+    Pause Queue [Keyword /pq]
+        /pq?pw=x&dur=xxx
+        This command triggers (toggles) a pause with the specified duration (in units of seconds).
+        Calling it first with a non-zero duration will start the pause; calling it again (regardless of duration value) will cancel the pause and resume station runs (i.e. it's a toggle).
+
+ */

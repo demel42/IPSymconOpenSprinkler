@@ -93,6 +93,12 @@ trait OpenSprinklerLocalLib
     public static $NUM_SEQUENTIAL_GROUPS = 4;
     public static $PARALLEL_GROUP = 255;
 
+    public static $WEATHER_METHOD_MANUAL = 0;
+    public static $WEATHER_METHOD_ZIMMERMAN = 1;
+    public static $WEATHER_METHOD_AUTORAINDELY = 2;
+    public static $WEATHER_METHOD_ETO = 3;
+    public static $WEATHER_METHOD_MONTHLY = 4;
+
     public static $SENSOR_TYPE_NONE = 0;
     public static $SENSOR_TYPE_RAIN = 1;
     public static $SENSOR_TYPE_FLOW = 2;
@@ -106,6 +112,15 @@ trait OpenSprinklerLocalLib
     public static $ZONE_STATE_READY = 1;
     public static $ZONE_STATE_QUEUED = 2;
     public static $ZONE_STATE_WATERING = 3;
+
+    public static $PROGRAM_STATE_DISABLED = 0;
+    public static $PROGRAM_STATE_READY = 1;
+    public static $PROGRAM_STATE_QUEUED = 2;
+    public static $PROGRAM_STATE_RUNNING = 3;
+
+    public static $PROGRAM_START_NOP = 0;
+    public static $PROGRAM_START_WITHOUT_WEATHER = 1;
+    public static $PROGRAM_START_WITH_WEATHER = 2;
 
     private function InstallVarProfiles(bool $reInstall = false)
     {
@@ -132,6 +147,21 @@ trait OpenSprinklerLocalLib
             ['Wert' => self::$ZONE_STATE_WATERING, 'Name' => $this->Translate('watering'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => self::$PROGRAM_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_STATE_RUNNING, 'Name' => $this->Translate('running'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.ProgramState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => self::$PROGRAM_START_NOP, 'Name' => '-', 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_START_WITHOUT_WEATHER, 'Name' => $this->Translate('without weather adjustment'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_START_WITH_WEATHER, 'Name' => $this->Translate('with weather adjustment'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.ProgramStart', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
             ['Wert' => self::$CONTROLLER_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
@@ -245,6 +275,28 @@ trait OpenSprinklerLocalLib
             $s = $this->Translate($sensorOptionMap[$sensorOption]);
         } else {
             $s = $this->Translate('Unknown sensor option') . ' ' . $sensorOption;
+        }
+        return $s;
+    }
+
+    private function WeatherMethodMapping()
+    {
+        return [
+            self::$WEATHER_METHOD_MANUAL      => 'Manual operation',
+            self::WEATHER_METHOD_ZIMMERMAN    => 'Zimmermann',
+            self::WEATHER_METHOD_AUTORAINDELY => 'Auto rain delay',
+            self::WEATHER_METHOD_ETO          => 'ETo',
+            self::WEATHER_METHOD_MONTHLY      => 'Monthly',
+        ];
+    }
+
+    private function WeatherMethod2String($weatherMethod)
+    {
+        $weatherMethodMap = $this->WeatherMethodMapping();
+        if (isset($weatherMethodMap[$weatherMethod])) {
+            $s = $this->Translate($weatherMethodMap[$weatherMethod]);
+        } else {
+            $s = $this->Translate('Unknown weather method') . ' ' . $weatherMethod;
         }
         return $s;
     }

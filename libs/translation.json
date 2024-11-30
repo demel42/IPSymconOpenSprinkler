@@ -18,6 +18,16 @@
 			"queued": "anstehend",
 			"watering": "bewässert",
 
+			"__variableprofile__": "OpenSprinkler.ProgramState",
+			"disabled": "deaktiviert",
+			"ready": "bereit",
+			"queued": "anstehend",
+			"running": "läuft",
+
+			"__variableprofile__": "OpenSprinkler.ProgramStart",
+			"with weather adjustment": "mit Wetteranpassung",
+			"without weather adjustment": "ohne Wetteranpassung",
+
 			"__variableprofile__": "OpenSprinkler.WeatherStatus",
 			"Ok": "OK",
 			"Request not received": "Anfrage nicht erhalten",
@@ -72,6 +82,14 @@
 			"normally open": "normalerweise offen",
 			"normally closed": "normalerweise geschlossen",
 			"Unknown sensor option": "Unbekannter Sensor-Option",
+
+			"__options__": "WeatherMethod",
+			"Manual operation": "Handbetrieb",
+			"Zimmermann": "Zimmermann",
+			"Auto rain delay": "automatische Regenverzögerung",
+			"ETo": "ETo",
+			"Monthly": "Monatlich",
+			"Unknown weather method": "Unbekannte Wetter-Methode",
 
 			"__status__": "",
 			"Instance is inactive (unauthorized)": "Instanz ist inaktiv (Authorisierung fehlerhaft)",
