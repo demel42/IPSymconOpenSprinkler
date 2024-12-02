@@ -46,9 +46,6 @@ trait OpenSprinklerLocalLib
         return $class;
     }
 
-    public static $CONTROLLER_STATE_DISABLED = 0;
-    public static $CONTROLLER_STATE_ENABLED = 1;
-
     public static $WEATHER_STATUS_OK = 0;
     public static $WEATHER_STATUS_REQUEST_NOT_RECEIVED = -1;
     public static $WEATHER_STATUS_CANNOT_CONNECT = -2;
@@ -149,29 +146,33 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
-            ['Wert' => self::$PROGRAM_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
-            ['Wert' => self::$PROGRAM_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
-            ['Wert' => self::$PROGRAM_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
-            ['Wert' => self::$PROGRAM_STATE_RUNNING, 'Name' => $this->Translate('running'), 'Farbe' => -1],
-        ];
-        $this->CreateVarProfile('OpenSprinkler.ProgramState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
-
-        $associations = [
             ['Wert' => self::$PROGRAM_START_NOP, 'Name' => '-', 'Farbe' => -1],
             ['Wert' => self::$PROGRAM_START_WITHOUT_WEATHER, 'Name' => $this->Translate('without weather adjustment'), 'Farbe' => -1],
             ['Wert' => self::$PROGRAM_START_WITH_WEATHER, 'Name' => $this->Translate('with weather adjustment'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.ProgramStart', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
-        $associations = [
-            ['Wert' => self::$CONTROLLER_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
-            ['Wert' => self::$CONTROLLER_STATE_ENABLED, 'Name' => $this->Translate('enabled'), 'Farbe' => -1],
-        ];
-        $this->CreateVarProfile('OpenSprinkler.ControllerState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
-
         $this->CreateVarProfile('OpenSprinkler.Duration', VARIABLETYPE_INTEGER, ' s', 0, 0, 0, 0, 'Hourglass', [], $reInstall);
 
-        $this->CreateVarProfile('OpenSprinkler.WateringLevel', VARIABLETYPE_INTEGER, '%', 0, 0, 0, 1, '', '', $reInstall);
+        $associations = [
+            ['Wert' => 250, 'Name' => '%d%%', 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.WateringLevel', VARIABLETYPE_INTEGER, '', 0, 250, 0, 1, '', $associations, $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.RainDelayDays', VARIABLETYPE_INTEGER, ' d', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.RainDelayHours', VARIABLETYPE_INTEGER, ' h', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
+
+        $associations = [
+            ['Wert' => 0, 'Name' => $this->Translate('Set'), 'Farbe' => -1],
+            ['Wert' => 1, 'Name' => $this->Translate('Clear'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.RainDelayAction', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => 0, 'Name' => $this->Translate('Execute'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.StopAllZones', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', '', $reInstall);
 

@@ -185,25 +185,24 @@ class OpenSprinkler extends IPSModule
         // 1..100: Controller
         $vpos = 1;
 
-        $this->MaintainVariable('ControllerState', $this->Translate('Controller state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ControllerState', $vpos++, true);
-        $this->MaintainAction('ControllerState', true);
+        $this->MaintainVariable('ControllerEnabled', $this->Translate('Controller is enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, true);
+        $this->MaintainAction('ControllerEnabled', true);
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, true);
-        $this->MaintainAction('WateringLevel', true);
+        $this->MaintainAction('WateringLevel', $this->WateringLevelChangeable());
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-        $this->MaintainAction('RainDelayUntil', true);
+        $this->MaintainVariable('RainDelayDays', $this->Translate('Rain delay duration in days'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayDays', $vpos++, true);
+        $this->MaintainAction('RainDelayDays', true);
+        $this->MaintainVariable('RainDelayHours', $this->Translate('Rain delay duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayHours', $vpos++, true);
+        $this->MaintainAction('RainDelayHours', true);
+        $this->MaintainVariable('RainDelayAction', $this->Translate('Rain delay action'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayAction', $vpos++, true);
+        $this->MaintainAction('RainDelayAction', true);
+
+        $this->MaintainVariable('StopAllZones', $this->Translate('Stop all zones'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StopAllZones', $vpos++, true);
+        $this->MaintainAction('StopAllZones', true);
+
+        $vpos = 101;
 
         $this->MaintainVariable('CurrentDraw', $this->Translate('Current draw (actual)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
-
-        $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-        $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, true);
-
-        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, true);
-
-        $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-        $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, true);
-
-        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
         $varList = [];
 
@@ -312,7 +311,9 @@ class OpenSprinkler extends IPSModule
             $post = '_' . ($program_n + 1);
             $s = sprintf('P%02d[%s]: ', $program_n + 1, $program_entry['name']);
 
-            $use = $program_entry['use'];
+            if ($program_entry['use'] == false) {
+                continue;
+            }
         }
 
         /*
@@ -334,6 +335,19 @@ class OpenSprinkler extends IPSModule
                 $this->MaintainVariable('DailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value && $with_waterusage);
 
          */
+
+        $vpos = 20001;
+
+        $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, true);
+
+        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, true);
+
+        $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, true);
+
+        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
         $objList = [];
         $chldIDs = IPS_GetChildrenIDs($this->InstanceID);
@@ -744,6 +758,13 @@ class OpenSprinkler extends IPSModule
         $this->MaintainTimer('SendVariables', $sec * 1000);
     }
 
+    private function WateringLevelChangeable()
+    {
+        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $weather_method = isset($controller_infos['weather_method']) ? $controller_infos['weather_method'] : self::$WEATHER_METHOD_MANUAL;
+        return in_array($weather_method, [self::$WEATHER_METHOD_MANUAL]);
+    }
+
     private function AdjustTimestamp($tstamp)
     {
         if ($tstamp > 0) {
@@ -1130,7 +1151,7 @@ class OpenSprinkler extends IPSModule
                 }
                 $zone_entry = $zone_list[$n];
 
-                if ($zone_entry['use']) {
+                if ($zone_entry['use'] == false) {
                     continue;
                 }
 
@@ -1197,9 +1218,8 @@ class OpenSprinkler extends IPSModule
 
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
-            $i = $en ? self::$CONTROLLER_STATE_ENABLED : self::$CONTROLLER_STATE_DISABLED;
-            $this->SendDebug(__FUNCTION__, '... ControllerState (settings.en)=' . $en . ' => ' . $i, 0);
-            $this->SetValue('ControllerState', $i);
+            $this->SendDebug(__FUNCTION__, '... ControllerEnabled (settings.en)=' . $en . ' => ' . $i, 0);
+            $this->SetValue('ControllerEnabled', $en);
         }
 
         $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
@@ -1210,14 +1230,19 @@ class OpenSprinkler extends IPSModule
 
         $rdst = $this->GetArrayElem($jdata, 'settings.rdst', 0, $fnd);
         if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... RainDelayUntil (settings.rdst)=' . $rdst, 0);
-            $this->SetValue('RainDelayUntil', $rdst);
+            $rdst_gm = $this->AdjustTimestamp($rdst);
+            $this->SendDebug(__FUNCTION__, '... RainDelayUntil (settings.rdst)=' . $rdst . ' => ' . date('d.m.y H:i:s', $rdst_gm), 0);
+            $this->SetValue('RainDelayUntil', $rdst_gm);
+            if ($rdst == 0) {
+                $this->SetValue('RainDelayDays', 0);
+                $this->SetValue('RainDelayHours', 0);
+            }
         }
 
         $devt = $this->GetArrayElem($jdata, 'settings.devt', 0, $fnd);
         if ($fnd) {
             $devt_gm = $this->AdjustTimestamp($devt);
-            $this->SendDebug(__FUNCTION__, '... DeviceTime (settings.devt)=' . $devt . ' => ' . $devt_gm, 0);
+            $this->SendDebug(__FUNCTION__, '... DeviceTime (settings.devt)=' . $devt . ' => ' . date('d.m.y H:i:s', $devt_gm), 0);
             $this->SetValue('DeviceTime', $devt_gm);
         }
 
@@ -1230,7 +1255,7 @@ class OpenSprinkler extends IPSModule
         $lswc = $this->GetArrayElem($jdata, 'settings.lswc', 0, $fnd);
         if ($fnd) {
             $lswc_gm = $this->AdjustTimestamp($lswc);
-            $this->SendDebug(__FUNCTION__, '... WeatherQueryTstamp (settings.lswc)=' . $lswc . ' => ' . $lswc_gm, 0);
+            $this->SendDebug(__FUNCTION__, '... WeatherQueryTstamp (settings.lswc)=' . $lswc . ' => ' . date('d.m.y H:i:s', $lswc_gm), 0);
             $this->SetValue('WeatherQueryTstamp', $lswc_gm);
         }
 
@@ -1243,7 +1268,7 @@ class OpenSprinkler extends IPSModule
         $lupt = $this->GetArrayElem($jdata, 'settings.lupt', 0, $fnd);
         if ($fnd) {
             $lupt_gm = $this->AdjustTimestamp($lupt);
-            $this->SendDebug(__FUNCTION__, '... LastRebootTstamp (settings.lupt)=' . $lupt . ' => ' . $lupt_gm, 0);
+            $this->SendDebug(__FUNCTION__, '... LastRebootTstamp (settings.lupt)=' . $lupt . ' => ' . date('d.m.y H:i:s', $lupt_gm), 0);
             $this->SetValue('LastRebootTstamp', $lupt_gm);
         }
 
@@ -1270,7 +1295,7 @@ class OpenSprinkler extends IPSModule
             }
             $sensor_entry = $sensor_list[$n];
 
-            if ($sensor_entry['use'] === false) {
+            if ($sensor_entry['use'] == false) {
                 continue;
             }
 
@@ -1431,6 +1456,8 @@ class OpenSprinkler extends IPSModule
 
         $this->SetZoneSelection($this->GetValue('ZoneSelection'));
         $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+
+        $this->MaintainAction('WateringLevel', $this->WateringLevelChangeable());
 
         $this->SetQueryInterval();
     }
@@ -1850,18 +1877,27 @@ class OpenSprinkler extends IPSModule
         $ident_extent = isset($_ident[1]) ? $_ident[1] : '';
 
         $r = false;
+        $withQuery = false;
         switch ($ident_base) {
-            case 'ControllerState':
+            case 'ControllerEnabled':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetControllerState();
+                $r = $this->SetControllerEnabled((bool) $value);
+                $withQuery = $r;
                 break;
             case 'WateringLevel':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetWateringLevel();
+                $r = $this->SetWateringLevel((int) $value);
+                $withQuery = $r;
                 break;
-            case 'RainDelayUntil':
+            case 'RainDelayAction':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $r = $this->SetRainDelayUntil();
+                $r = $this->SetRainDelayAction((int) $value);
+                $withQuery = $r;
+                break;
+            case 'StopAllZones':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = $this->StopAllZones();
+                $withQuery = $r;
                 break;
             case 'ZoneSelection':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
@@ -1870,18 +1906,22 @@ class OpenSprinkler extends IPSModule
             case 'ZoneDisabled':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneDisabled((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ZoneIgnoreRain':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneIgnoreRain((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ZoneIgnoreSensor1':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneIgnoreSensor1((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ZoneIgnoreSensor2':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetZoneIgnoreSensor2((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ProgramSelection':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
@@ -1890,14 +1930,22 @@ class OpenSprinkler extends IPSModule
             case 'ProgramEnabled':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetProgramEnabled((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ProgramWeatherAdjust':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetProgramWeatherAdjust((bool) $value);
+                $withQuery = $r;
                 break;
             case 'ProgramStartManually':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 $r = $this->SetProgramStartManually((int) $value);
+                $withQuery = $r;
+                break;
+            case 'RainDelayDays':
+            case 'RainDelayHours':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $r = true;
                 break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
@@ -1905,19 +1953,9 @@ class OpenSprinkler extends IPSModule
         }
         if ($r) {
             $this->SetValue($ident, $value);
-            switch ($ident_base) {
-                case 'ZoneDisabled':
-                case 'ZoneIgnoreRain':
-                case 'ZoneIgnoreSensor1':
-                case 'ZoneIgnoreSensor2':
-                case 'ProgramEnabled':
-                case 'ProgramWeatherAdjust':
-                case 'ProgramStartManually':
-                    $this->MaintainTimer('QueryStatus', 500);
-                    break;
-                default:
-                    break;
-            }
+        }
+        if ($withQuery) {
+            $this->MaintainTimer('QueryStatus', 500);
         }
     }
 
@@ -2063,6 +2101,105 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainStatus(IS_ACTIVE);
         return $body;
+    }
+
+    public function SetControllerEnabled(bool $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $params = [
+            'en'  => ($value ? 1 : 0),
+        ];
+        $data = $this->do_HttpRequest('cv', $params);
+        return $data != false;
+    }
+
+    public function SetWateringLevel(int $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        if ($value < 0 || $value > 250) {
+            $this->SendDebug(__FUNCTION__, 'level is outside of 0..250', 0);
+            return false;
+        }
+
+        if ($this->WateringLevelChangeable() == false) {
+            $this->SendDebug(__FUNCTION__, 'watering level is not changeable in this weather mode', 0);
+            return false;
+        }
+
+        $params = [
+            'wl'  => $value,
+        ];
+        $data = $this->do_HttpRequest('co', $params);
+        return $data != false;
+    }
+
+    public function SetRainDelayAction(int $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        if ($value == 0 /* Set */) {
+            $days = $this->GetValue('RainDelayHours');
+            $hours = $this->GetValue('RainDelayHours');
+            $rd = $days * 24 + $hours;
+            if ($hours < 0 || $hours > 32767) {
+                $this->SendDebug(__FUNCTION__, 'rain delay is outside of 0..32767', 0);
+                return false;
+            }
+        }
+        if ($value == 1 /* Clear */) {
+            $rd = 0;
+        }
+
+        $params = [
+            'rd'  => $rd,
+        ];
+        $data = $this->do_HttpRequest('cv', $params);
+        return $data != false;
+    }
+
+    public function StopAllZones()
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $params = [
+            'rsn'  => 1,
+        ];
+        $data = $this->do_HttpRequest('cv', $params);
+        return $data != false;
+    }
+
+    /*
+        Pause Queue [Keyword /pq]
+            /pq?pw=x&dur=xxx
+            This command triggers (toggles) a pause with the specified duration (in units of seconds).
+            Calling it first with a non-zero duration will start the pause; calling it again (regardless of duration value) will cancel the pause and resume station runs (i.e. it's a toggle).
+     */
+    public function PauseQueue(int $value)
+    {
+        if ($this->CheckStatus() == self::$STATUS_INVALID) {
+            $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
+            return;
+        }
+
+        $params = [
+            'dur'  => 1,
+        ];
+        $data = $this->do_HttpRequest('pq', $params);
+        return $data != false;
     }
 
     public function SetZoneDisabled(bool $value)
@@ -2345,7 +2482,7 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($idx == 0) {
-            $this->SetValue('ZoneState', self::$CONTROLLER_STATE_DISABLED);
+            $this->SetValue('ZoneState', self::$ZONE_STATE_DISABLED);
             $this->SetValue('ZoneDisabled', false);
             $this->SetValue('ZoneIgnoreRain', false);
             $this->SetValue('ZoneIgnoreSensor1', false);
@@ -2503,26 +2640,6 @@ class OpenSprinkler extends IPSModule
     }
 }
 /*
-    Change Options [Keyword /co]
-        /co?pw=xxx&wl=x
-        Parameters:
-            ● wl: Waterlevel (i.e. % Watering). Acceptable range is 0 to 250.
-
-    Change Controller Variables [Keyword /cv]
-        /cv?pw=xxx&en=x
-        Parameters:
-            ● en: Operation enable. Binary value.
-
-    Change Controller Variables [Keyword /cv]
-        /cv?pw=xxx&rd=x
-        Parameters:
-            ● rd: Set rain delay time (in hours). Range is 0 to 32767. A value of 0 turns off rain delay.
-
-    Change Controller Variables [Keyword /cv]
-        /cv?pw=xxx&rsn=x
-        Parameters:
-            ● rsn: Reset all stations (including those waiting to run). The value doesn’t matter: action is triggered if parameter appears
-        => stop alle stationen
 
     Manual Station Run (previously manual override) [Keyword /cm]
         /cm?pw=xxx&sid=xx&en=x&t=xxx&ssta=xxx
@@ -2541,15 +2658,5 @@ class OpenSprinkler extends IPSModule
         Parameters:
             ● f: Strömungsüberwachungs-Grenzmenge in l/min (/100)
 
-    Manually Start a Program [Keyword /mp]
-        /mp?pw=xxx&pid=xx&uwt=x
-        Parameters:
-            ● pid: programindex(startingfrom0asthefirstprogram)
-            ● uwt: use weather (i.e. applying current water level / percentage). Binary value.
-
-    Pause Queue [Keyword /pq]
-        /pq?pw=x&dur=xxx
-        This command triggers (toggles) a pause with the specified duration (in units of seconds).
-        Calling it first with a non-zero duration will start the pause; calling it again (regardless of duration value) will cancel the pause and resume station runs (i.e. it's a toggle).
 
  */

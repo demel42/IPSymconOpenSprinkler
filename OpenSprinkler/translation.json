@@ -65,25 +65,21 @@
 			"Seconds": "Sekunden",
 
 			"__variables__": "",
-			"Current draw (actual)": "Stromaufnahme (aktuell)",
-			"Cause of last reboot": "Ursache des letzten Neustarts",
-			"Controller state": "Steuergerät-Status",
-			"Device time": "Gerätezeit",
-			"Duration of last run": "Dauer des letzten Laufs",
-			"Duration of next run": "Dauer des nächsten Laufs",
-			"Last run": "letzter Lauf",
-			"Last update": "Letzte Aktualisierung",
-			"Next run": "nächster Lauf",
-			"Rain delay until": "Regenbedingte Unterbrechung bis",
-			"Status of last weather query": "Status der letzten Wetterabfrage",
-			"Time left": "verbleibende Zeit",
-			"Timestamp of last reboot": "Zeitstempel des letzten Neustarts",
-			"Timestamp of last weather information": "Zeitstempel der letzten Wetterinformationen",
-			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
+			"Controller is enabled": "Steuergerät ist eingeschaltet",
+
 			"Watering level": "Bewässerungsniveau",
-			"Wifi signal strenght": "WLAN-Signalstärke",
+
+			"Rain delay until": "Regenbedingte Unterbrechung bis",
+			"Rain delay duration in days": "Regenbedingte Unterbrechungsdauer in Tagen",
+			"Rain delay duration in hours": "Regenbedingte Unterbrechungsdauer in Stunden",
+			"Rain delay action": "Regenbedingte Unterbrechung ausführen",
+
+			"Stop all zones": "Alle Zonen stoppen",
+
+			"Current draw (actual)": "Stromaufnahme (aktuell)",
 
 			"Sensor state": "Sensor-Status",
+			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
 
 			"Zone selection": "Zonen-Auswahl",
 			"Zone state": "Zonen-Status",
@@ -92,21 +88,40 @@
 			"Zone ignores sensor 1": "Zone ignoriert Sensor 1",
 			"Zone ignores sensor 2": "Zone ignoriert Sensor 2",
 			"Zone information": "Zonen-Informationen",
-			"Unknown zone": "Unbekannte Zone",
 			"Zone current running": "Aktuell ausgeführte Zone",
 			"Zone last running": "Zuletzt ausgeführte Zone",
 
+			"Time left": "verbleibende Zeit",
+			"Last run": "letzter Lauf",
+			"Duration of last run": "Dauer des letzten Laufs",
+			"Next run": "nächster Lauf",
+			"Duration of next run": "Dauer des nächsten Laufs",
+
+			"Unknown zone": "Unbekannte Zone",
+
 			"Program selection": "Programm-Auswahl",
-			"Program state": "Programm-Status",
 			"Program is enabled": "Programm ist eingeschaltet",
 			"Program with weather adjustments": "Programm mit wetterbasierten Anpassung",
 			"Program information": "Programm-Informationen",
 			"Program start manually": "Manueller Programmstart",
 			"Manual zone start": "Manueller Zonen-Start",
-			"Adhoc program": "Ad-hoc-Programm",
-			"Unknown program": "Unbekanntes Programm",
 			"Program current running": "Aktuell ausgeführtes Programm",
 			"Program last running": "Zuletzt ausgeführtes Programm",
+
+			"Adhoc program": "Ad-hoc-Programm",
+			"Unknown program": "Unbekanntes Programm",
+
+			"Timestamp of last weather information": "Zeitstempel der letzten Wetterinformationen",
+			"Status of last weather query": "Status der letzten Wetterabfrage",
+
+			"Timestamp of last reboot": "Zeitstempel des letzten Neustarts",
+			"Cause of last reboot": "Ursache des letzten Neustarts",
+
+			"Device time": "Gerätezeit",
+
+			"Wifi signal strenght": "WLAN-Signalstärke",
+
+			"Last update": "Letzte Aktualisierung",
 
 			"__actions__": "",
 			"Query status": "Status abfragen",

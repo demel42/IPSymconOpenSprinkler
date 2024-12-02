@@ -28,6 +28,13 @@
 			"with weather adjustment": "mit Wetteranpassung",
 			"without weather adjustment": "ohne Wetteranpassung",
 
+			"__variableprofile__": "OpenSprinkler.StopAllZones",
+			"Execute": "Ausführen",
+
+			"__variableprofile__": "OpenSprinkler.RainDelayAction",
+			"Set": "Setzen",
+			"Clear": "Löschen",
+
 			"__variableprofile__": "OpenSprinkler.WeatherStatus",
 			"Ok": "OK",
 			"Request not received": "Anfrage nicht erhalten",
