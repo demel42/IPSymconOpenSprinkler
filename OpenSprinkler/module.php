@@ -16,6 +16,7 @@ class OpenSprinkler extends IPSModule
 
     private $VarProf_Zones;
     private $VarProf_Programs;
+    private $VarProf_PauseQueueAction;
 
     public function __construct(string $InstanceID)
     {
@@ -25,6 +26,7 @@ class OpenSprinkler extends IPSModule
 
         $this->VarProf_Zones = 'OpenSprinkler.Zones_' . $this->InstanceID;
         $this->VarProf_Programs = 'OpenSprinkler.Programs_' . $this->InstanceID;
+        $this->VarProf_PauseQueueAction = 'OpenSprinkler.PauseQueueAction_' . $this->InstanceID;
     }
 
     public function __destruct()
@@ -69,6 +71,7 @@ class OpenSprinkler extends IPSModule
 
         $this->CreateVarProfile($this->VarProf_Zones, VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', [['Wert' => 0, 'Name' => '-']], false);
         $this->CreateVarProfile($this->VarProf_Programs, VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', [['Wert' => 0, 'Name' => '-']], false);
+        $this->CreateVarProfile($this->VarProf_PauseQueueAction, VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', [['Wert' => 0, 'Name' => $this->Translate('Set')]], false);
 
         $this->RegisterTimer('QueryStatus', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "QueryStatus", "");');
         $this->RegisterTimer('SendVariables', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "SendVariables", "");');
@@ -83,7 +86,8 @@ class OpenSprinkler extends IPSModule
         if (IPS_InstanceExists($this->InstanceID) == false) {
             $idents = [
                 $this->VarProf_Zones,
-                $this->VarProf_Programs
+                $this->VarProf_Programs,
+                $this->VarProf_PauseQueueAction,
             ];
             foreach ($idents as $ident) {
                 if (IPS_VariableProfileExists($ident)) {
@@ -184,6 +188,8 @@ class OpenSprinkler extends IPSModule
 
         $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
 
+        $varList = [];
+
         // 1..100: Controller
         $vpos = 1;
 
@@ -209,14 +215,18 @@ class OpenSprinkler extends IPSModule
         $this->MaintainAction('PauseQueueMinutes', true);
         $this->MaintainVariable('PauseQueueSeconds', $this->Translate('Pause queue duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueSeconds', $vpos++, true);
         $this->MaintainAction('PauseQueueSeconds', true);
-        $this->MaintainVariable('PauseQueueAction', $this->Translate('Pause queue action'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueAction', $vpos++, true);
+        $this->MaintainVariable('PauseQueueAction', $this->Translate('Pause queue action'), VARIABLETYPE_INTEGER, $this->VarProf_PauseQueueAction, $vpos++, true);
         $this->MaintainAction('PauseQueueAction', true);
 
         $vpos = 101;
 
         $this->MaintainVariable('CurrentDraw', $this->Translate('Current draw (actual)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
 
-        $varList = [];
+        $use = $controller_infos['with_waterflow'];
+        $this->MaintainVariable('WaterFlowrate', $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $use);
+        $varList[] = 'WaterFlowrate';
+
+        // $this->MaintainVariable('DailyWaterUsage', $s . $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
 
         // 201..399: internal Sensors (max 2)
         $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
@@ -239,12 +249,6 @@ class OpenSprinkler extends IPSModule
             if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
                 $this->MaintainVariable('SensorState' . $post, $s . $this->SensorType2String($snt), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $use);
                 $varList[] = 'SensorState' . $post;
-            }
-
-            if ($use && $snt == self::$SENSOR_TYPE_FLOW) {
-                $this->MaintainVariable('WaterFlowrate', $s . $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $use);
-                $varList[] = 'WaterFlowrate';
-                // $this->MaintainVariable('DailyWaterUsage', $s . $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
             }
         }
 
@@ -410,6 +414,10 @@ class OpenSprinkler extends IPSModule
         if (IPS_GetKernelRunlevel() == KR_READY) {
             $this->SetQueryInterval();
             $this->SetSendInterval();
+
+            $this->UpdateVarProf_Zones();
+            $this->UpdateVarProf_Programs();
+            $this->UpdateVarProf_PauseQueueAction();
         }
     }
 
@@ -1218,34 +1226,6 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
         $this->WriteAttributeString('program_infos', json_encode($program_infos));
 
-        $associations = [
-            [
-                'Value' => 0,
-                'Name'  => '-'
-            ],
-        ];
-        foreach ($zone_infos as $info) {
-            $associations[] = [
-                'Value' => $info['sid'],
-                'Name'  => $info['name'],
-            ];
-        }
-        $this->UpdateVarProfileAssociations($this->VarProf_Zones, $associations);
-
-        $associations = [
-            [
-                'Value' => 0,
-                'Name'  => '-'
-            ],
-        ];
-        foreach ($program_infos as $info) {
-            $associations[] = [
-                'Value' => $info['pid'],
-                'Name'  => $info['name'],
-            ];
-        }
-        $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
-
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... ControllerEnabled (settings.en)=' . $en . ' => ' . $i, 0);
@@ -1266,6 +1246,9 @@ class OpenSprinkler extends IPSModule
             if ($rdst == 0) {
                 $this->SetValue('RainDelayDays', 0);
                 $this->SetValue('RainDelayHours', 0);
+                $this->SetValue('RainDelayAction', 0 /* Set */);
+            } else {
+                $this->SetValue('RainDelayAction', 1 /* Clear */);
             }
         }
 
@@ -1278,6 +1261,9 @@ class OpenSprinkler extends IPSModule
                 $this->SetValue('PauseQueueHours', 0);
                 $this->SetValue('PauseQueueMinutes', 0);
                 $this->SetValue('PauseQueueSeconds', 0);
+                $this->SetValue('PauseQueueAction', 0 /* Set */);
+            } else {
+                $this->SetValue('PauseQueueAction', 1 /* Clear */);
             }
         }
 
@@ -1495,6 +1481,10 @@ class OpenSprinkler extends IPSModule
         }
 
         $this->SetValue('LastUpdate', $now);
+
+        $this->UpdateVarProf_Zones();
+        $this->UpdateVarProf_Programs();
+        $this->UpdateVarProf_PauseQueueAction();
 
         $this->SetZoneSelection($this->GetValue('ZoneSelection'));
         $this->SetProgramSelection($this->GetValue('ProgramSelection'));
@@ -2706,6 +2696,66 @@ class OpenSprinkler extends IPSModule
         foreach ($associations as $a) {
             IPS_SetVariableProfileAssociation($ident, $a['Value'], $a['Name'], '', -1);
         }
+    }
+
+    private function UpdateVarProf_Programs()
+    {
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        $program_infos = @json_decode($this->ReadAttributeString('program_infos'), true);
+        if ($program_infos !== false) {
+            foreach ($program_infos as $info) {
+                $associations[] = [
+                    'Value' => $info['pid'],
+                    'Name'  => $info['name'],
+                ];
+            }
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
+    }
+
+    private function UpdateVarProf_PauseQueueAction()
+    {
+        $pt = $this->GetValue('PauseQueueUntil');
+        if ($pt) {
+            $value = 1;
+            $name = $this->Translate('Clear');
+        } else {
+            $value = 0;
+            $name = $this->Translate('Set');
+        }
+        $associations = [
+            [
+                'Value' => $value,
+                'Name'  => $name,
+            ],
+        ];
+        $this->UpdateVarProfileAssociations($this->VarProf_PauseQueueAction, $associations);
+        $this->SetValue('PauseQueueAction', $value);
+    }
+
+    private function UpdateVarProf_Zones()
+    {
+        $associations = [
+            [
+                'Value' => 0,
+                'Name'  => '-'
+            ],
+        ];
+        $zone_infos = @json_decode($this->ReadAttributeString('zone_infos'), true);
+        if ($zone_infos !== false) {
+            foreach ($zone_infos as $info) {
+                $associations[] = [
+                    'Value' => $info['sid'],
+                    'Name'  => $info['name'],
+                ];
+            }
+        }
+        $this->UpdateVarProfileAssociations($this->VarProf_Zones, $associations);
     }
 
     private function GetAllChildenIDs($objID, &$objIDs)
