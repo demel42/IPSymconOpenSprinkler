@@ -32,6 +32,7 @@
 			"Execute": "Ausführen",
 
 			"__variableprofile__": "OpenSprinkler.RainDelayAction",
+			"__variableprofile__": "OpenSprinkler.PauseQueueAction",
 			"Set": "Setzen",
 			"Clear": "Löschen",
 

@@ -161,7 +161,7 @@ trait OpenSprinklerLocalLib
 
         $this->CreateVarProfile('OpenSprinkler.RainDelayDays', VARIABLETYPE_INTEGER, ' d', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
 
-        $this->CreateVarProfile('OpenSprinkler.RainDelayHours', VARIABLETYPE_INTEGER, ' h', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.RainDelayHours', VARIABLETYPE_INTEGER, ' h', 0, 23, 1, 0, 'Hourglass', [], $reInstall);
 
         $associations = [
             ['Wert' => 0, 'Name' => $this->Translate('Set'), 'Farbe' => -1],
@@ -173,6 +173,18 @@ trait OpenSprinklerLocalLib
             ['Wert' => 0, 'Name' => $this->Translate('Execute'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.StopAllZones', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.PauseQueueHours', VARIABLETYPE_INTEGER, ' h', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.PauseQueueMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.PauseQueueSeconds', VARIABLETYPE_INTEGER, ' s', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+
+        $associations = [
+            ['Wert' => 0, 'Name' => $this->Translate('Set'), 'Farbe' => -1],
+            ['Wert' => 1, 'Name' => $this->Translate('Clear'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.PauseQueueAction', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', '', $reInstall);
 

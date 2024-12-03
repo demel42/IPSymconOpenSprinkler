@@ -64,6 +64,8 @@
 			"Send interval": "Sendeintervall",
 			"Seconds": "Sekunden",
 
+			"Disabled": "Ausgeschaltet",
+
 			"__variables__": "",
 			"Controller is enabled": "Steuergerät ist eingeschaltet",
 
@@ -75,6 +77,12 @@
 			"Rain delay action": "Regenbedingte Unterbrechung ausführen",
 
 			"Stop all zones": "Alle Zonen stoppen",
+
+			"Pause queue until": "Pause der Warteschlange bis",
+			"Pause queue duration in hours": "Pause der Warteschlange in Stunden",
+			"Pause queue duration in minutes": "Pause der Warteschlange in Minuten",
+			"Pause queue duration in seconds": "Pause der Warteschlange in Sekunden",
+			"Pause queue action": "Pause der Warteschlange ausführen",
 
 			"Current draw (actual)": "Stromaufnahme (aktuell)",
 
