@@ -222,35 +222,25 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainVariable('CurrentDraw', $this->Translate('Current draw (actual)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, true);
 
-        $use = $controller_infos['with_waterflow'];
+        $use = $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
         $this->MaintainVariable('WaterFlowrate', $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $use);
         $varList[] = 'WaterFlowrate';
 
         // $this->MaintainVariable('DailyWaterUsage', $s . $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.Flowmeter', $vpos++, $with_daily_value);
 
-        // 201..399: internal Sensors (max 2)
-        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
-        if ($sensor_list === false) {
-            $sensor_list = [];
-        }
-        for ($sensor_n = 0; $sensor_n < count($sensor_list); $sensor_n++) {
-            $sensor_entry = $sensor_list[$sensor_n];
-            if ($sensor_entry['no'] > self::$MAX_INT_SENSORS) {
-                continue;
-            }
+        $vpos = 201;
 
-            $vpos = 200 + $sensor_n * 100 + 1;
-            $post = '_' . ($sensor_n + 1);
-            $s = sprintf('SN%d: ', $sensor_n + 1);
+        $sensor1_type = $this->GetArrayElem($controller_infos, 'sensor1_type', self::$SENSOR_TYPE_NONE);
+        $use = in_array($sensor1_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL]);
+        $this->MaintainVariable('SensorState_1', 'SN1: ' . $this->SensorType2String($sensor1_type), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $use);
+        $varList[] = 'SensorState_1';
 
-            $use = $sensor_entry['use'];
-            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
+        $vpos = 211;
 
-            if ($use && in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
-                $this->MaintainVariable('SensorState' . $post, $s . $this->SensorType2String($snt), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $use);
-                $varList[] = 'SensorState' . $post;
-            }
-        }
+        $sensor2_type = $this->GetArrayElem($controller_infos, 'sensor2_type', self::$SENSOR_TYPE_NONE);
+        $use = in_array($sensor2_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL]);
+        $this->MaintainVariable('SensorState_1', 'SN1: ' . $this->SensorType2String($sensor2_type), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $use);
+        $varList[] = 'SensorState_1';
 
         $vpos = 801;
         $this->MaintainVariable('ZoneSelection', $this->Translate('Zone selection'), VARIABLETYPE_INTEGER, $this->VarProf_Zones, $vpos++, true);
@@ -996,7 +986,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $with_waterflow = false;
+        $has_flowmeter = false;
         $sensor1_type = self::$SENSOR_TYPE_NONE;
         $sensor2_type = self::$SENSOR_TYPE_NONE;
 
@@ -1012,7 +1002,7 @@ class OpenSprinkler extends IPSModule
 
             $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
             if ($snt == self::$SENSOR_TYPE_FLOW) {
-                $with_waterflow = true;
+                $has_flowmeter = true;
             }
 
             if ($sensor_entry['no'] == 0) {
@@ -1026,7 +1016,7 @@ class OpenSprinkler extends IPSModule
         $controller_infos = [
             'timezone_offset'  => $timezone_offset,
             'weather_method'   => $weather_method,
-            'with_waterflow'   => $with_waterflow,
+            'has_flowmeter'    => $has_flowmeter,
             'sensor1_type'     => $sensor1_type,
             'sensor2_type'     => $sensor2_type,
             'pulse_volume'     => $pulse_volume,
@@ -1312,40 +1302,31 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('CurrentDraw', $curr);
         }
 
-        for ($i = 0; $i < self::$MAX_INT_SENSORS; $i++) {
-            for ($n = 0; $n < count($sensor_list); $n++) {
-                if ($sensor_list[$n]['no'] == $i) {
-                    break;
-                }
+        if ($controller_infos['has_flowmeter']) {
+            $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
+            $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
+            if ($fnd) {
+                $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
+                $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
+                $this->SetValue('WaterFlowrate', $flow_rate);
             }
-            if ($n == count($sensor_list)) {
-                continue;
-            }
-            $sensor_entry = $sensor_list[$n];
+        }
 
-            if ($sensor_entry['use'] == false) {
-                continue;
+        $sensor1_type = $controller_infos['sensor1_type'];
+        if (in_array($sensor1_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+            $sn1 = $this->GetArrayElem($jdata, 'settings.sn1', 0, $fnd);
+            if ($fnd) {
+                $this->SendDebug(__FUNCTION__, '... SensorState_1 (settings.sn1)=' . $sn1, 0);
+                $this->SetValue('SensorState_1', $sn1);
             }
+        }
 
-            $post = '_' . ($i + 1);
-            $sni = $i + 1;
-
-            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
-            if (in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
-                $sn = $this->GetArrayElem($jdata, 'settings.sn' . $sni, 0, $fnd);
-                if ($fnd) {
-                    $this->SendDebug(__FUNCTION__, '... SensorState' . $post . ' (settings.sn' . $sni . ')=' . $sn, 0);
-                    $this->SetValue('SensorState' . $post, $sn);
-                }
-            }
-            if ($snt == self::$SENSOR_TYPE_FLOW) {
-                $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
-                $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
-                if ($fnd) {
-                    $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
-                    $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
-                    $this->SetValue('WaterFlowrate', $flow_rate);
-                }
+        $sensor2_type = $controller_infos['sensor2_type'];
+        if (in_array($sensor2_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+            $sn2 = $this->GetArrayElem($jdata, 'settings.sn2', 0, $fnd);
+            if ($fnd) {
+                $this->SendDebug(__FUNCTION__, '... SensorState_2 (settings.sn2)=' . $sn2, 0);
+                $this->SetValue('SensorState_2', $sn2);
             }
         }
 
