@@ -12,7 +12,7 @@
 			"__variableprofile__": "OpenSprinkler.SensorState",
 			"triggered": "ausgelöst",
 
-			"__variableprofile__": "OpenSprinkler.ZoneState",
+			"__variableprofile__": "OpenSprinkler.StationState",
 			"disabled": "deaktiviert",
 			"ready": "bereit",
 			"queued": "anstehend",
@@ -28,13 +28,20 @@
 			"with weather adjustment": "mit Wetteranpassung",
 			"without weather adjustment": "ohne Wetteranpassung",
 
-			"__variableprofile__": "OpenSprinkler.StopAllZones",
+			"__variableprofile__": "OpenSprinkler.StopAllStations",
 			"Execute": "Ausführen",
 
 			"__variableprofile__": "OpenSprinkler.RainDelayAction",
-			"__variableprofile__": "OpenSprinkler.PauseQueueAction",
 			"Set": "Setzen",
 			"Clear": "Löschen",
+
+			"__variableprofile__": "OpenSprinkler.PauseQueueAction_<ObjectID>",
+			"Set": "Setzen",
+			"Clear": "Löschen",
+
+			"__variableprofile__": "OpenSprinkler.StationStartManually_<ObjectID>",
+			"Start": "Starten",
+			"Stop": "Stoppen",
 
 			"__variableprofile__": "OpenSprinkler.WeatherStatus",
 			"Ok": "OK",

@@ -22,7 +22,7 @@
 
 			"Controller configuration": "Konfiguration der Steuereinheit",
 
-			"Zones": "Zonen",
+			"Stations": "Bewässerungskreise",
 			"Sensors": "Sensoren",
 			"Programs": "Programme",
 
@@ -42,7 +42,7 @@
 			"ignore sensor 1": "Sensor 1 ignorieren",
 			"ignore sensor 2": "Sensor 2 ignorieren",
 
-			"Start at {$rep} with zone(s) {$zn}": "Start um {$rep} mit Zone(n) {$zn}",
+			"Start at {$rep} with station(s) {$stations}": "Start um {$rep} mit Kreis(en) {$stations}",
 
 			"RF": "RF",
 			"remote": "remote",
@@ -76,7 +76,7 @@
 			"Rain delay duration in hours": "Regenbedingte Unterbrechungsdauer in Stunden",
 			"Rain delay action": "Regenbedingte Unterbrechung ausführen",
 
-			"Stop all zones": "Alle Zonen stoppen",
+			"Stop all stations": "Alle Kreise stoppen",
 
 			"Pause queue until": "Pause der Warteschlange bis",
 			"Pause queue duration in hours": "Pause der Warteschlange in Stunden",
@@ -89,15 +89,19 @@
 			"Sensor state": "Sensor-Status",
 			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
 
-			"Zone selection": "Zonen-Auswahl",
-			"Zone state": "Zonen-Status",
-			"Zone is disabled": "Zone ist deaktiviert",
-			"Zone ignores rain delay": "Zone ignoriert Regenverzögerung",
-			"Zone ignores sensor 1": "Zone ignoriert Sensor 1",
-			"Zone ignores sensor 2": "Zone ignoriert Sensor 2",
-			"Zone information": "Zonen-Informationen",
-			"Zone current running": "Aktuell ausgeführte Zone",
-			"Zone last running": "Zuletzt ausgeführte Zone",
+			"Station selection": "Bewässerungskreis-Auswahl",
+			"Station state": "Bewässerungskreis-Status",
+			"Station is disabled": "Kreis ist deaktiviert",
+			"Station ignores rain delay": "Kreis ignoriert Regenverzögerung",
+			"Station ignores sensor 1": "Kreis ignoriert Sensor 1",
+			"Station ignores sensor 2": "Kreis ignoriert Sensor 2",
+			"Station run duration in hours": "Kreis Laufzeit in Stunden",
+			"Station run duration in minutes": "Kreis Laufzeit in Minuten",
+			"Station run duration in seconds": "Kreis Laufzeit in Sekunden",
+			"Station start manually": "Manueller Start eines Kreises",
+			"Station information": "Bewässerungskreis-Informationen",
+			"Station current running": "Aktuell ausgeführter Kreis",
+			"Station last running": "Zuletzt ausgeführter Kreis",
 
 			"Time left": "verbleibende Zeit",
 			"Last run": "letzter Lauf",
@@ -105,17 +109,17 @@
 			"Next run": "nächster Lauf",
 			"Duration of next run": "Dauer des nächsten Laufs",
 
-			"Unknown zone": "Unbekannte Zone",
+			"Unknown station": "Unbekannter Bewässerungskreis",
 
 			"Program selection": "Programm-Auswahl",
 			"Program is enabled": "Programm ist eingeschaltet",
 			"Program with weather adjustments": "Programm mit wetterbasierten Anpassung",
 			"Program information": "Programm-Informationen",
 			"Program start manually": "Manueller Programmstart",
-			"Manual zone start": "Manueller Zonen-Start",
 			"Program current running": "Aktuell ausgeführtes Programm",
 			"Program last running": "Zuletzt ausgeführtes Programm",
 
+			"Manual station start": "Manueller Start eines Kreises",
 			"Adhoc program": "Ad-hoc-Programm",
 			"Unknown program": "Unbekanntes Programm",
 

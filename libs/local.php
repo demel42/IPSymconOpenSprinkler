@@ -105,10 +105,10 @@ trait OpenSprinklerLocalLib
     public static $SENSOR_OPTION_NORMALLY_CLOSE = 0;
     public static $SENSOR_OPTION_NORMALLY_OPEN = 1;
 
-    public static $ZONE_STATE_DISABLED = 0;
-    public static $ZONE_STATE_READY = 1;
-    public static $ZONE_STATE_QUEUED = 2;
-    public static $ZONE_STATE_WATERING = 3;
+    public static $STATION_STATE_DISABLED = 0;
+    public static $STATION_STATE_READY = 1;
+    public static $STATION_STATE_QUEUED = 2;
+    public static $STATION_STATE_WATERING = 3;
 
     public static $PROGRAM_STATE_DISABLED = 0;
     public static $PROGRAM_STATE_READY = 1;
@@ -138,12 +138,12 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.SensorState', VARIABLETYPE_BOOLEAN, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
-            ['Wert' => self::$ZONE_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
-            ['Wert' => self::$ZONE_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
-            ['Wert' => self::$ZONE_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
-            ['Wert' => self::$ZONE_STATE_WATERING, 'Name' => $this->Translate('watering'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_DISABLED, 'Name' => $this->Translate('disabled'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_WATERING, 'Name' => $this->Translate('watering'), 'Farbe' => -1],
         ];
-        $this->CreateVarProfile('OpenSprinkler.ZoneState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.StationState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 
         $associations = [
             ['Wert' => self::$PROGRAM_START_NOP, 'Name' => '-', 'Farbe' => -1],
@@ -160,9 +160,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.WateringLevel', VARIABLETYPE_INTEGER, '', 0, 250, 0, 1, '', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.RainDelayDays', VARIABLETYPE_INTEGER, ' d', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
-
         $this->CreateVarProfile('OpenSprinkler.RainDelayHours', VARIABLETYPE_INTEGER, ' h', 0, 23, 1, 0, 'Hourglass', [], $reInstall);
-
         $associations = [
             ['Wert' => 0, 'Name' => $this->Translate('Set'), 'Farbe' => -1],
             ['Wert' => 1, 'Name' => $this->Translate('Clear'), 'Farbe' => -1],
@@ -172,13 +170,15 @@ trait OpenSprinklerLocalLib
         $associations = [
             ['Wert' => 0, 'Name' => $this->Translate('Execute'), 'Farbe' => -1],
         ];
-        $this->CreateVarProfile('OpenSprinkler.StopAllZones', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.StopAllStations', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.PauseQueueHours', VARIABLETYPE_INTEGER, ' h', 0, 99, 1, 0, 'Hourglass', [], $reInstall);
-
         $this->CreateVarProfile('OpenSprinkler.PauseQueueMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
-
         $this->CreateVarProfile('OpenSprinkler.PauseQueueSeconds', VARIABLETYPE_INTEGER, ' s', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.StationStartManuallyHours', VARIABLETYPE_INTEGER, ' h', 0, 18, 1, 0, 'Hourglass', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.StationStartManuallyMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.StationStartManuallySeconds', VARIABLETYPE_INTEGER, ' s', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', '', $reInstall);
 
