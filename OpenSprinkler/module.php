@@ -839,6 +839,47 @@ class OpenSprinkler extends IPSModule
 
         $fnd = true;
 
+        $firmware = '';
+        $fwv = (string) $this->GetArrayElem($jdata, 'options.fwv', '', $fnd);
+        if ($fnd) {
+            for ($i = 0; $i < strlen($fwv); $i++) {
+                if ($firmware != '') {
+                    $firmware .= '.';
+                }
+                $firmware .= substr($fwv, $i, 1);
+            }
+        }
+        $fwn = (string) $this->GetArrayElem($jdata, 'options.fwn', '', $fnd);
+        if ($fnd) {
+            $firmware .= '(' . $fwn . ')';
+        }
+
+        $hardware = '';
+        $hwv = (string) $this->GetArrayElem($jdata, 'options.hwv', '', $fnd);
+        if ($fnd) {
+            for ($i = 0; $i < strlen($hwv); $i++) {
+                if ($hardware != '') {
+                    $hardware .= '.';
+                }
+                $hardware .= substr($hwv, $i, 1);
+            }
+        }
+        $hwv = $this->GetArrayElem($jdata, 'options.hwv', 0, $fnd);
+        if ($fnd) {
+            if ($hwv == 172) {
+                $hardware .= ' AC';
+            }
+            if ($hwv == 220) {
+                $hardware .= ' DC';
+            }
+        }
+
+        $feature = $this->GetArrayElem($jdata, 'options.feature', '');
+
+        $remote_extension = (bool) $this->GetArrayElem($jdata, 'options.re', false);
+
+        $this->SendDebug(__FUNCTION__, 'firmware=' . $firmware . ', hardware=' . $hardware . ', feature=' . $feature . ', remote extension mode=' . $this->bool2str($remote_extension), 0);
+
         $timezone_offset = 0;
         $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
         if ($fnd) {
@@ -1030,6 +1071,10 @@ class OpenSprinkler extends IPSModule
         }
 
         $controller_infos = [
+            'firmware'         => $firmware,
+            'hardware'         => $hardware,
+            'feature'          => $feature,
+            'remote_extension' => $remote_extension,
             'timezone_offset'  => $timezone_offset,
             'weather_method'   => $weather_method,
             'has_flowmeter'    => $has_flowmeter,
