@@ -42,7 +42,7 @@
 			"ignore sensor 1": "Sensor 1 ignorieren",
 			"ignore sensor 2": "Sensor 2 ignorieren",
 
-			"Start at {$rep} with station(s) {$stations}": "Start um {$rep} mit Kreis(en) {$stations}",
+			"Start at {$rep} with: {$stations}": "Start um {$rep} mit: {$stations}",
 
 			"RF": "RF",
 			"remote": "remote",
@@ -118,6 +118,8 @@
 			"Program start manually": "Manueller Programmstart",
 			"Program current running": "Aktuell ausgeführtes Programm",
 			"Program last running": "Zuletzt ausgeführtes Programm",
+
+			"disabled": "deaktiviert",
 
 			"Manual station start": "Manueller Start eines Kreises",
 			"Adhoc program": "Ad-hoc-Programm",
