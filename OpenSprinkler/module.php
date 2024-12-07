@@ -1603,7 +1603,7 @@ class OpenSprinkler extends IPSModule
     private function idx_in_bytes($idx, $val)
     {
         $byte = floor($idx / 8);
-        if ($byte > count($val)) {
+        if ($byte >= count($val)) {
             return false;
         }
         $bit = $idx % 8;
@@ -2293,7 +2293,7 @@ class OpenSprinkler extends IPSModule
 
         if ($statuscode == 0) {
             $jbody = json_decode($body, true);
-            if ($jbody == false) {
+            if ($jbody === false) {
                 $statuscode = self::$IS_INVALIDDATA;
                 $err = 'invalid/malformed data';
             }
