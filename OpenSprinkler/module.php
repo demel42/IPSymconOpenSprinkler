@@ -928,7 +928,7 @@ class OpenSprinkler extends IPSModule
 
         $remote_extension = (bool) $this->GetArrayElem($jdata, 'options.re', false);
 
-        $this->SendDebug(__FUNCTION__, 'firmware=' . $firmware . ', hardware=' . $hardware . ', feature=' . $feature . ', remote extension mode=' . $this->bool2str($remote_extension), 0);
+        $this->SendDebug(__FUNCTION__, 'firmware=' . $firmware . ', hardware=' . $hardware . ', feature=' . $feature . ', remote_extension=' . $this->bool2str($remote_extension), 0);
 
         $timezone_offset = 0;
         $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
@@ -1557,7 +1557,7 @@ class OpenSprinkler extends IPSModule
             if ($lr_sid == $sid && $lr_dur != 0 && $lr_end != 0) {
                 $lr_start = $lr_end - $lr_dur;
                 $this->SendDebug(__FUNCTION__, '... StationLastRun' . $post . ' => ' . date('d.m.y H:i:s', $lr_start), 0);
-                $this->SetValue('StationLastRun' . $post, $start);
+                $this->SetValue('StationLastRun' . $post, $lr_start);
                 $this->SendDebug(__FUNCTION__, '... StationLastDuration' . $post . ' => ' . $lr_dur, 0);
                 $this->SetValue('StationLastDuration' . $post, $lr_dur);
             }
@@ -1863,7 +1863,7 @@ class OpenSprinkler extends IPSModule
         // topic=station/0, payload=Array<LF>(<LF>    [state] => 1<LF>    [duration] => 300<LF>)<LF>
         // topic=station/0, payload=Array<LF>(<LF>    [state] => 0<LF>    [duration] => 300<LF>    [flow] => 0<LF>)<LF>
         if (preg_match('#^station/(\d+)$#', $topic, $r)) {
-            $sid = $r[0];
+            $sid = $r[1];
 
             $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
             for ($n = 0; $n < count($station_list); $n++) {
@@ -1917,12 +1917,12 @@ class OpenSprinkler extends IPSModule
 
         // topic=sensor2, payload=Array<LF>(<LF>    [state] => 1<LF>)<LF>
         if (preg_match('#^sensor(\d)$#', $topic, $r)) {
-            $sni = $r[0];
+            $sni = $r[1];
 
             $fnd = true;
             $state = $this->GetArrayElem($payload, 'state', 0, $fnd);
             if ($fnd) {
-                $snt = $controller_infos['sensor' . $sni . '_type'];
+                $snt = $controller_infos['sensor_type'][$sni];
                 if (in_array($snt, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
                     $this->SendDebug(__FUNCTION__, '... SensorState_' . $sni . ' (state)=' . $state, 0);
                     $this->SetValue('SensorState_' . $sni, $state);
@@ -1932,7 +1932,7 @@ class OpenSprinkler extends IPSModule
 
         // station/0/alert/flow
         if (preg_match('#^station/(\d+)/alert/flow$#', $topic, $r)) {
-            $sid = $r[0];
+            $sid = $r[1];
         }
 
         // system
