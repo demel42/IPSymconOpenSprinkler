@@ -95,6 +95,8 @@
 			"Station ignores rain delay": "Kreis ignoriert Regenverzögerung",
 			"Station ignores sensor 1": "Kreis ignoriert Sensor 1",
 			"Station ignores sensor 2": "Kreis ignoriert Sensor 2",
+			"Average water flow": "Durchschnittlicher Wasserdurchfluss",
+			"Water flow monitoring threshold": "Schwellenwert der Überwachung des Wasserdurchfluss",
 			"Station run duration in hours": "Kreis Laufzeit in Stunden",
 			"Station run duration in minutes": "Kreis Laufzeit in Minuten",
 			"Station run duration in seconds": "Kreis Laufzeit in Sekunden",
