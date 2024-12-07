@@ -51,7 +51,7 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyBoolean('module_disable', false);
 
         $this->RegisterPropertyString('host', '');
-        $this->RegisterPropertyBoolean('use_https', true);
+        $this->RegisterPropertyBoolean('use_https', false);
         $this->RegisterPropertyInteger('port', 0);
         $this->RegisterPropertyString('password', '');
 
@@ -865,7 +865,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $data = $this->do_HttpRequest('ja', []);
-        if ($data == false) {
+        if ($data === false) {
             return;
         }
         $jdata = @json_decode($data, true);
@@ -1635,6 +1635,9 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'programs=' . print_r($ja_data['programs'], true), 0);
 
         $data = $this->do_HttpRequest('je', []);
+        if ($data === false) {
+            return;
+        }
         $special_stations = json_decode($data, true);
         $this->SendDebug(__FUNCTION__, 'special_stations=' . print_r($special_stations, true), 0);
 
@@ -2335,7 +2338,7 @@ class OpenSprinkler extends IPSModule
         if ($statuscode) {
             $this->SendDebug(__FUNCTION__, '    statuscode=' . $statuscode . ', err=' . $err, 0);
             $this->MaintainStatus($statuscode);
-            return '';
+            return false;
         }
 
         $this->MaintainStatus(IS_ACTIVE);
@@ -2353,7 +2356,7 @@ class OpenSprinkler extends IPSModule
             'en'  => ($value ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('cv', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetWateringLevel(int $value)
@@ -2383,7 +2386,7 @@ class OpenSprinkler extends IPSModule
             'wl'  => $value,
         ];
         $data = $this->do_HttpRequest('co', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetRainDelayAction(int $value)
@@ -2417,7 +2420,7 @@ class OpenSprinkler extends IPSModule
             'rd'  => $rd,
         ];
         $data = $this->do_HttpRequest('cv', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function StopAllStations()
@@ -2431,7 +2434,7 @@ class OpenSprinkler extends IPSModule
             'rsn'  => 1,
         ];
         $data = $this->do_HttpRequest('cv', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     /*
@@ -2444,7 +2447,7 @@ class OpenSprinkler extends IPSModule
             ● ssta: shift remaining stations in the same sequential group (0: do not shift remaining stations; 1: shift remaining stations forward). Only if en=0)
      */
 
-    public function StationStartManually($value)
+    public function StationStartManually(int $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -2488,7 +2491,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $data = $this->do_HttpRequest('cm', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     /*
@@ -2518,7 +2521,7 @@ class OpenSprinkler extends IPSModule
             'dur'  => $dur,
         ];
         $data = $this->do_HttpRequest('pq', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetStationDisabled(bool $value)
@@ -2554,7 +2557,7 @@ class OpenSprinkler extends IPSModule
             'd' . $byte => $bval,
         ];
         $data = $this->do_HttpRequest('cs', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetStationIgnoreRain(bool $value)
@@ -2590,7 +2593,7 @@ class OpenSprinkler extends IPSModule
             'i' . $byte => $bval,
         ];
         $data = $this->do_HttpRequest('cs', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetStationIgnoreSensor1(bool $value)
@@ -2626,7 +2629,7 @@ class OpenSprinkler extends IPSModule
             'j' . $byte => $bval,
         ];
         $data = $this->do_HttpRequest('cs', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetStationIgnoreSensor2(bool $value)
@@ -2662,7 +2665,7 @@ class OpenSprinkler extends IPSModule
             'k' . $byte => $bval,
         ];
         $data = $this->do_HttpRequest('cs', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetStationFlowThreshold(float $value)
@@ -2689,7 +2692,7 @@ class OpenSprinkler extends IPSModule
             'f' . ($sid - 1) => floor($value * 100),
         ];
         $data = $this->do_HttpRequest('cs', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetProgramEnabled(bool $value)
@@ -2709,7 +2712,7 @@ class OpenSprinkler extends IPSModule
             'en'  => ($value ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('cp', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function SetProgramWeatherAdjust(bool $value)
@@ -2729,7 +2732,7 @@ class OpenSprinkler extends IPSModule
             'uwt' => ($value ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('cp', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     public function ProgramStartManually(int $value)
@@ -2756,7 +2759,7 @@ class OpenSprinkler extends IPSModule
             'uwt' => $uwt,
         ];
         $data = $this->do_HttpRequest('mp', $params);
-        return $data != false;
+        return $data !== false;
     }
 
     private function AdjustVariablenames()
