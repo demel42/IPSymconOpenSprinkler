@@ -71,6 +71,13 @@
 
 			"Watering level": "Bewässerungsniveau",
 
+			"Current draw (actual)": "Stromaufnahme (aktuell)",
+
+			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
+			"Water usage (today)": "Wasserverbrauch (heute)",
+
+			"Watering time (today)": "Bewässerungsdauer (heute)",
+
 			"Rain delay until": "Regenbedingte Unterbrechung bis",
 			"Rain delay duration in days": "Regenbedingte Unterbrechungsdauer in Tagen",
 			"Rain delay duration in hours": "Regenbedingte Unterbrechungsdauer in Stunden",
@@ -84,10 +91,7 @@
 			"Pause queue duration in seconds": "Pause der Warteschlange in Sekunden",
 			"Pause queue action": "Pause der Warteschlange ausführen",
 
-			"Current draw (actual)": "Stromaufnahme (aktuell)",
-
 			"Sensor state": "Sensor-Status",
-			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
 
 			"Station selection": "Bewässerungskreis-Auswahl",
 			"Station state": "Bewässerungskreis-Status",
@@ -110,6 +114,8 @@
 			"Duration of last run": "Dauer des letzten Laufs",
 			"Next run": "nächster Lauf",
 			"Duration of next run": "Dauer des nächsten Laufs",
+
+			"Water usage": "Wasserverbrauch",
 
 			"Unknown station": "Unbekannter Bewässerungskreis",
 

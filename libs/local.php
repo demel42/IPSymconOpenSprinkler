@@ -180,7 +180,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.StationStartManuallyMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
         $this->CreateVarProfile('OpenSprinkler.StationStartManuallySeconds', VARIABLETYPE_INTEGER, ' s', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
 
-        $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', '', $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', [], $reInstall);
 
         $associations = [
             ['Wert' => self::$WEATHER_STATUS_OK, 'Name' => $this->Translate('Ok'), 'Farbe' => -1],
@@ -229,8 +229,10 @@ trait OpenSprinklerLocalLib
         ];
         $this->CreateVarProfile('OpenSprinkler.RebootCause', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
 
-        $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', '', $reInstall);
-        $this->CreateVarProfile('OpenSprinkler.WaterFlowrate', VARIABLETYPE_FLOAT, ' l/min', 0, 100, 0.1, 2, '', '', $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', [], $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.WaterFlowrate', VARIABLETYPE_FLOAT, ' l/min', 0, 100, 0.1, 2, '', [], $reInstall);
+		$this->CreateVarProfile('OpenSprinkler.WaterFlowmeter', VARIABLETYPE_FLOAT, ' l', 0, 0, 0, 1, 'Gauge', [], $reInstall);
     }
 
     private function Group2String($grp)
