@@ -160,10 +160,7 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainReferences();
         $varIDs = [];
-        $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
-        if ($variable_list === false) {
-            $variable_list = [];
-        }
+        $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
         foreach ($variable_list as $variable) {
             $varID = $variable['varID'];
             if ($this->IsValidID($varID) && IPS_VariableExists($varID)) {
@@ -197,18 +194,13 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        if ($controller_infos === false) {
-            $controller_infos = [];
-        }
-        $station_infos = @json_decode($this->ReadAttributeString('station_infos'), true);
-        if ($station_infos === false) {
-            $station_infos = [];
-        }
-        $program_infos = @json_decode($this->ReadAttributeString('program_infos'), true);
-        if ($program_infos === false) {
-            $station_infos = [];
-        }
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
+        $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
+
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
 
         $has_flowmeter = $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
 
@@ -336,16 +328,12 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
 
         // 1001..8299: Stations (max 72)
-        $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($station_list === false) {
-            $station_list = [];
-        }
         for ($station_n = 0; $station_n < count($station_list); $station_n++) {
             $station_entry = $station_list[$station_n];
 
             $station_info = [];
             for ($i = 0; $i < count($station_infos); $i++) {
-                if ($station_infos[$i]['sid'] == ($station_n + 1)) {
+                if ($station_infos[$i]['sid'] == $station_n) {
                     $station_info = $station_infos[$i];
                     break;
                 }
@@ -355,7 +343,7 @@ class OpenSprinkler extends IPSModule
             $post = '_' . ($station_n + 1);
             $s = sprintf(self::$STATION_PREFIX . '%02d[%s]: ', $station_n + 1, $station_entry['name']);
 
-            $is_master = isset($station_info['is_master']) ? $station_info['is_master'] : 0;
+            $is_master = $this->GetArrayElem($station_info, 'is_master', 0);
 
             $use = $station_entry['use'];
             $station_use = $use && $is_master == 0;
@@ -411,10 +399,6 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, true);
 
         // 10001..14999: Programs (max 40)
-        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
-        if ($program_list === false) {
-            $program_list = [];
-        }
         for ($program_n = 0; $program_n < count($program_list); $program_n++) {
             $program_entry = $program_list[$program_n];
 
@@ -548,18 +532,9 @@ class OpenSprinkler extends IPSModule
             'caption' => 'Access configuration',
         ];
 
-        $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($station_list === false) {
-            $station_list = [];
-        }
-        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
-        if ($sensor_list === false) {
-            $sensor_list = [];
-        }
-        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
-        if ($program_list === false) {
-            $program_list = [];
-        }
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
 
         $formElements[] = [
             'type'    => 'ExpansionPanel',
@@ -846,26 +821,26 @@ class OpenSprinkler extends IPSModule
 
     private function WateringLevelChangeable()
     {
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        $weather_method = isset($controller_infos['weather_method']) ? $controller_infos['weather_method'] : self::$WEATHER_METHOD_MANUAL;
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $weather_method = $this->GetArrayElem($controller_infos, 'weather_method', self::$WEATHER_METHOD_MANUAL);
         return in_array($weather_method, [self::$WEATHER_METHOD_MANUAL]);
     }
 
     private function AdjustTimestamp($tstamp)
     {
         if ($tstamp > 0) {
-            $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-            $tz_offs = isset($controller_infos['timezone_offset']) ? $controller_infos['timezone_offset'] : 0;
-            $tstamp -= $tz_offs;
+            $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+            $timezone_offset = $this->GetArrayElem($controller_infos, 'timezone_offset', 0);
+            $tstamp -= $timezone_offset;
         }
         return $tstamp;
     }
 
     private function ConvertPulses2Volume($count)
     {
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        $vol = isset($controller_infos['pulse_volume']) ? $controller_infos['pulse_volume'] : 0;
-        return $count * $vol;
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $pulse_volume = $this->GetArrayElem($controller_infos, 'pulse_volume', 0);
+        return $count * $pulse_volume;
     }
 
     private function CheckDailyValues()
@@ -878,10 +853,7 @@ class OpenSprinkler extends IPSModule
 
         $this->SendDebug(__FUNCTION__, 'reset daily value (old=' . date('d.m.Y', $ts_watch) . ', new=' . date('d.m.Y', $ts_today) . ')', 0);
 
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        if ($controller_infos == false) {
-            $controller_infos = [];
-        }
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $has_flowmeter = $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
 
         $this->SetValue('DailyDuration', 0);
@@ -894,21 +866,15 @@ class OpenSprinkler extends IPSModule
             $this->SetValue('StationDailyWaterUsage', 0);
         }
 
-        $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($station_list === false) {
-            $station_list = [];
-        }
-        $station_infos = @json_decode($this->ReadAttributeString('station_infos'), true);
-        if ($station_infos === false) {
-            $station_infos = [];
-        }
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
 
         for ($station_n = 0; $station_n < count($station_list); $station_n++) {
             $station_entry = $station_list[$station_n];
 
             $station_info = [];
             for ($i = 0; $i < count($station_infos); $i++) {
-                if ($station_infos[$i]['sid'] == ($station_n + 1)) {
+                if ($station_infos[$i]['sid'] == $station_n) {
                     $station_info = $station_infos[$i];
                     break;
                 }
@@ -916,7 +882,7 @@ class OpenSprinkler extends IPSModule
 
             $post = '_' . ($station_n + 1);
 
-            $is_master = isset($station_info['is_master']) ? $station_info['is_master'] : 0;
+            $is_master = $this->GetArrayElem($station_info, 'is_master', 0);
 
             $use = $station_entry['use'];
             $station_use = $use && $is_master == 0;
@@ -948,483 +914,29 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($station_list === false) {
-            $station_list = [];
-        }
-        $sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
-        if ($sensor_list === false) {
-            $sensor_list = [];
-        }
-        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
-        if ($program_list === false) {
-            $program_list = [];
-        }
-
-        $now = time();
-
         $this->SendDebug(__FUNCTION__, 'jdata=' . print_r($jdata, true), 0);
-        $settings = $jdata['settings'];
-        $this->SendDebug(__FUNCTION__, 'settings=' . print_r($settings, true), 0);
-        $options = $jdata['options'];
-        $this->SendDebug(__FUNCTION__, 'options=' . print_r($options, true), 0);
-        $stations = $jdata['stations'];
-        $this->SendDebug(__FUNCTION__, 'stations=' . print_r($stations, true), 0);
-        $programs = $jdata['programs'];
-        $this->SendDebug(__FUNCTION__, 'programs=' . print_r($programs, true), 0);
 
         $this->CheckDailyValues();
 
+        $this->SaveInfos($jdata);
+
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
+
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
+        $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
+
+        $station_count = $this->GetArrayElem($controller_infos, 'station_count', 0);
+
+        $now = time();
+
         $fnd = true;
-
-        $firmware = '';
-        $fwv = (string) $this->GetArrayElem($jdata, 'options.fwv', '', $fnd);
-        if ($fnd) {
-            for ($i = 0; $i < strlen($fwv); $i++) {
-                if ($firmware != '') {
-                    $firmware .= '.';
-                }
-                $firmware .= substr($fwv, $i, 1);
-            }
-        }
-        $fwn = (string) $this->GetArrayElem($jdata, 'options.fwn', '', $fnd);
-        if ($fnd) {
-            $firmware .= '(' . $fwn . ')';
-        }
-
-        $hardware = '';
-        $hwv = (string) $this->GetArrayElem($jdata, 'options.hwv', '', $fnd);
-        if ($fnd) {
-            for ($i = 0; $i < strlen($hwv); $i++) {
-                if ($hardware != '') {
-                    $hardware .= '.';
-                }
-                $hardware .= substr($hwv, $i, 1);
-            }
-        }
-        $hwv = $this->GetArrayElem($jdata, 'options.hwv', 0, $fnd);
-        if ($fnd) {
-            if ($hwv == 172) {
-                $hardware .= ' AC';
-            }
-            if ($hwv == 220) {
-                $hardware .= ' DC';
-            }
-        }
-
-        $feature = $this->GetArrayElem($jdata, 'options.feature', '');
-
-        $remote_extension = (bool) $this->GetArrayElem($jdata, 'options.re', false);
-
-        $this->SendDebug(__FUNCTION__, 'firmware=' . $firmware . ', hardware=' . $hardware . ', feature=' . $feature . ', remote_extension=' . $this->bool2str($remote_extension), 0);
-
-        $timezone_offset = 0;
-        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
-        if ($fnd) {
-            $timezone_offset = ($tz - 48) / 4 * 3600;
-        }
-
-        $pulse_volume = 0;
-        $fpr0 = $this->GetArrayElem($jdata, 'options.fpr0', 0, $fnd);
-        if ($fnd) {
-            $fpr1 = $this->GetArrayElem($jdata, 'options.fpr1', 0, $fnd);
-            if ($fnd) {
-                $pulse_volume = (($fpr1 << 8) + $fpr0) / 100.0;
-            }
-        }
-
-        $weather_method = self::$WEATHER_METHOD_MANUAL;
-        $uwt = $this->GetArrayElem($jdata, 'options.uwt', 0, $fnd);
-        if ($fnd) {
-            $weather_method = $this->bit_clear($uwt, 7);
-        }
-
-        /*
-            Program status data: each element is a 4-field array that stores the [pid,rem,start,gid] of a station,
-            where
-                pid is the program index (0 means none),
-                rem is the remaining water time (in seconds),
-                start is the start time, and
-                gid is the (sequential) group id of the station.
-            If a station is not running (sbit is 0) but has a non-zero pid, that means the station is in the queue waiting to run.
-         */
-        $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
-            for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $ps[$ps_sid][0];
-                $rem = $ps[$ps_sid][1];
-                $start = $this->AdjustTimestamp($ps[$ps_sid][2]);
-                $gid = $ps[$ps_sid][3];
-                if ($ps_pid != 0 || $rem != 0 || $start != 0) {
-                    $this->SendDebug(__FUNCTION__, '....... sid=' . $ps_sid . ', pid=' . $ps_pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
-                }
-            }
-        }
-
-        $running_programsV = [];
-        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
-        for ($pid = 0; $pid < $nprogs; $pid++) {
-            for ($n = 0; $n < count($program_list); $n++) {
-                if ($program_list[$n]['pid'] == $pid) {
-                    break;
-                }
-            }
-            if ($n == count($program_list)) {
-                continue;
-            }
-            $program_entry = $program_list[$n];
-
-            if ($program_list[$n] == false) {
-                continue;
-            }
-
-            $post = '_' . ($pid + 1);
-
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
-
-            for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $ps[$ps_sid][0];
-                if ($ps_pid == 0) {
-                    continue;
-                }
-                if ($ps_pid == ($pid + 1)) {
-                    $pname = $program_entry['name'];
-                } elseif ($ps_pid == self::$ADHOC_PROGRAM) {
-                    $pname = $this->Translate('Adhoc program');
-                } elseif ($ps_pid == self::$MANUAL_STATION_START) {
-                    $pname = $this->Translate('Manual station start');
-                } else {
-                    $pname = $this->Translate('Unknown program') . ' ' . $ps_pid;
-                }
-                if (in_array($pname, $running_programsV) == false) {
-                    $running_programsV[] = $pname;
-                }
-            }
-        }
-
-        $running_stationsV = [];
-        /*
-            Station status bits. Each byte in this array corresponds to an 8-station board and represents the bit field (LSB).
-            For example, 1 means the 1st station on the board is open, 192 means the 7th and 8th stations are open.
-         */
-        $sbits = (array) $this->GetArrayElem($jdata, 'settings.sbits', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.sbits)=' . print_r($sbits, true), 0);
-            for ($sid = 0; $sid < count($sbits) * 8; $sid++) {
-                if ($this->idx_in_bytes($sid, $sbits)) {
-                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', active', 0);
-                    for ($n = 0; $n < count($station_list); $n++) {
-                        $station_entry = $station_list[$n];
-                        if ($station_entry['sid'] == $sid) {
-                            if ($station_entry['use']) {
-                                $running_stationsV[] = $station_entry['name'];
-                            }
-                            break;
-                        }
-                    }
-                    if ($n == count($station_list)) {
-                        $running_stationsV[] = $this->Translate('Unknown station') . ' ' . $sid;
-                    }
-                }
-            }
-        }
-
-        $last_program = '';
-        $last_station = '';
-        /*
-           Last run record, which stores the [station index, program index, duration, end time] of the last run station.
-         */
-        $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
-        if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... (settings.lrun)=' . print_r($lrun, true), 0);
-            $lr_sid = $lrun[0];
-            $lr_pid = $lrun[1];
-            $lr_dur = $lrun[2];
-            $lr_end = $this->AdjustTimestamp($lrun[3]);
-            $this->SendDebug(__FUNCTION__, '....... sid=' . $lr_sid . ', pid=' . $lr_pid . ', dur=' . $lr_dur . ', end=' . ($lr_end ? date('d.m.y H:i:s', $lr_end) : '-'), 0);
-            if ($lr_pid != 0) {
-                if ($lr_pid == self::$ADHOC_PROGRAM) {
-                    $last_program = $this->Translate('Adhoc program');
-                } elseif ($lr_pid == self::$MANUAL_STATION_START) {
-                    $last_program = $this->Translate('Manual station start');
-                } else {
-                    for ($n = 0; $n < count($program_list); $n++) {
-                        $program_entry = $program_list[$n];
-                        if ($program_entry['pid'] == ($lr_pid - 1)) {
-                            if ($program_entry['use']) {
-                                $last_program = $program_entry['name'];
-                            }
-                            break;
-                        }
-                    }
-                    if ($n == count($program_list)) {
-                        $running_programsV[] = $this->Translate('Unknown program') . ' ' . $lr_pid;
-                    }
-                }
-            }
-            if ($lr_sid != 0) {
-                for ($n = 0; $n < count($station_list); $n++) {
-                    $station_entry = $station_list[$n];
-                    if ($station_entry['sid'] == $lr_sid) {
-                        if ($station_entry['use']) {
-                            $last_station = $station_entry['name'];
-                        }
-                        break;
-                    }
-                }
-                if ($n == count($station_list)) {
-                    $running_stationsV[] = $this->Translate('Unknown station') . ' ' . $lr_sid;
-                }
-            }
-        }
-
-        $has_flowmeter = false;
-        $sensor_type = [
-            1 => self::$SENSOR_TYPE_NONE,
-            2 => self::$SENSOR_TYPE_NONE,
-        ];
-
-        for ($sensor_n = 0; $sensor_n < count($sensor_list); $sensor_n++) {
-            $sensor_entry = $sensor_list[$sensor_n];
-            if ($sensor_entry['sni'] > self::$MAX_INT_SENSORS) {
-                continue;
-            }
-
-            if ($sensor_entry['use'] == false) {
-                continue;
-            }
-
-            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
-            if ($snt == self::$SENSOR_TYPE_FLOW) {
-                $has_flowmeter = true;
-            }
-
-            $sensor_type[$sensor_entry['sni'] + 1] = $snt;
-        }
-
-        $controller_infos = [
-            'firmware'         => $firmware,
-            'hardware'         => $hardware,
-            'feature'          => $feature,
-            'remote_extension' => $remote_extension,
-            'timezone_offset'  => $timezone_offset,
-            'weather_method'   => $weather_method,
-            'has_flowmeter'    => $has_flowmeter,
-            'sensor_type'      => $sensor_type,
-            'pulse_volume'     => $pulse_volume,
-            'running_programs' => implode(', ', $running_programsV),
-            'running_stations' => implode(', ', $running_stationsV),
-            'last_program'     => $last_program,
-            'last_station'     => $last_station,
-        ];
-
-        $station_infos = [];
-
-        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
-        $snames = (array) $this->GetArrayElem($jdata, 'stations.snames', '');
-        $ignore_rain = (array) $this->GetArrayElem($jdata, 'stations.ignore_rain', []);
-        $ignore_sn1 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn1', []);
-        $ignore_sn2 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn2', []);
-        $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', []);
-        $stn_grp = (array) $this->GetArrayElem($jdata, 'stations.stn_grp', []);
-        $stn_spe = (array) $this->GetArrayElem($jdata, 'stations.stn_spe', []);
-        $mas = $this->GetArrayElem($jdata, 'options.mas', 0);
-        $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
-        $masop = (array) $this->GetArrayElem($jdata, 'stations.masop', []);
-        $masop2 = (array) $this->GetArrayElem($jdata, 'stations.masop2', []);
-        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
-        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
-
-        for ($sid = 0; $sid < $maxlen; $sid++) {
-            for ($n = 0; $n < count($station_list); $n++) {
-                if ($station_list[$n]['sid'] == $sid) {
-                    break;
-                }
-            }
-            if ($n == count($station_list)) {
-                continue;
-            }
-            $station_entry = $station_list[$n];
-
-            if ($sid == ($mas - 1)) {
-                $is_master = 1;
-            } elseif ($sid == ($mas2 - 1)) {
-                $is_master = 2;
-            } else {
-                $is_master = 0;
-            }
-
-            if ($this->idx_in_bytes($sid, $masop)) {
-                $use_master = 1;
-            } elseif ($this->idx_in_bytes($sid, $masop2)) {
-                $use_master = 2;
-            } else {
-                $use_master = 0;
-            }
-
-            $prV = [];
-            for ($pid = 0; $pid < $nprogs; $pid++) {
-                for ($n = 0; $n < count($program_list); $n++) {
-                    if ($program_list[$n]['pid'] == $pid) {
-                        break;
-                    }
-                }
-                if ($n == count($program_list)) {
-                    continue;
-                }
-                $program_entry = $program_list[$n];
-
-                if ($program_entry['use'] == false) {
-                    continue;
-                }
-
-                $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.4', []);
-                if ($duration[$sid] == 0) {
-                    continue;
-                }
-
-                $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
-                $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.3', []);
-                $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
-
-                $repV = [];
-                if ($this->bit_test($flag, 6)) {
-                    for ($n = 0; $n < count($start); $n++) {
-                        $min = $start[$n];
-                        if ($min != -1) {
-                            $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                        }
-                    }
-                } else {
-                    $min = $start[0];
-                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    for ($n = 0; $n < $start[1]; $n++) {
-                        $min += $start[2];
-                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    }
-                }
-
-                $s = $name . '[' . $this->seconds2duration($duration[$sid]) . ' @ ' . implode('/', $repV) . ']';
-                if ($this->bit_test($flag, 0) == false) {
-                    $s .= '(' . $this->Translate('disabled') . ')';
-                }
-                $prV[] = $s;
-            }
-
-            $info = implode(', ', $prV);
-
-            $station_infos[] = [
-                'sid'         => $sid + 1,
-                'name'        => $snames[$sid],
-                'group'       => $this->Group2String($stn_grp[$sid]),
-                'disabled'    => $this->idx_in_bytes($sid, $stn_dis),
-                'ignore_rain' => $this->idx_in_bytes($sid, $ignore_rain),
-                'ignore_sn1'  => $this->idx_in_bytes($sid, $ignore_sn1),
-                'ignore_sn2'  => $this->idx_in_bytes($sid, $ignore_sn2),
-                'is_special'  => $this->idx_in_bytes($sid, $stn_spe),
-                'is_master'   => $is_master,
-                'use_master'  => $use_master,
-                'stn_fas'     => $stn_fas[$sid],
-                'use'         => $station_entry['use'],
-                'info'        => $info,
-            ];
-        }
-
-        $program_infos = [];
-        for ($pid = 0; $pid < $nprogs; $pid++) {
-            for ($n = 0; $n < count($program_list); $n++) {
-                if ($program_list[$n]['pid'] == $pid) {
-                    break;
-                }
-            }
-            if ($n == count($program_list)) {
-                continue;
-            }
-            $program_entry = $program_list[$n];
-
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
-            $days0 = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.1', '');
-            $days1 = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.2', '');
-            $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.3', []);
-            $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.4', []);
-            $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
-            $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.6', []);
-
-            $repV = [];
-            if ($this->bit_test($flag, 6)) {
-                for ($n = 0; $n < count($start); $n++) {
-                    $min = $start[$n];
-                    if ($min != -1) {
-                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                    }
-                }
-            } else {
-                $min = $start[0];
-                $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                for ($n = 0; $n < $start[1]; $n++) {
-                    $min += $start[2];
-                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
-                }
-            }
-
-            $stationsV = [];
-            for ($sid = 0; $sid < $maxlen; $sid++) {
-                for ($n = 0; $n < count($station_list); $n++) {
-                    if ($station_list[$n]['sid'] == $sid) {
-                        break;
-                    }
-                }
-                if ($n == count($station_list)) {
-                    continue;
-                }
-                $station_entry = $station_list[$n];
-
-                if ($station_entry['use'] == false) {
-                    continue;
-                }
-
-                if ($duration[$sid] == 0) {
-                    continue;
-                }
-                $s = $snames[$sid] . '[' . $this->seconds2duration($duration[$sid]) . ']';
-                if ($this->idx_in_bytes($sid, $stn_dis)) {
-                    $s .= '(' . $this->Translate('disabled') . ')';
-                }
-                $stationsV[] = $s;
-            }
-
-            $info = $this->TranslateFormat('Start at {$rep} with: {$stations}', ['{$rep}' => implode('/', $repV), '{$stations}' => implode(', ', $stationsV)]);
-
-            $program_infos[] = [
-                'pid'                => $pid + 1,
-                'name'               => $name,
-                'enabled'            => $this->bit_test($flag, 0),
-                'weather_adjustment' => $this->bit_test($flag, 1),
-                'flag'               => $flag,
-                'days0'              => $days0,
-                'days1'              => $days1,
-                'start'              => $start,
-                'duration'           => $duration,
-                'daterange'          => $daterange,
-                'total_duration'     => array_sum($duration),
-                'use'                => $program_entry['use'],
-                'info'               => $info,
-            ];
-        }
-
-        $this->SendDebug(__FUNCTION__, 'controller_infos=' . print_r($controller_infos, true), 0);
-        $this->WriteAttributeString('controller_infos', json_encode($controller_infos));
-
-        $this->SendDebug(__FUNCTION__, 'station_infos=' . print_r($station_infos, true), 0);
-        $this->WriteAttributeString('station_infos', json_encode($station_infos));
-
-        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
-        $this->WriteAttributeString('program_infos', json_encode($program_infos));
 
         $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
         if ($fnd) {
-            $this->SendDebug(__FUNCTION__, '... ControllerEnabled (settings.en)=' . $en . ' => ' . $i, 0);
+            $this->SendDebug(__FUNCTION__, '... ControllerEnabled (settings.en)=' . $en, 0);
             $this->SetValue('ControllerEnabled', $en);
         }
 
@@ -1503,8 +1015,12 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $sensor_type = $controller_infos['sensor_type'][1];
-        if (in_array($sensor_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+        $sensor_type = $this->GetArrayElem($controller_infos, 'sensor_type', []);
+        $this->SendDebug(__FUNCTION__, '... sensor_type=' . print_r($sensor_type, true), 0);
+
+        $sensor_type1 = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
+        $this->SendDebug(__FUNCTION__, '... sensor_type1=' . $sensor_type1, 0);
+        if (in_array($sensor_type1, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
             $sn1 = $this->GetArrayElem($jdata, 'settings.sn1', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... SensorState_1 (settings.sn1)=' . $sn1, 0);
@@ -1512,8 +1028,9 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $sensor_type = $controller_infos['sensor_type'][2];
-        if (in_array($sensor_type, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
+        $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
+        $this->SendDebug(__FUNCTION__, '... sensor_type2=' . $sensor_type2, 0);
+        if (in_array($sensor_type2, [self::$SENSOR_TYPE_RAIN, self::$SENSOR_TYPE_SOIL])) {
             $sn2 = $this->GetArrayElem($jdata, 'settings.sn2', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... SensorState_2 (settings.sn2)=' . $sn2, 0);
@@ -1585,8 +1102,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $maxlen = $this->GetArrayElem($jdata, 'stations.maxlen', 0);
-        for ($sid = 0; $sid < $maxlen; $sid++) {
+        for ($sid = 0; $sid < $station_count; $sid++) {
             for ($n = 0; $n < count($station_list); $n++) {
                 if ($station_list[$n]['sid'] == $sid) {
                     break;
@@ -1603,7 +1119,7 @@ class OpenSprinkler extends IPSModule
 
             $station_info = false;
             for ($i = 0; $i < count($station_infos); $i++) {
-                if ($station_infos[$i]['sid'] == ($sid + 1)) {
+                if ($station_infos[$i]['sid'] == $sid) {
                     $station_info = $station_infos[$i];
                     break;
                 }
@@ -1614,11 +1130,16 @@ class OpenSprinkler extends IPSModule
 
             $post = '_' . ($sid + 1);
 
-            $is_master = isset($station_info['is_master']) ? $station_info['is_master'] : 0;
+            $is_master = $this->GetArrayElem($station_info, 'is_master', 0);
 
-            $lr_pid = $ps[$sid][0];
-            $ps_rem = $ps[$sid][1];
-            $ps_start = $this->AdjustTimestamp($ps[$sid][2]);
+            $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
+            if ($fnd) {
+                $ps_rem = $ps[$sid][1];
+                $ps_start = $this->AdjustTimestamp($ps[$sid][2]);
+            } else {
+                $ps_rem = 0;
+                $ps_start = 0;
+            }
 
             $nextStart = 0;
             $nextDur = 0;
@@ -1652,9 +1173,16 @@ class OpenSprinkler extends IPSModule
                 $this->SendDebug(__FUNCTION__, '... StationNextDuration' . $post . ' => ' . $nextDur, 0);
                 $this->SetValue('StationNextDuration' . $post, $nextDur);
 
-                $lr_sid = $lrun[0];
-                $lr_dur = $lrun[2];
-                $lr_end = $this->AdjustTimestamp($lrun[3]);
+                $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
+                if ($fnd) {
+                    $lr_sid = $lrun[0];
+                    $lr_dur = $lrun[2];
+                    $lr_end = $this->AdjustTimestamp($lrun[3]);
+                } else {
+                    $lr_sid = 0;
+                    $lr_dur = 0;
+                    $lr_end = 0;
+                }
                 if ($lr_sid == $sid && $lr_dur != 0 && $lr_end != 0) {
                     $lr_start = $lr_end - $lr_dur;
                     $this->SendDebug(__FUNCTION__, '... StationLastRun' . $post . ' => ' . date('d.m.y H:i:s', $lr_start), 0);
@@ -1692,6 +1220,447 @@ class OpenSprinkler extends IPSModule
         $this->SetQueryInterval();
     }
 
+    private function SaveInfos($jdata)
+    {
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
+
+        $fnd = true;
+
+        $firmware = '';
+        $fwv = (string) $this->GetArrayElem($jdata, 'options.fwv', '', $fnd);
+        if ($fnd) {
+            for ($i = 0; $i < strlen($fwv); $i++) {
+                if ($firmware != '') {
+                    $firmware .= '.';
+                }
+                $firmware .= substr($fwv, $i, 1);
+            }
+        }
+        $fwn = (string) $this->GetArrayElem($jdata, 'options.fwn', '', $fnd);
+        if ($fnd) {
+            $firmware .= '(' . $fwn . ')';
+        }
+
+        $hardware = '';
+        $hwv = (string) $this->GetArrayElem($jdata, 'options.hwv', '', $fnd);
+        if ($fnd) {
+            for ($i = 0; $i < strlen($hwv); $i++) {
+                if ($hardware != '') {
+                    $hardware .= '.';
+                }
+                $hardware .= substr($hwv, $i, 1);
+            }
+        }
+        $hwv = $this->GetArrayElem($jdata, 'options.hwv', 0, $fnd);
+        if ($fnd) {
+            if ($hwv == 172) {
+                $hardware .= ' AC';
+            }
+            if ($hwv == 220) {
+                $hardware .= ' DC';
+            }
+        }
+
+        $feature = $this->GetArrayElem($jdata, 'options.feature', '');
+
+        $remote_extension = (bool) $this->GetArrayElem($jdata, 'options.re', false);
+
+        $this->SendDebug(__FUNCTION__, 'firmware=' . $firmware . ', hardware=' . $hardware . ', feature=' . $feature . ', remote_extension=' . $this->bool2str($remote_extension), 0);
+
+        $nbrd = $this->GetArrayElem($jdata, 'settings.nbrd', 1);
+        $station_count = $nbrd * 8;
+
+        $timezone_offset = 0;
+        $tz = $this->GetArrayElem($jdata, 'options.tz', 0, $fnd);
+        if ($fnd) {
+            $timezone_offset = ($tz - 48) / 4 * 3600;
+        }
+
+        $pulse_volume = 0;
+        $fpr0 = $this->GetArrayElem($jdata, 'options.fpr0', 0, $fnd);
+        if ($fnd) {
+            $fpr1 = $this->GetArrayElem($jdata, 'options.fpr1', 0, $fnd);
+            if ($fnd) {
+                $pulse_volume = (($fpr1 << 8) + $fpr0) / 100.0;
+            }
+        }
+
+        $weather_method = self::$WEATHER_METHOD_MANUAL;
+        $uwt = $this->GetArrayElem($jdata, 'options.uwt', 0, $fnd);
+        if ($fnd) {
+            $weather_method = $this->bit_clear($uwt, 7);
+        }
+
+        $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
+            for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
+                $ps_pid = $ps[$ps_sid][0];
+                $rem = $ps[$ps_sid][1];
+                $start = $this->AdjustTimestamp($ps[$ps_sid][2]);
+                $gid = $ps[$ps_sid][3];
+                if ($ps_pid != 0 || $rem != 0 || $start != 0) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $ps_sid . ', pid=' . $ps_pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
+                }
+            }
+        }
+
+        $running_programsV = [];
+        $nprogs = $this->GetArrayElem($jdata, 'programs.nprogs', 0);
+        for ($pid = 0; $pid < $nprogs; $pid++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['pid'] == $pid) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            if ($program_list[$n] == false) {
+                continue;
+            }
+
+            $post = '_' . ($pid + 1);
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
+
+            for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
+                $ps_pid = $ps[$ps_sid][0];
+                if ($ps_pid == 0) {
+                    continue;
+                }
+                if ($ps_pid == ($pid + 1)) {
+                    $pname = $program_entry['name'];
+                } elseif ($ps_pid == self::$ADHOC_PROGRAM) {
+                    $pname = $this->Translate('Adhoc program');
+                } elseif ($ps_pid == self::$MANUAL_STATION_START) {
+                    $pname = $this->Translate('Manual station start');
+                } else {
+                    $pname = $this->Translate('Unknown program') . ' ' . $ps_pid;
+                }
+                if (in_array($pname, $running_programsV) == false) {
+                    $running_programsV[] = $pname;
+                }
+            }
+        }
+
+        $running_stationsV = [];
+        $sbits = (array) $this->GetArrayElem($jdata, 'settings.sbits', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.sbits)=' . print_r($sbits, true), 0);
+            for ($sid = 0; $sid < count($sbits) * 8; $sid++) {
+                if ($this->idx_in_bytes($sid, $sbits)) {
+                    $this->SendDebug(__FUNCTION__, '....... sid=' . $sid . ', active', 0);
+                    for ($n = 0; $n < count($station_list); $n++) {
+                        $station_entry = $station_list[$n];
+                        if ($station_entry['sid'] == $sid) {
+                            if ($station_entry['use']) {
+                                $running_stationsV[] = $station_entry['name'];
+                            }
+                            break;
+                        }
+                    }
+                    if ($n == count($station_list)) {
+                        $running_stationsV[] = $this->Translate('Unknown station') . ' ' . $sid;
+                    }
+                }
+            }
+        }
+
+        $last_program = '';
+        $last_station = '';
+        $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
+        if ($fnd) {
+            $this->SendDebug(__FUNCTION__, '... (settings.lrun)=' . print_r($lrun, true), 0);
+            $lr_sid = $lrun[0];
+            $lr_pid = $lrun[1];
+            $lr_dur = $lrun[2];
+            $lr_end = $this->AdjustTimestamp($lrun[3]);
+            $this->SendDebug(__FUNCTION__, '....... sid=' . $lr_sid . ', pid=' . $lr_pid . ', dur=' . $lr_dur . ', end=' . ($lr_end ? date('d.m.y H:i:s', $lr_end) : '-'), 0);
+            if ($lr_pid != 0) {
+                if ($lr_pid == self::$ADHOC_PROGRAM) {
+                    $last_program = $this->Translate('Adhoc program');
+                } elseif ($lr_pid == self::$MANUAL_STATION_START) {
+                    $last_program = $this->Translate('Manual station start');
+                } else {
+                    for ($n = 0; $n < count($program_list); $n++) {
+                        $program_entry = $program_list[$n];
+                        if ($program_entry['pid'] == ($lr_pid - 1)) {
+                            if ($program_entry['use']) {
+                                $last_program = $program_entry['name'];
+                            }
+                            break;
+                        }
+                    }
+                    if ($n == count($program_list)) {
+                        $running_programsV[] = $this->Translate('Unknown program') . ' ' . $lr_pid;
+                    }
+                }
+            }
+            if ($lr_sid != 0) {
+                for ($n = 0; $n < count($station_list); $n++) {
+                    $station_entry = $station_list[$n];
+                    if ($station_entry['sid'] == $lr_sid) {
+                        if ($station_entry['use']) {
+                            $last_station = $station_entry['name'];
+                        }
+                        break;
+                    }
+                }
+                if ($n == count($station_list)) {
+                    $running_stationsV[] = $this->Translate('Unknown station') . ' ' . $lr_sid;
+                }
+            }
+        }
+
+        $has_flowmeter = false;
+        $sensor_type = [
+            1 => self::$SENSOR_TYPE_NONE,
+            2 => self::$SENSOR_TYPE_NONE,
+        ];
+
+        for ($sensor_n = 0; $sensor_n < count($sensor_list); $sensor_n++) {
+            $sensor_entry = $sensor_list[$sensor_n];
+            if ($sensor_entry['sni'] > self::$MAX_INT_SENSORS) {
+                continue;
+            }
+
+            if ($sensor_entry['use'] == false) {
+                continue;
+            }
+
+            $snt = $this->GetArrayElem($sensor_entry, 'type', self::$SENSOR_TYPE_NONE);
+            if ($snt == self::$SENSOR_TYPE_FLOW) {
+                $has_flowmeter = true;
+            }
+
+            $sensor_type[$sensor_entry['sni']] = $snt;
+        }
+
+        $controller_infos = [
+            'firmware'         => $firmware,
+            'hardware'         => $hardware,
+            'feature'          => $feature,
+            'remote_extension' => $remote_extension,
+            'station_count'    => $station_count,
+            'timezone_offset'  => $timezone_offset,
+            'weather_method'   => $weather_method,
+            'has_flowmeter'    => $has_flowmeter,
+            'sensor_type'      => $sensor_type,
+            'pulse_volume'     => $pulse_volume,
+            'running_programs' => implode(', ', $running_programsV),
+            'running_stations' => implode(', ', $running_stationsV),
+            'last_program'     => $last_program,
+            'last_station'     => $last_station,
+        ];
+
+        $station_infos = [];
+
+        $snames = (array) $this->GetArrayElem($jdata, 'stations.snames', '');
+        $ignore_rain = (array) $this->GetArrayElem($jdata, 'stations.ignore_rain', []);
+        $ignore_sn1 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn1', []);
+        $ignore_sn2 = (array) $this->GetArrayElem($jdata, 'stations.ignore_sn2', []);
+        $stn_dis = (array) $this->GetArrayElem($jdata, 'stations.stn_dis', []);
+        $stn_grp = (array) $this->GetArrayElem($jdata, 'stations.stn_grp', []);
+        $stn_spe = (array) $this->GetArrayElem($jdata, 'stations.stn_spe', []);
+        $mas = $this->GetArrayElem($jdata, 'options.mas', 0);
+        $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
+        $masop = (array) $this->GetArrayElem($jdata, 'stations.masop', []);
+        $masop2 = (array) $this->GetArrayElem($jdata, 'stations.masop2', []);
+        $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
+        $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
+
+        for ($sid = 0; $sid < $station_count; $sid++) {
+            for ($n = 0; $n < count($station_list); $n++) {
+                if ($station_list[$n]['sid'] == $sid) {
+                    break;
+                }
+            }
+            if ($n == count($station_list)) {
+                continue;
+            }
+            $station_entry = $station_list[$n];
+
+            if ($sid == ($mas - 1)) {
+                $is_master = 1;
+            } elseif ($sid == ($mas2 - 1)) {
+                $is_master = 2;
+            } else {
+                $is_master = 0;
+            }
+
+            if ($this->idx_in_bytes($sid, $masop)) {
+                $use_master = 1;
+            } elseif ($this->idx_in_bytes($sid, $masop2)) {
+                $use_master = 2;
+            } else {
+                $use_master = 0;
+            }
+
+            $prV = [];
+            for ($pid = 0; $pid < $nprogs; $pid++) {
+                for ($n = 0; $n < count($program_list); $n++) {
+                    if ($program_list[$n]['pid'] == $pid) {
+                        break;
+                    }
+                }
+                if ($n == count($program_list)) {
+                    continue;
+                }
+                $program_entry = $program_list[$n];
+
+                if ($program_entry['use'] == false) {
+                    continue;
+                }
+
+                $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.4', []);
+                if ($duration[$sid] == 0) {
+                    continue;
+                }
+
+                $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
+                $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.3', []);
+                $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
+
+                $repV = [];
+                if ($this->bit_test($flag, 6)) {
+                    for ($n = 0; $n < count($start); $n++) {
+                        $min = $start[$n];
+                        if ($min != -1) {
+                            $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                        }
+                    }
+                } else {
+                    $min = $start[0];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    for ($n = 0; $n < $start[1]; $n++) {
+                        $min += $start[2];
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+
+                $s = $name . '[' . $this->seconds2duration($duration[$sid]) . ' @ ' . implode('/', $repV) . ']';
+                if ($this->bit_test($flag, 0) == false) {
+                    $s .= '(' . $this->Translate('disabled') . ')';
+                }
+                $prV[] = $s;
+            }
+
+            $info = implode(', ', $prV);
+
+            $station_infos[] = [
+                'sid'         => $sid,
+                'name'        => $snames[$sid],
+                'group'       => $this->Group2String($stn_grp[$sid]),
+                'disabled'    => $this->idx_in_bytes($sid, $stn_dis),
+                'ignore_rain' => $this->idx_in_bytes($sid, $ignore_rain),
+                'ignore_sn1'  => $this->idx_in_bytes($sid, $ignore_sn1),
+                'ignore_sn2'  => $this->idx_in_bytes($sid, $ignore_sn2),
+                'is_special'  => $this->idx_in_bytes($sid, $stn_spe),
+                'is_master'   => $is_master,
+                'use_master'  => $use_master,
+                'stn_fas'     => $stn_fas[$sid],
+                'use'         => $station_entry['use'],
+                'info'        => $info,
+            ];
+        }
+
+        $program_infos = [];
+        for ($pid = 0; $pid < $nprogs; $pid++) {
+            for ($n = 0; $n < count($program_list); $n++) {
+                if ($program_list[$n]['pid'] == $pid) {
+                    break;
+                }
+            }
+            if ($n == count($program_list)) {
+                continue;
+            }
+            $program_entry = $program_list[$n];
+
+            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
+            $days0 = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.1', '');
+            $days1 = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.2', '');
+            $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.3', []);
+            $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.4', []);
+            $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
+            $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.6', []);
+
+            $repV = [];
+            if ($this->bit_test($flag, 6)) {
+                for ($n = 0; $n < count($start); $n++) {
+                    $min = $start[$n];
+                    if ($min != -1) {
+                        $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                    }
+                }
+            } else {
+                $min = $start[0];
+                $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                for ($n = 0; $n < $start[1]; $n++) {
+                    $min += $start[2];
+                    $repV[] = sprintf('%02d:%02d', ($min / 60), ($min % 60));
+                }
+            }
+
+            $stationsV = [];
+            for ($sid = 0; $sid < $station_count; $sid++) {
+                for ($n = 0; $n < count($station_list); $n++) {
+                    if ($station_list[$n]['sid'] == $sid) {
+                        break;
+                    }
+                }
+                if ($n == count($station_list)) {
+                    continue;
+                }
+                $station_entry = $station_list[$n];
+
+                if ($station_entry['use'] == false) {
+                    continue;
+                }
+
+                if ($duration[$sid] == 0) {
+                    continue;
+                }
+                $s = $snames[$sid] . '[' . $this->seconds2duration($duration[$sid]) . ']';
+                if ($this->idx_in_bytes($sid, $stn_dis)) {
+                    $s .= '(' . $this->Translate('disabled') . ')';
+                }
+                $stationsV[] = $s;
+            }
+
+            $info = $this->TranslateFormat('Start at {$rep} with: {$stations}', ['{$rep}' => implode('/', $repV), '{$stations}' => implode(', ', $stationsV)]);
+
+            $program_infos[] = [
+                'pid'                => $pid,
+                'name'               => $name,
+                'enabled'            => $this->bit_test($flag, 0),
+                'weather_adjustment' => $this->bit_test($flag, 1),
+                'flag'               => $flag,
+                'days0'              => $days0,
+                'days1'              => $days1,
+                'start'              => $start,
+                'duration'           => $duration,
+                'daterange'          => $daterange,
+                'total_duration'     => array_sum($duration),
+                'use'                => $program_entry['use'],
+                'info'               => $info,
+            ];
+        }
+
+        $this->SendDebug(__FUNCTION__, 'controller_infos=' . print_r($controller_infos, true), 0);
+        $this->WriteAttributeString('controller_infos', json_encode($controller_infos));
+
+        $this->SendDebug(__FUNCTION__, 'station_infos=' . print_r($station_infos, true), 0);
+        $this->WriteAttributeString('station_infos', json_encode($station_infos));
+
+        $this->SendDebug(__FUNCTION__, 'program_infos=' . print_r($program_infos, true), 0);
+        $this->WriteAttributeString('program_infos', json_encode($program_infos));
+    }
+
     private function idx_in_bytes($idx, $val)
     {
         $byte = floor($idx / 8);
@@ -1704,18 +1673,9 @@ class OpenSprinkler extends IPSModule
 
     private function RetriveConfiguration()
     {
-        $old_station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($old_station_list === false) {
-            $old_station_list = [];
-        }
-        $old_sensor_list = @json_decode($this->ReadPropertyString('sensor_list'), true);
-        if ($old_sensor_list === false) {
-            $old_sensor_list = [];
-        }
-        $old_program_list = @json_decode($this->ReadPropertyString('program_list'), true);
-        if ($old_program_list === false) {
-            $old_program_list = [];
-        }
+        $old_station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+        $old_sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
+        $old_program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
 
         $data = $this->do_HttpRequest('ja', []);
         if ($data === false) {
@@ -1736,8 +1696,12 @@ class OpenSprinkler extends IPSModule
         $special_stations = json_decode($data, true);
         $this->SendDebug(__FUNCTION__, 'special_stations=' . print_r($special_stations, true), 0);
 
+        $nbrd = $this->GetArrayElem($ja_data, 'settings.nbrd', 1);
+        $station_count = $nbrd * 8;
+
+        $remote_extension = (bool) $this->GetArrayElem($ja_data, 'options.re', false);
+
         $station_list = [];
-        $maxlen = $this->GetArrayElem($ja_data, 'stations.maxlen', 0);
         $ignore_rain = (array) $this->GetArrayElem($ja_data, 'stations.ignore_rain', []);
         $ignore_sn1 = (array) $this->GetArrayElem($ja_data, 'stations.ignore_sn1', []);
         $ignore_sn2 = (array) $this->GetArrayElem($ja_data, 'stations.ignore_sn2', []);
@@ -1745,7 +1709,7 @@ class OpenSprinkler extends IPSModule
         $stn_spe = (array) $this->GetArrayElem($ja_data, 'stations.stn_spe', []);
         $mas = $this->GetArrayElem($ja_data, 'options.mas', 0);
         $mas2 = $this->GetArrayElem($ja_data, 'options.mas2', 0);
-        for ($sid = 0; $sid < $maxlen; $sid++) {
+        for ($sid = 0; $sid < $station_count; $sid++) {
             $use = true;
             foreach ($old_station_list as $old_station) {
                 if ($old_station['sid'] == $sid) {
@@ -1832,7 +1796,7 @@ class OpenSprinkler extends IPSModule
             ];
         }
 
-        if ($station_list != @json_decode($this->ReadPropertyString('station_list'), true)) {
+        if ($station_list != (array) @json_decode($this->ReadPropertyString('station_list'), true)) {
             $this->SendDebug(__FUNCTION__, 'update station_list=' . print_r($station_list, true), 0);
             $this->UpdateFormField('station_list', 'values', json_encode($station_list));
             $this->UpdateFormField('station_list', 'rowCount', count($station_list) > 0 ? count($station_list) : 1);
@@ -1841,56 +1805,57 @@ class OpenSprinkler extends IPSModule
         }
 
         $sensor_list = [];
-        for ($sni = 0; $sni <= 1; $sni++) {
-            $use = true;
-            foreach ($old_sensor_list as $old_sensor) {
-                if ($old_sensor['sni'] == $sni) {
-                    $use = $old_sensor['use'];
-                    break;
+        if ($remote_extension == false) {
+            for ($sni = 1; $sni <= 2; $sni++) {
+                $use = true;
+                foreach ($old_sensor_list as $old_sensor) {
+                    if ($old_sensor['sni'] == $sni) {
+                        $use = $old_sensor['use'];
+                        break;
+                    }
                 }
-            }
 
-            $sni = $sni + 1;
-            $snt = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 't', 0);
-            switch ($snt) {
-                case self::$SENSOR_TYPE_RAIN:
-                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
-                    $sensor_list[] = [
-                        'sni'   => $sni,
-                        'type'  => $snt,
-                        'name'  => $this->SensorType2String($snt),
-                        'info'  => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
-                        'use'   => $use,
-                    ];
-                    break;
-                case self::$SENSOR_TYPE_FLOW:
-                    $fpr0 = $this->GetArrayElem($ja_data, 'options.fpr0', 0);
-                    $fpr1 = $this->GetArrayElem($ja_data, 'options.fpr1', 0);
-                    $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
-                    $sensor_list[] = [
-                        'sni'   => $sni,
-                        'type'  => $snt,
-                        'name'  => $this->SensorType2String($snt),
-                        'info'  => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
-                        'use'   => $use,
-                    ];
-                    break;
-                case self::$SENSOR_TYPE_SOIL:
-                    $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
-                    $sensor_list[] = [
-                        'sni'   => $sni,
-                        'type'  => $snt,
-                        'name'  => $this->SensorType2String($snt),
-                        'use'   => $use,
-                        'info'  => $this->Translate($sno ? 'normally open' : 'normally closed'),
-                    ];
-                    break;
-                default:
-                    break;
+                $snt = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 't', 0);
+                switch ($snt) {
+                    case self::$SENSOR_TYPE_RAIN:
+                        $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
+                        $sensor_list[] = [
+                            'sni'   => $sni,
+                            'type'  => $snt,
+                            'name'  => $this->SensorType2String($snt),
+                            'info'  => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
+                            'use'   => $use,
+                        ];
+                        break;
+                    case self::$SENSOR_TYPE_FLOW:
+                        $fpr0 = $this->GetArrayElem($ja_data, 'options.fpr0', 0);
+                        $fpr1 = $this->GetArrayElem($ja_data, 'options.fpr1', 0);
+                        $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
+                        $sensor_list[] = [
+                            'sni'   => $sni,
+                            'type'  => $snt,
+                            'name'  => $this->SensorType2String($snt),
+                            'info'  => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
+                            'use'   => $use,
+                        ];
+                        break;
+                    case self::$SENSOR_TYPE_SOIL:
+                        $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
+                        $sensor_list[] = [
+                            'sni'   => $sni,
+                            'type'  => $snt,
+                            'name'  => $this->SensorType2String($snt),
+                            'use'   => $use,
+                            'info'  => $this->Translate($sno ? 'normally open' : 'normally closed'),
+                        ];
+                        break;
+                    default:
+                        break;
+                }
             }
         }
 
-        if ($sensor_list != @json_decode($this->ReadPropertyString('sensor_list'), true)) {
+        if ($sensor_list != (array) @json_decode($this->ReadPropertyString('sensor_list'), true)) {
             $this->SendDebug(__FUNCTION__, 'update sensor_list=' . print_r($sensor_list, true), 0);
             $this->UpdateFormField('sensor_list', 'values', json_encode($sensor_list));
             $this->UpdateFormField('sensor_list', 'rowCount', count($sensor_list) > 0 ? count($sensor_list) : 1);
@@ -1899,49 +1864,53 @@ class OpenSprinkler extends IPSModule
         }
 
         $program_list = [];
-        $nprogs = $this->GetArrayElem($ja_data, 'programs.nprogs', 0);
-        for ($pid = 0; $pid < $nprogs; $pid++) {
-            $use = true;
-            foreach ($old_program_list as $old_program) {
-                if ($old_program['pid'] == $pid) {
-                    $use = $old_program['use'];
-                    break;
+        if ($remote_extension == false) {
+            $nprogs = $this->GetArrayElem($ja_data, 'programs.nprogs', 0);
+            for ($pid = 0; $pid < $nprogs; $pid++) {
+                $use = true;
+                foreach ($old_program_list as $old_program) {
+                    if ($old_program['pid'] == $pid) {
+                        $use = $old_program['use'];
+                        break;
+                    }
                 }
-            }
 
-            $flag = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.0', '');
-            $days0 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.1', '');
-            $days1 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.2', '');
-            $start = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.3', '');
-            $duration = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.4', '');
-            $name = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.5', '');
-            $daterange = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.6', '');
+                $flag = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.0', '');
+                $days0 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.1', '');
+                $days1 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.2', '');
+                $start = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.3', '');
+                $duration = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.4', '');
+                $name = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.5', '');
+                $daterange = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.6', '');
 
-            $infos = [];
-            if ($this->bit_test($flag, 0) == false) {
-                $infos[] = $this->Translate('Disabled');
-            }
-            if ($this->bit_test($flag, 1)) {
-                $infos[] = $this->Translate('Weather adjustment');
-            }
-            $total_duration = array_sum($duration);
-            $infos[] = $this->TranslateFormat('Total duration is {$total_duration}m', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
+                $infos = [];
+                if ($this->bit_test($flag, 0) == false) {
+                    $infos[] = $this->Translate('Disabled');
+                }
+                if ($this->bit_test($flag, 1)) {
+                    $infos[] = $this->Translate('Weather adjustment');
+                }
+                $total_duration = array_sum($duration);
+                $infos[] = $this->TranslateFormat('Total duration is {$total_duration}m', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
 
-            $program_list[] = [
-                'pid'   => $pid,
-                'name'  => $name,
-                'info'  => implode(', ', $infos),
-                'use'   => $use,
-            ];
+                $program_list[] = [
+                    'pid'   => $pid,
+                    'name'  => $name,
+                    'info'  => implode(', ', $infos),
+                    'use'   => $use,
+                ];
+            }
         }
 
-        if ($program_list != @json_decode($this->ReadPropertyString('program_list'), true)) {
+        if ($program_list != (array) @json_decode($this->ReadPropertyString('program_list'), true)) {
             $this->SendDebug(__FUNCTION__, 'update program_list=' . print_r($program_list, true), 0);
             $this->UpdateFormField('program_list', 'values', json_encode($program_list));
             $this->UpdateFormField('program_list', 'rowCount', count($program_list) > 0 ? count($program_list) : 1);
         } else {
             $this->SendDebug(__FUNCTION__, 'unchanged program_list=' . print_r($program_list, true), 0);
         }
+
+        $this->SaveInfos($ja_data);
     }
 
     public function ReceiveData($data)
@@ -1962,22 +1931,14 @@ class OpenSprinkler extends IPSModule
             case 'availability':
                 break;
             default:
-                $payload = @json_decode($payload, true);
+                $payload = (array) @json_decode($payload, true);
                 break;
         }
 
         $this->SendDebug(__FUNCTION__, 'topic=' . $topic . ', payload=' . print_r($payload, true), 0);
 
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        if ($controller_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no controller_infos', 0);
-            return false;
-        }
-        $station_infos = @json_decode($this->ReadAttributeString('station_infos'), true);
-        if ($station_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no station_infos', 0);
-            return false;
-        }
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
 
         $this->CheckDailyValues();
 
@@ -1986,7 +1947,7 @@ class OpenSprinkler extends IPSModule
         if (preg_match('#^station/(\d+)$#', $topic, $r)) {
             $sid = $r[1];
 
-            $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
+            $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
             for ($n = 0; $n < count($station_list); $n++) {
                 if ($station_list[$n]['sid'] == $sid) {
                     break;
@@ -2014,7 +1975,7 @@ class OpenSprinkler extends IPSModule
             if ($use) {
                 $post = '_' . ($sid + 1);
 
-                $is_master = isset($station_info['is_master']) ? $station_info['is_master'] : 0;
+                $is_master = $this->GetArrayElem($station_info, 'is_master', 0);
 
                 $fnd = true;
                 $state = $this->GetArrayElem($payload, 'state', 0, $fnd);
@@ -2119,10 +2080,7 @@ class OpenSprinkler extends IPSModule
 
         $variables_mqtt_topic = $this->ReadPropertyString('variables_mqtt_topic');
 
-        $variable_list = @json_decode($this->ReadPropertyString('variable_list'), true);
-        if ($variable_list === false) {
-            $variable_list = [];
-        }
+        $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
         $payload = [];
         foreach ($variable_list as $variable) {
             $varID = $variable['varID'];
@@ -2602,7 +2560,6 @@ Parameters:
             return false;
         }
 
-        $this->SendDebug(__FUNCTION__, 'sid=' . $sid . ', mode=' . $value, 0);
         if ($value == 0 /* Set */) {
             $h = $this->GetValue('StationStartManuallyHours');
             $m = $this->GetValue('StationStartManuallyMinutes');
@@ -2890,7 +2847,6 @@ Parameters:
             return false;
         }
 
-        $this->SendDebug(__FUNCTION__, 'pid=' . $pid . ', mode=' . $value, 0);
         if ($value == self::$PROGRAM_START_NOP) {
             return false;
         }
@@ -2911,10 +2867,7 @@ Parameters:
 
         $chldIDs = IPS_GetChildrenIDs($this->InstanceID);
 
-        $station_list = @json_decode($this->ReadPropertyString('station_list'), true);
-        if ($station_list === false) {
-            $station_list = [];
-        }
+        $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
         for ($station_n = 0; $station_n < count($station_list); $station_n++) {
             $station_entry = $station_list[$station_n];
 
@@ -2934,10 +2887,7 @@ Parameters:
                 }
             }
         }
-        $program_list = @json_decode($this->ReadPropertyString('program_list'), true);
-        if ($program_list === false) {
-            $program_list = [];
-        }
+        $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
         for ($program_n = 0; $program_n < count($program_list); $program_n++) {
             $program_entry = $program_list[$program_n];
 
@@ -2960,18 +2910,10 @@ Parameters:
         $this->SendDebug(__FUNCTION__, 'name of ' . $n_changed . ' variables changed', 0);
     }
 
-    private function SetStationSelection(int $sid)
+    private function SetStationSelection(int $value)
     {
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        if ($controller_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no controller_infos', 0);
-            return false;
-        }
-        $station_infos = @json_decode($this->ReadAttributeString('station_infos'), true);
-        if ($station_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no station_infos', 0);
-            return false;
-        }
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
 
         $sensor_type = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
         $use_ignore_sensor1 = $sensor_type != self::$SENSOR_TYPE_NONE;
@@ -2984,7 +2926,7 @@ Parameters:
         $feature = $this->GetArrayElem($controller_infos, 'feature', self::$SENSOR_TYPE_NONE);
         $use_flowmonitor = ($feature == 'ASB') && $has_flowmeter;
 
-        if ($sid == 0) {
+        if ($value == 0) {
             $this->SetValue('StationState', self::$STATION_STATE_DISABLED);
             $this->SetValue('StationDisabled', false);
             $this->SetValue('StationIgnoreRain', false);
@@ -3027,6 +2969,8 @@ Parameters:
             return true;
         }
 
+        $sid = $value - 1;
+
         $station_info = false;
         for ($i = 0; $i < count($station_infos); $i++) {
             if ($station_infos[$i]['sid'] == $sid) {
@@ -3054,68 +2998,32 @@ Parameters:
         $this->MaintainAction('StationStartManuallyMinutes', true);
         $this->MaintainAction('StationStartManuallySeconds', true);
 
-        $post = '_' . $sid;
+        $post = '_' . ($sid + 1);
 
-        if ($this->GetValue('StationState') != $this->GetValue('StationState' . $post)) {
-            $this->SetValue('StationState', $this->GetValue('StationState' . $post));
-        }
-        if ($this->GetValue('StationDisabled') != $station_info['disabled']) {
-            $this->SetValue('StationDisabled', $station_info['disabled']);
-        }
-        if ($this->GetValue('StationIgnoreRain') != $station_info['ignore_rain']) {
-            $this->SetValue('StationIgnoreRain', $station_info['ignore_rain']);
+        $this->SetValue('StationState', $this->GetValue('StationState' . $post));
+        $this->SetValue('StationDisabled', $station_info['disabled']);
+        $this->SetValue('StationIgnoreRain', $station_info['ignore_rain']);
+        if ($use_ignore_sensor1) {
+            $this->SetValue('StationIgnoreSensor1', $station_info['ignore_sn1']);
         }
         if ($use_ignore_sensor1) {
-            if ($this->GetValue('StationIgnoreSensor1') != $station_info['ignore_sn1']) {
-                $this->SetValue('StationIgnoreSensor1', $station_info['ignore_sn1']);
-            }
+            $this->SetValue('StationIgnoreSensor2', $station_info['ignore_sn2']);
         }
-        if ($use_ignore_sensor1) {
-            if ($this->GetValue('StationIgnoreSensor2') != $station_info['ignore_sn2']) {
-                $this->SetValue('StationIgnoreSensor2', $station_info['ignore_sn2']);
-            }
-        }
-        if ($this->GetValue('StationTimeLeft') != $this->GetValue('StationTimeLeft' . $post)) {
-            $this->SetValue('StationTimeLeft', $this->GetValue('StationTimeLeft' . $post));
-        }
-        if ($this->GetValue('StationLastRun') != $this->GetValue('StationLastRun' . $post)) {
-            $this->SetValue('StationLastRun', $this->GetValue('StationLastRun' . $post));
-        }
-        if ($this->GetValue('StationLastDuration') != $this->GetValue('StationLastDuration' . $post)) {
-            $this->SetValue('StationLastDuration', $this->GetValue('StationLastDuration' . $post));
-        }
-        if ($this->GetValue('StationNextRun') != $this->GetValue('StationNextRun' . $post)) {
-            $this->SetValue('StationNextRun', $this->GetValue('StationNextRun' . $post));
-        }
-        if ($this->GetValue('StationNextDuration') != $this->GetValue('StationNextDuration' . $post)) {
-            $this->SetValue('StationNextDuration', $this->GetValue('StationNextDuration' . $post));
-        }
-        if ($this->GetValue('StationDailyDuration') != $this->GetValue('StationDailyDuration' . $post)) {
-            $this->SetValue('StationDailyDuration', $this->GetValue('StationDailyDuration' . $post));
-        }
+        $this->SetValue('StationTimeLeft', $this->GetValue('StationTimeLeft' . $post));
+        $this->SetValue('StationLastRun', $this->GetValue('StationLastRun' . $post));
+        $this->SetValue('StationLastDuration', $this->GetValue('StationLastDuration' . $post));
+        $this->SetValue('StationNextRun', $this->GetValue('StationNextRun' . $post));
+        $this->SetValue('StationNextDuration', $this->GetValue('StationNextDuration' . $post));
+        $this->SetValue('StationDailyDuration', $this->GetValue('StationDailyDuration' . $post));
         if ($use_flowmonitor) {
-            if ($this->GetValue('StationFlowAverage') != $this->GetValue('StationFlowAverage' . $post)) {
-                $this->SetValue('StationFlowAverage', $this->GetValue('StationFlowAverage' . $post));
-            }
-            if ($this->GetValue('StationFlowThreshold') != $this->GetValue('StationFlowThreshold' . $post)) {
-                $this->SetValue('StationFlowThreshold', $this->GetValue('StationFlowThreshold' . $post));
-            }
-            if ($this->GetValue('StationWaterUsage') != $this->GetValue('StationWaterUsage' . $post)) {
-                $this->SetValue('StationWaterUsage', $this->GetValue('StationWaterUsage' . $post));
-            }
-            if ($this->GetValue('StationDailyWaterUsage') != $this->GetValue('StationDailyWaterUsage' . $post)) {
-                $this->SetValue('StationDailyWaterUsage', $this->GetValue('StationDailyWaterUsage' . $post));
-            }
+            $this->SetValue('StationFlowAverage', $this->GetValue('StationFlowAverage' . $post));
+            $this->SetValue('StationFlowThreshold', $this->GetValue('StationFlowThreshold' . $post));
+            $this->SetValue('StationWaterUsage', $this->GetValue('StationWaterUsage' . $post));
+            $this->SetValue('StationDailyWaterUsage', $this->GetValue('StationDailyWaterUsage' . $post));
         }
-        if ($this->GetValue('StationInfo') != $station_info['info']) {
-            $this->SetValue('StationInfo', $station_info['info']);
-        }
-        if ($this->GetValue('StationRunning') != $controller_infos['running_stations']) {
-            $this->SetValue('StationRunning', $controller_infos['running_stations']);
-        }
-        if ($this->GetValue('StationLast') != $controller_infos['last_station']) {
-            $this->SetValue('StationLast', $controller_infos['last_station']);
-        }
+        $this->SetValue('StationInfo', $station_info['info']);
+        $this->SetValue('StationRunning', $controller_infos['running_stations']);
+        $this->SetValue('StationLast', $controller_infos['last_station']);
 
         $this->SetupStationStartManuallyVariables();
         $this->UpdateVarProf_StationStartManually();
@@ -3123,20 +3031,12 @@ Parameters:
         return true;
     }
 
-    private function SetProgramSelection(int $pid)
+    private function SetProgramSelection(int $value)
     {
-        $controller_infos = @json_decode($this->ReadAttributeString('controller_infos'), true);
-        if ($controller_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no controller_infos', 0);
-            return false;
-        }
-        $program_infos = @json_decode($this->ReadAttributeString('program_infos'), true);
-        if ($program_infos == false) {
-            $this->SendDebug(__FUNCTION__, 'no program_infos', 0);
-            return false;
-        }
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
 
-        if ($pid == 0) {
+        if ($value == 0) {
             $this->SetValue('ProgramEnabled', false);
             $this->SetValue('ProgramWeatherAdjust', false);
             $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
@@ -3146,6 +3046,8 @@ Parameters:
 
             return true;
         }
+
+        $pid = $value - 1;
 
         $program_info = false;
         for ($i = 0; $i < count($program_infos); $i++) {
@@ -3159,22 +3061,12 @@ Parameters:
             return false;
         }
 
-        if ($this->GetValue('ProgramEnabled') != $program_info['enabled']) {
-            $this->SetValue('ProgramEnabled', $program_info['enabled']);
-        }
-        if ($this->GetValue('ProgramWeatherAdjust') != $program_info['weather_adjustment']) {
-            $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
-        }
+        $this->SetValue('ProgramEnabled', $program_info['enabled']);
+        $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
         $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
-        if ($this->GetValue('ProgramInfo') != $program_info['info']) {
-            $this->SetValue('ProgramInfo', $program_info['info']);
-        }
-        if ($this->GetValue('ProgramRunning') != $controller_infos['running_programs']) {
-            $this->SetValue('ProgramRunning', $controller_infos['running_programs']);
-        }
-        if ($this->GetValue('ProgramLast') != $controller_infos['last_program']) {
-            $this->SetValue('ProgramLast', $controller_infos['last_program']);
-        }
+        $this->SetValue('ProgramInfo', $program_info['info']);
+        $this->SetValue('ProgramRunning', $controller_infos['running_programs']);
+        $this->SetValue('ProgramLast', $controller_infos['last_program']);
 
         return true;
     }
@@ -3253,17 +3145,15 @@ Parameters:
                 'Name'  => '-'
             ],
         ];
-        $station_infos = @json_decode($this->ReadAttributeString('station_infos'), true);
-        if ($station_infos !== false) {
-            foreach ($station_infos as $info) {
-                if ($info['use'] == false || $info['is_master'] != 0) {
-                    continue;
-                }
-                $associations[] = [
-                    'Value' => $info['sid'],
-                    'Name'  => $info['name'],
-                ];
+        $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
+        foreach ($station_infos as $info) {
+            if ($info['use'] == false || $info['is_master'] != 0) {
+                continue;
             }
+            $associations[] = [
+                'Value' => $info['sid'] + 1,
+                'Name'  => $info['name'],
+            ];
         }
         $this->UpdateVarProfileAssociations($this->VarProf_Stations, $associations);
     }
@@ -3276,17 +3166,15 @@ Parameters:
                 'Name'  => '-'
             ],
         ];
-        $program_infos = @json_decode($this->ReadAttributeString('program_infos'), true);
-        if ($program_infos !== false) {
-            foreach ($program_infos as $info) {
-                if ($info['use'] == false) {
-                    continue;
-                }
-                $associations[] = [
-                    'Value' => $info['pid'],
-                    'Name'  => $info['name'],
-                ];
+        $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
+        foreach ($program_infos as $info) {
+            if ($info['use'] == false) {
+                continue;
             }
+            $associations[] = [
+                'Value' => $info['pid'] + 1,
+                'Name'  => $info['name'],
+            ];
         }
         $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
     }

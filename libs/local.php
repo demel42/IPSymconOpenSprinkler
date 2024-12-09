@@ -232,7 +232,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', [], $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.WaterFlowrate', VARIABLETYPE_FLOAT, ' l/min', 0, 100, 0.1, 2, '', [], $reInstall);
-		$this->CreateVarProfile('OpenSprinkler.WaterFlowmeter', VARIABLETYPE_FLOAT, ' l', 0, 0, 0, 1, 'Gauge', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.WaterFlowmeter', VARIABLETYPE_FLOAT, ' l', 0, 0, 0, 1, 'Gauge', [], $reInstall);
     }
 
     private function Group2String($grp)
