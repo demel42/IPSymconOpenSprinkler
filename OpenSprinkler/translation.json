@@ -64,6 +64,12 @@
 			"Send interval": "Sendeintervall",
 			"Seconds": "Sekunden",
 
+			"Variables for daily totals": "Variablen für Tagessummen",
+			"Variables for totals": "Variablen für Gesamtsummen",
+			" ... by activating this switch, additional variables are created and logged as counters":
+				" ... durch Aktivierung dieses Schalters werden zusätzliche Variablen erstellt und als Zähler geloggt",
+			"Other configurations": "Sonstige Konfigurationen",
+
 			"Disabled": "Ausgeschaltet",
 
 			"__variables__": "",
@@ -74,9 +80,12 @@
 			"Current draw (actual)": "Stromaufnahme (aktuell)",
 
 			"Water flow rate (actual)": "Wasser-Durchflussmenge (aktuell)",
-			"Water usage (today)": "Wasserverbrauch (heute)",
 
+			"Water usage (today)": "Wasserverbrauch (heute)",
 			"Watering time (today)": "Bewässerungsdauer (heute)",
+
+			"Water usage (total)": "Wasserverbrauch (gesamt)",
+			"Watering time (total)": "Bewässerungsdauer (gesamt)",
 
 			"Rain delay until": "Regenbedingte Unterbrechung bis",
 			"Rain delay duration in days": "Regenbedingte Unterbrechungsdauer in Tagen",
