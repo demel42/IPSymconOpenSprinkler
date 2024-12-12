@@ -109,6 +109,8 @@ trait OpenSprinklerLocalLib
     public static $STATION_STATE_READY = 1;
     public static $STATION_STATE_QUEUED = 2;
     public static $STATION_STATE_WATERING = 3;
+    public static $STATION_STATE_CLOSED = 10;
+    public static $STATION_STATE_OPENED = 11;
 
     public static $PROGRAM_STATE_DISABLED = 0;
     public static $PROGRAM_STATE_READY = 1;
@@ -142,6 +144,8 @@ trait OpenSprinklerLocalLib
             ['Wert' => self::$STATION_STATE_READY, 'Name' => $this->Translate('ready'), 'Farbe' => -1],
             ['Wert' => self::$STATION_STATE_QUEUED, 'Name' => $this->Translate('queued'), 'Farbe' => -1],
             ['Wert' => self::$STATION_STATE_WATERING, 'Name' => $this->Translate('watering'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_CLOSED, 'Name' => $this->Translate('closed'), 'Farbe' => -1],
+            ['Wert' => self::$STATION_STATE_OPENED, 'Name' => $this->Translate('opened'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.StationState', VARIABLETYPE_INTEGER, '', 0, 0, 0, 0, '', $associations, $reInstall);
 

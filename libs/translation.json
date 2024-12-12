@@ -17,6 +17,8 @@
 			"ready": "bereit",
 			"queued": "anstehend",
 			"watering": "bewässert",
+			"closed": "geschlossen",
+			"opened": "geöffnet",
 
 			"__variableprofile__": "OpenSprinkler.ProgramState",
 			"disabled": "deaktiviert",
