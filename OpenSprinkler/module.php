@@ -5,18 +5,6 @@ declare(strict_types=1);
 require_once __DIR__ . '/../libs/common.php';
 require_once __DIR__ . '/../libs/local.php';
 
-/*
-    controller_infos
-    - master_id beachten beim Anlegen und Füllen von Station-Variablen (nur auf/zu)
-    - remote_extension beachten (keine Bedienung, weniger Variablen, nur Anzeige von station & sensor offen/zu)
-
-    Funktion für Setzen von "Archiv"
-
-    station_infos
-    - sid + presentation_sid (psid?)
-    - pid + presentation_pid (ppid?)
- */
-
 class OpenSprinkler extends IPSModule
 {
     use OpenSprinkler\StubsCommonLib;
@@ -84,9 +72,21 @@ class OpenSprinkler extends IPSModule
         $this->RegisterAttributeString('station_infos', json_encode([]));
         $this->RegisterAttributeString('program_infos', json_encode([]));
 
-        $this->RegisterPropertyBoolean('with_total_values', false);
-        $this->RegisterPropertyBoolean('with_daily_values', false);
         $this->RegisterAttributeInteger('daily_reference', 0);
+
+        $this->RegisterPropertyBoolean('with_controller_daily_duration', false);
+        $this->RegisterPropertyBoolean('with_controller_daily_usage', false);
+        $this->RegisterPropertyBoolean('with_controller_total_duration', true);
+        $this->RegisterPropertyBoolean('with_controller_total_usage', true);
+
+        $this->RegisterPropertyBoolean('with_station_daily_duration', false);
+        $this->RegisterPropertyBoolean('with_station_daily_usage', true);
+        $this->RegisterPropertyBoolean('with_station_total_duration', false);
+        $this->RegisterPropertyBoolean('with_station_total_usage', false);
+        $this->RegisterPropertyBoolean('with_station_last_run', true);
+        $this->RegisterPropertyBoolean('with_station_next_run', false);
+        $this->RegisterPropertyBoolean('with_station_usage', true);
+        $this->RegisterPropertyBoolean('with_station_flow', true);
 
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
         $this->RegisterAttributeString('ModuleStats', json_encode([]));
@@ -352,6 +352,8 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('StationLastRun', $this->Translate('Last run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $u = $this->Use4Indent('StationLastDuration');
         $this->MaintainVariable('StationLastDuration', $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
+        $u = $this->Use4Indent('StationWaterUsage');
+        $this->MaintainVariable('StationWaterUsage', $this->Translate('Water usage of last run'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
         $u = $this->Use4Indent('StationNextRun');
         $this->MaintainVariable('StationNextRun', $this->Translate('Next run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $u = $this->Use4Indent('StationNextDuration');
@@ -364,9 +366,6 @@ class OpenSprinkler extends IPSModule
         if ($u) {
             $this->MaintainAction('StationFlowThreshold', true);
         }
-
-        $u = $this->Use4Indent('StationWaterUsage');
-        $this->MaintainVariable('StationWaterUsage', $this->Translate('Water usage'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
 
         // Tageswerte
         $u = $this->Use4Indent('StationDailyWaterUsage');
@@ -431,6 +430,9 @@ class OpenSprinkler extends IPSModule
             $u = $station_entry['use'] && $this->Use4Indent('StationLastDuration', $station_n);
             $this->MaintainVariable('StationLastDuration' . $post, $s . $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationLastDuration' . $post;
+            $u = $station_entry['use'] && $this->Use4Indent('StationWaterUsage', $station_n);
+            $this->MaintainVariable('StationWaterUsage' . $post, $s . $this->Translate('Water usage of last run'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
+            $varList[] = 'StationWaterUsage' . $post;
 
             // nächster Bewässerungszyklus
             $u = $station_entry['use'] && $this->Use4Indent('StationNextRun', $station_n);
@@ -444,11 +446,6 @@ class OpenSprinkler extends IPSModule
             $u = $station_entry['use'] && $this->Use4Indent('StationFlowAverage', $station_n);
             $this->MaintainVariable('StationFlowAverage' . $post, $s . $this->Translate('Average water flow'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $u);
             $varList[] = 'StationFlowAverage' . $post;
-
-            // Wasserverbrauch
-            $u = $station_entry['use'] && $this->Use4Indent('StationWaterUsage', $station_n);
-            $this->MaintainVariable('StationWaterUsage' . $post, $s . $this->Translate('Water usage'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
-            $varList[] = 'StationWaterUsage' . $post;
 
             // Tagessummen
             $u = $station_entry['use'] && $this->Use4Indent('StationDailyWaterUsage', $station_n);
@@ -580,17 +577,21 @@ class OpenSprinkler extends IPSModule
 
         if ($this->Use4Indent('StationSelection')) {
             $this->SetStationSelection($this->GetValue('StationSelection'));
+            $this->SetupStationSelection();
         }
+
         if ($this->Use4Indent('ProgramSelection')) {
             $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+            $this->SetupProgramSelection();
         }
 
-        $this->SetupRainDelayVariables();
-        $this->SetupPauseQueueVariables();
+        if ($this->Use4Indent('RainDelay')) {
+            $this->SetupRainDelay();
+        }
 
-        $this->UpdateVarProf_Stations();
-        $this->UpdateVarProf_Programs();
-        $this->UpdateVarProf_PauseQueueAction();
+        if ($this->Use4Indent('PauseQueue')) {
+            $this->SetupPauseQueue();
+        }
 
         if (IPS_GetKernelRunlevel() == KR_READY) {
             $this->SetQueryInterval();
@@ -613,8 +614,8 @@ class OpenSprinkler extends IPSModule
         ];
 
         $formElements[] = [
-            'type'    => 'ExpansionPanel',
-            'items'   => [
+            'type'  => 'ExpansionPanel',
+            'items' => [
                 [
                     'type'    => 'ValidationTextBox',
                     'name'    => 'host',
@@ -622,8 +623,8 @@ class OpenSprinkler extends IPSModule
                 ],
                 /*
                 [
-                    'type'    => 'CheckBox',
-                    'name'    => 'use_https',
+                    'type' => 'CheckBox',
+                    'name' => 'use_https',
                     'caption' => 'Use HTTPS',
                 ],
                  */
@@ -639,14 +640,13 @@ class OpenSprinkler extends IPSModule
                     'caption' => 'Password',
                 ],
                 [
-                    'type'   => 'ValidationTextBox',
-                    'name'   => 'mqtt_topic',
-                    'caption'=> 'MQTT topic',
+                    'type'    => 'ValidationTextBox',
+                    'name'    => 'mqtt_topic',
+                    'caption' => 'MQTT topic',
                 ],
                 [
-                    'type'   => 'Label',
+                    'type' => 'Label',
                 ],
-
                 [
                     'type'    => 'NumberSpinner',
                     'name'    => 'query_interval',
@@ -662,13 +662,19 @@ class OpenSprinkler extends IPSModule
         $sensor_list = (array) @json_decode($this->ReadPropertyString('sensor_list'), true);
         $program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
 
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
+
+        $with_sensor = $remote_extension == false;
+        $with_programs = $remote_extension == false;
+
         $formElements[] = [
-            'type'    => 'ExpansionPanel',
-            'items'   => [
+            'type'  => 'ExpansionPanel',
+            'items' => [
                 [
-                    'type'     => 'List',
-                    'name'     => 'station_list',
-                    'columns'  => [
+                    'type'    => 'List',
+                    'name'    => 'station_list',
+                    'columns' => [
                         [
                             'caption' => 'No',
                             'name'    => 'sid',
@@ -715,9 +721,15 @@ class OpenSprinkler extends IPSModule
                     'caption'  => 'Stations',
                 ],
                 [
-                    'type'     => 'List',
-                    'name'     => 'sensor_list',
-                    'columns'  => [
+                    'type'    => 'Label',
+                    'name'    => 'sensor_errmsg',
+                    'caption' => 'No sensors available because the controller is in remote expansion mode',
+                    'visible' => $with_sensor == false,
+                ],
+                [
+                    'type'    => 'List',
+                    'name'    => 'sensor_list',
+                    'columns' => [
                         [
                             'caption' => 'No',
                             'name'    => 'sni',
@@ -755,11 +767,18 @@ class OpenSprinkler extends IPSModule
                     'add'      => false,
                     'delete'   => false,
                     'caption'  => 'Sensors',
+                    'visible'  => $with_sensor == true,
                 ],
                 [
-                    'type'     => 'List',
-                    'name'     => 'program_list',
-                    'columns'  => [
+                    'type'    => 'Label',
+                    'name'    => 'program_errmsg',
+                    'caption' => 'No programs available because the controller is in remote expansion mode',
+                    'visible' => $with_programs == false,
+                ],
+                [
+                    'type'    => 'List',
+                    'name'    => 'program_list',
+                    'columns' => [
                         [
                             'caption' => 'No',
                             'name'    => 'pid',
@@ -792,6 +811,7 @@ class OpenSprinkler extends IPSModule
                     'add'      => false,
                     'delete'   => false,
                     'caption'  => 'Programs',
+                    'visible'  => $with_programs == true,
                 ],
                 [
                     'type'    => 'Button',
@@ -802,13 +822,28 @@ class OpenSprinkler extends IPSModule
             'caption' => 'Controller configuration',
         ];
 
-        $formElements[] = [
-            'type'    => 'ExpansionPanel',
-            'items'   => [
+        $feature = $this->GetArrayElem($controller_infos, 'feature', '');
+
+        if ($feature != 'ASB') {
+            $items = [
                 [
-                    'type'   => 'ValidationTextBox',
-                    'name'   => 'variables_mqtt_topic',
-                    'caption'=> 'MQTT topic für sensor values',
+                    'type'    => 'Label',
+                    'caption' => 'Transferring variables to OpenSprinkler requires the software extension “ASB” from OpenSprinklerShop.de',
+                ],
+            ];
+        } elseif ($remote_extension) {
+            $items = [
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Transferring variables to OpenSprinkler is not available because the controller is in remote expansion mode',
+                ],
+            ];
+        } else {
+            $items = [
+                [
+                    'type'    => 'ValidationTextBox',
+                    'name'    => 'variables_mqtt_topic',
+                    'caption' => 'MQTT topic für sensor values',
                 ],
                 [
                     'type'    => 'NumberSpinner',
@@ -822,61 +857,230 @@ class OpenSprinkler extends IPSModule
                     'name'    => 'variable_list',
                     'columns' => [
                         [
-                            'name'    => 'varID',
-                            'add'     => 0,
-                            'edit'    => [
+                            'name' => 'varID',
+                            'add'  => 0,
+                            'edit' => [
                                 'type' => 'SelectVariable',
                             ],
                             'width'   => 'auto',
                             'caption' => 'Reference variable',
                         ],
                         [
-                            'name'    => 'mqtt_filter',
-                            'add'     => '',
-                            'edit'    => [
+                            'name' => 'mqtt_filter',
+                            'add'  => '',
+                            'edit' => [
                                 'type' => 'ValidationTextBox',
                             ],
                             'width'   => '300px',
                             'caption' => 'Ident on the controller ("MQTT filter")',
                         ],
                         [
-                            'add'     => true,
-                            'name'    => 'use',
-                            'width'   => '90px',
-                            'edit'    => [
+                            'add'   => true,
+                            'name'  => 'use',
+                            'width' => '90px',
+                            'edit'  => [
                                 'type' => 'CheckBox'
                             ],
                             'caption' => 'Use',
                         ],
                     ],
-                    'add'      => true,
-                    'delete'   => true,
-                    'caption'  => 'Variables to be transferred',
+                    'add'     => true,
+                    'delete'  => true,
+                    'caption' => 'Variables to be transferred',
                 ],
-            ],
-            'caption' => 'External sensor values',
-        ];
+            ];
+        }
 
         $formElements[] = [
             'type'    => 'ExpansionPanel',
-            'items'   => [
+            'caption' => 'External sensor values',
+            'items'   => $items,
+        ];
+
+        $formElements[] = [
+            'type'  => 'ExpansionPanel',
+            'items' => [
                 [
-                    'type'    => 'CheckBox',
-                    'name'    => 'with_daily_values',
-                    'caption' => 'Variables for daily totals'
+                    'type'    => 'Label',
+                    'caption' => 'Variables for the whole system',
                 ],
                 [
-                    'type'    => 'RowLayout',
-                    'items'   => [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
                         [
                             'type'    => 'CheckBox',
-                            'name'    => 'with_total_values',
-                            'caption' => 'Variables for totals'
+                            'name'    => 'with_controller_daily_duration',
+                            'caption' => 'Variables for daily watering time of the system',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_controller_daily_usage',
+                            'caption' => 'Variables for daily water usage of the system',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_controller_total_duration',
+                            'caption' => 'Variables for total watering time of the system',
                         ],
                         [
                             'type'    => 'Label',
                             'caption' => ' ... by activating this switch, additional variables are created and logged as counters',
                             'italic'  => true,
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_controller_total_usage',
+                            'caption' => 'Variables for total water usage of the system',
+                        ],
+                        [
+                            'type'    => 'Label',
+                            'caption' => ' ... by activating this switch, additional variables are created and logged as counters',
+                            'italic'  => true,
+                        ],
+                    ],
+                ],
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Variables for each station',
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_daily_duration',
+                            'caption' => 'Variables for daily watering time of a station',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_daily_usage',
+                            'caption' => 'Variables for daily water usage of a station',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_total_duration',
+                            'caption' => 'Variables for total watering time of a station',
+                        ],
+                        [
+                            'type'    => 'Label',
+                            'caption' => ' ... by activating this switch, additional variables are created and logged as counters',
+                            'italic'  => true,
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_total_usage',
+                            'caption' => 'Variables for total water usage of a station',
+                        ],
+                        [
+                            'type'    => 'Label',
+                            'caption' => ' ... by activating this switch, additional variables are created and logged as counters',
+                            'italic'  => true,
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_last_run',
+                            'caption' => 'Variables of the last run',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_next_run',
+                            'caption' => 'Variables of the next run',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_usage',
+                            'caption' => 'Variables with the water usage of the last run',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_station_flow',
+                            'caption' => 'Variables with the water flow of the last run',
                         ],
                     ],
                 ],
@@ -901,8 +1105,8 @@ class OpenSprinkler extends IPSModule
         }
 
         $formActions[] = [
-            'type'      => 'RowLayout',
-            'items'     => [
+            'type'  => 'RowLayout',
+            'items' => [
                 [
                     'type'    => 'Button',
                     'caption' => 'Query status',
@@ -917,27 +1121,27 @@ class OpenSprinkler extends IPSModule
         ];
 
         $formActions[] = [
-            'type'      => 'ExpansionPanel',
-            'caption'   => 'Expert area',
-            'expanded'  => false,
-            'items'     => [
+            'type'     => 'ExpansionPanel',
+            'caption'  => 'Expert area',
+            'expanded' => false,
+            'items'    => [
                 $this->GetInstallVarProfilesFormItem(),
                 [
-                    'type'      => 'Button',
-                    'caption'   => 'Adjust variable names',
-                    'confirm'   => 'This adjusts the first part von the variable name acording to the retrived configuration',
-                    'onClick'   => 'IPS_RequestAction($id, "AdjustVariablenames", "");',
+                    'type'    => 'Button',
+                    'caption' => 'Adjust variable names',
+                    'confirm' => 'This adjusts the first part von the variable name acording to the retrived configuration',
+                    'onClick' => 'IPS_RequestAction($id, "AdjustVariablenames", "");',
                 ],
             ],
         ];
 
         $formActions[] = [
-            'type'      => 'ExpansionPanel',
-            'caption'   => 'Test area',
-            'expanded'  => false,
-            'items'     => [
+            'type'     => 'ExpansionPanel',
+            'caption'  => 'Test area',
+            'expanded' => false,
+            'items'    => [
                 [
-                    'type'    => 'TestCenter',
+                    'type' => 'TestCenter',
                 ],
             ]
         ];
@@ -990,11 +1194,6 @@ class OpenSprinkler extends IPSModule
 
     private function CheckDailyValues()
     {
-        $with_daily_values = $this->ReadPropertyBoolean('with_daily_values');
-        if ($with_daily_values == false) {
-            return;
-        }
-
         $ts_today = strtotime(date('d.m.Y', time()));
         $ts_watch = $this->ReadAttributeInteger('daily_reference');
         if ($ts_today == $ts_watch) {
@@ -1390,17 +1589,21 @@ class OpenSprinkler extends IPSModule
 
         if ($this->Use4Indent('StationSelection')) {
             $this->SetStationSelection($this->GetValue('StationSelection'));
+            $this->SetupStationSelection();
         }
+
         if ($this->Use4Indent('ProgramSelection')) {
             $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+            $this->SetupProgramSelection();
         }
 
-        $this->SetupRainDelayVariables();
-        $this->SetupPauseQueueVariables();
+        if ($this->Use4Indent('RainDelay')) {
+            $this->SetupRainDelay();
+        }
 
-        $this->UpdateVarProf_Stations();
-        $this->UpdateVarProf_Programs();
-        $this->UpdateVarProf_PauseQueueAction();
+        if ($this->Use4Indent('PauseQueue')) {
+            $this->SetupPauseQueue();
+        }
 
         $this->MaintainAction('WateringLevel', $this->WateringLevelChangeable());
 
@@ -1744,19 +1947,19 @@ class OpenSprinkler extends IPSModule
             $info = implode(', ', $prV);
 
             $e = [
-                'sid'              => $sid,
-                'name'             => $snames[$sid],
-                'group'            => $this->Group2String($stn_grp[$sid]),
-                'disabled'         => $this->idx_in_bytes($sid, $stn_dis),
-                'ignore_rain'      => $this->idx_in_bytes($sid, $ignore_rain),
-                'ignore_sn1'       => $this->idx_in_bytes($sid, $ignore_sn1),
-                'ignore_sn2'       => $this->idx_in_bytes($sid, $ignore_sn2),
-                'is_special'       => $this->idx_in_bytes($sid, $stn_spe),
-                'master_id'        => $master_id,
-                'is_master'        => $master_id != 0,
-                'assigned_master'  => $assigned_master,
-                'use'              => $station_entry['use'],
-                'info'             => $info,
+                'sid'             => $sid,
+                'name'            => $snames[$sid],
+                'group'           => $this->Group2String($stn_grp[$sid]),
+                'disabled'        => $this->idx_in_bytes($sid, $stn_dis),
+                'ignore_rain'     => $this->idx_in_bytes($sid, $ignore_rain),
+                'ignore_sn1'      => $this->idx_in_bytes($sid, $ignore_sn1),
+                'ignore_sn2'      => $this->idx_in_bytes($sid, $ignore_sn2),
+                'is_special'      => $this->idx_in_bytes($sid, $stn_spe),
+                'master_id'       => $master_id,
+                'is_master'       => $master_id != 0,
+                'assigned_master' => $assigned_master,
+                'use'             => $station_entry['use'],
+                'info'            => $info,
             ];
 
             if ($controller_infos['has_flowmeter'] && $controller_infos['feature'] == 'ASB') {
@@ -1992,12 +2195,12 @@ class OpenSprinkler extends IPSModule
             }
 
             $station_list[] = [
-                'sid'        => $sid,
-                'name'       => $sname,
-                'group'      => $this->Group2String($stn_grp),
-                'interface'  => $interface,
-                'info'       => implode(', ', $infos),
-                'use'        => $use,
+                'sid'       => $sid,
+                'name'      => $sname,
+                'group'     => $this->Group2String($stn_grp),
+                'interface' => $interface,
+                'info'      => implode(', ', $infos),
+                'use'       => $use,
             ];
         }
 
@@ -2025,11 +2228,11 @@ class OpenSprinkler extends IPSModule
                     case self::$SENSOR_TYPE_RAIN:
                         $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
                         $sensor_list[] = [
-                            'sni'   => $sni,
-                            'type'  => $snt,
-                            'name'  => $this->SensorType2String($snt),
-                            'info'  => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
-                            'use'   => $use,
+                            'sni'  => $sni,
+                            'type' => $snt,
+                            'name' => $this->SensorType2String($snt),
+                            'info' => $this->Translate('Contact variant') . ': ' . $this->SensorType2String($sno),
+                            'use'  => $use,
                         ];
                         break;
                     case self::$SENSOR_TYPE_FLOW:
@@ -2037,35 +2240,40 @@ class OpenSprinkler extends IPSModule
                         $fpr1 = $this->GetArrayElem($ja_data, 'options.fpr1', 0);
                         $fpr = (($fpr1 << 8) + $fpr0) / 100.0;
                         $sensor_list[] = [
-                            'sni'   => $sni,
-                            'type'  => $snt,
-                            'name'  => $this->SensorType2String($snt),
-                            'info'  => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
-                            'use'   => $use,
+                            'sni'  => $sni,
+                            'type' => $snt,
+                            'name' => $this->SensorType2String($snt),
+                            'info' => $this->TranslateFormat('Resolution: {$fpr} l/pulse', ['{$fpr}' => $fpr]),
+                            'use'  => $use,
                         ];
                         break;
                     case self::$SENSOR_TYPE_SOIL:
                         $sno = $this->GetArrayElem($ja_data, 'options.sn' . $sni . 'o', 0);
                         $sensor_list[] = [
-                            'sni'   => $sni,
-                            'type'  => $snt,
-                            'name'  => $this->SensorType2String($snt),
-                            'use'   => $use,
-                            'info'  => $this->Translate($sno ? 'normally open' : 'normally closed'),
+                            'sni'  => $sni,
+                            'type' => $snt,
+                            'name' => $this->SensorType2String($snt),
+                            'use'  => $use,
+                            'info' => $this->Translate($sno ? 'normally open' : 'normally closed'),
                         ];
                         break;
                     default:
                         break;
                 }
             }
-        }
 
-        if ($sensor_list != (array) @json_decode($this->ReadPropertyString('sensor_list'), true)) {
-            $this->SendDebug(__FUNCTION__, 'update sensor_list=' . print_r($sensor_list, true), 0);
-            $this->UpdateFormField('sensor_list', 'values', json_encode($sensor_list));
-            $this->UpdateFormField('sensor_list', 'rowCount', count($sensor_list) > 0 ? count($sensor_list) : 1);
+            if ($sensor_list != (array) @json_decode($this->ReadPropertyString('sensor_list'), true)) {
+                $this->SendDebug(__FUNCTION__, 'update sensor_list=' . print_r($sensor_list, true), 0);
+                $this->UpdateFormField('sensor_list', 'values', json_encode($sensor_list));
+                $this->UpdateFormField('sensor_list', 'rowCount', count($sensor_list) > 0 ? count($sensor_list) : 1);
+            } else {
+                $this->SendDebug(__FUNCTION__, 'unchanges sensor_list=' . print_r($sensor_list, true), 0);
+            }
+            $this->UpdateFormField('sensor_list', 'visible', true);
+            $this->UpdateFormField('sensor_errmsg', 'visible', false);
         } else {
-            $this->SendDebug(__FUNCTION__, 'unchanges sensor_list=' . print_r($sensor_list, true), 0);
+            $this->UpdateFormField('sensor_list', 'visible', false);
+            $this->UpdateFormField('sensor_errmsg', 'visible', true);
         }
 
         $program_list = [];
@@ -2099,20 +2307,25 @@ class OpenSprinkler extends IPSModule
                 $infos[] = $this->TranslateFormat('Total duration is {$total_duration}m', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
 
                 $program_list[] = [
-                    'pid'   => $pid,
-                    'name'  => $name,
-                    'info'  => implode(', ', $infos),
-                    'use'   => $use,
+                    'pid'  => $pid,
+                    'name' => $name,
+                    'info' => implode(', ', $infos),
+                    'use'  => $use,
                 ];
             }
-        }
 
-        if ($program_list != (array) @json_decode($this->ReadPropertyString('program_list'), true)) {
-            $this->SendDebug(__FUNCTION__, 'update program_list=' . print_r($program_list, true), 0);
-            $this->UpdateFormField('program_list', 'values', json_encode($program_list));
-            $this->UpdateFormField('program_list', 'rowCount', count($program_list) > 0 ? count($program_list) : 1);
+            if ($program_list != (array) @json_decode($this->ReadPropertyString('program_list'), true)) {
+                $this->SendDebug(__FUNCTION__, 'update program_list=' . print_r($program_list, true), 0);
+                $this->UpdateFormField('program_list', 'values', json_encode($program_list));
+                $this->UpdateFormField('program_list', 'rowCount', count($program_list) > 0 ? count($program_list) : 1);
+            } else {
+                $this->SendDebug(__FUNCTION__, 'unchanged program_list=' . print_r($program_list, true), 0);
+            }
+            $this->UpdateFormField('program_list', 'visible', true);
+            $this->UpdateFormField('program_errmsg', 'visible', false);
         } else {
-            $this->SendDebug(__FUNCTION__, 'unchanged program_list=' . print_r($program_list, true), 0);
+            $this->UpdateFormField('program_list', 'visible', true);
+            $this->UpdateFormField('program_errmsg', 'visible', false);
         }
 
         $this->SaveInfos($ja_data);
@@ -2811,7 +3024,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $params = [
-            'en'  => ($value ? 1 : 0),
+            'en' => ($value ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('cv', $params);
         return $data !== false;
@@ -2845,7 +3058,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $params = [
-            'wl'  => $value,
+            'wl' => $value,
         ];
         $data = $this->do_HttpRequest('co', $params);
         return $data !== false;
@@ -2881,7 +3094,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $params = [
-            'rd'  => $rd,
+            'rd' => $rd,
         ];
         $data = $this->do_HttpRequest('cv', $params);
         return $data !== false;
@@ -2899,7 +3112,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $params = [
-            'rsn'  => 1,
+            'rsn' => 1,
         ];
         $data = $this->do_HttpRequest('cv', $params);
         return $data !== false;
@@ -2965,7 +3178,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $params = [
-            'dur'  => $dur,
+            'dur' => $dur,
         ];
         $data = $this->do_HttpRequest('pq', $params);
         return $data !== false;
@@ -3282,7 +3495,7 @@ class OpenSprinkler extends IPSModule
             if ($this->Use4Indent('StationNextDuration')) {
                 $this->SetValue('StationNextDuration', 0);
             }
-            if ($with_daily_values) {
+            if ($this->Use4Indent('StationDailyDuration')) {
                 $this->SetValue('StationDailyDuration', 0);
             }
             if ($this->Use4Indent('StationFlowAverage')) {
@@ -3402,9 +3615,8 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($this->Use4Indent('StationStartManually')) {
-            $this->SetupStationStartManuallyVariables();
+            $this->SetupStationStartManually();
         }
-        $this->UpdateVarProf_StationStartManually();
 
         return true;
     }
@@ -3473,58 +3685,80 @@ class OpenSprinkler extends IPSModule
         return true;
     }
 
-    private function SetupRainDelayVariables()
+    private function SetupRainDelay()
     {
-        if ($this->Use4Indent('RainDelay')) {
-            $rainDelayUntil = $this->GetValue('RainDelayUntil');
-            if ($rainDelayUntil == 0) {
-                $this->SetValue('RainDelayAction', 0 /* Set */);
-            } else {
-                $this->SetValue('RainDelayDays', 0);
-                $this->SetValue('RainDelayHours', 0);
-                $this->SetValue('RainDelayAction', 1 /* Clear */);
-            }
+        $rainDelayUntil = $this->GetValue('RainDelayUntil');
+        if ($rainDelayUntil == 0) {
+            $this->SetValue('RainDelayAction', 0 /* Set */);
+        } else {
+            $this->SetValue('RainDelayDays', 0);
+            $this->SetValue('RainDelayHours', 0);
+            $this->SetValue('RainDelayAction', 1 /* Clear */);
         }
     }
 
-    private function SetupPauseQueueVariables()
+    private function SetupPauseQueue()
     {
-        if ($this->Use4Indent('PauseQueue')) {
-            $pauseQueueUntil = $this->GetValue('PauseQueueUntil');
-            if ($pauseQueueUntil == 0) {
-                $this->SetValue('PauseQueueAction', 0 /* Set */);
-            } else {
-                $this->SetValue('PauseQueueHours', 0);
-                $this->SetValue('PauseQueueMinutes', 0);
-                $this->SetValue('PauseQueueSeconds', 0);
-                $this->SetValue('PauseQueueAction', 1 /* Clear */);
-            }
+        $pauseQueueUntil = $this->GetValue('PauseQueueUntil');
+        if ($pauseQueueUntil == 0) {
+            $this->SetValue('PauseQueueAction', 0 /* Set */);
+        } else {
+            $this->SetValue('PauseQueueHours', 0);
+            $this->SetValue('PauseQueueMinutes', 0);
+            $this->SetValue('PauseQueueSeconds', 0);
+            $this->SetValue('PauseQueueAction', 1 /* Clear */);
         }
+
+        $txt = [
+            0 => $this->Translate('Set'),
+            1 => $this->Translate('Clear'),
+        ];
+
+        $associations = [
+            [
+                'Value' => $this->GetValue('PauseQueueAction'),
+                'Name'  => isset($txt[$value]) ? $txt[$value] : '???',
+            ],
+        ];
+
+        $this->UpdateVarProfileAssociations($this->VarProf_PauseQueueAction, $associations);
     }
 
-    private function SetupStationStartManuallyVariables()
+    private function SetupStationStartManually()
     {
-        if ($this->Use4Indent('StationStartManually')) {
-            if ($this->Use4Indent('StationSelection') == false) {
-                return false;
-            }
-            $sid = $this->GetValue('StationSelection');
-            if ($sid == 0) {
-                return false;
-            }
-            if ($this->Use4Indent('StationTimeLeft', $sid - 1) == false) {
-                return false;
-            }
-            $timeLeft = $this->GetValue('StationTimeLeft_' . $sid);
-            if ($timeLeft == 0) {
-                $this->SetValue('StationStartManually', 0 /* Set */);
-            } else {
-                $this->SetValue('StationStartManuallyHours', 0);
-                $this->SetValue('StationStartManuallyMinutes', 0);
-                $this->SetValue('StationStartManuallySeconds', 0);
-                $this->SetValue('StationStartManually', 1 /* Clear */);
-            }
+        if ($this->Use4Indent('StationSelection') == false) {
+            return false;
         }
+        $sid = $this->GetValue('StationSelection');
+        if ($sid == 0) {
+            return false;
+        }
+        if ($this->Use4Indent('StationTimeLeft', $sid - 1) == false) {
+            return false;
+        }
+        $timeLeft = $this->GetValue('StationTimeLeft_' . $sid);
+        if ($timeLeft == 0) {
+            $this->SetValue('StationStartManually', 0 /* Set */);
+        } else {
+            $this->SetValue('StationStartManuallyHours', 0);
+            $this->SetValue('StationStartManuallyMinutes', 0);
+            $this->SetValue('StationStartManuallySeconds', 0);
+            $this->SetValue('StationStartManually', 1 /* Clear */);
+        }
+
+        $txt = [
+            0 => $this->Translate('Start'),
+            1 => $this->Translate('Stop'),
+        ];
+
+        $associations = [
+            [
+                'Value' => $this->GetValue('StationStartManually'),
+                'Name'  => isset($txt[$value]) ? $txt[$value] : '???',
+            ],
+        ];
+
+        $this->UpdateVarProfileAssociations($this->VarProf_StationStartManually, $associations);
     }
 
     private function UpdateVarProfileAssociations(string $ident, $associations = null)
@@ -3551,7 +3785,7 @@ class OpenSprinkler extends IPSModule
         }
     }
 
-    private function UpdateVarProf_Stations()
+    private function SetupStationSelection()
     {
         $associations = [
             [
@@ -3572,7 +3806,7 @@ class OpenSprinkler extends IPSModule
         $this->UpdateVarProfileAssociations($this->VarProf_Stations, $associations);
     }
 
-    private function UpdateVarProf_Programs()
+    private function SetupProgramSelection()
     {
         $associations = [
             [
@@ -3591,49 +3825,6 @@ class OpenSprinkler extends IPSModule
             ];
         }
         $this->UpdateVarProfileAssociations($this->VarProf_Programs, $associations);
-    }
-
-    private function UpdateVarProf_PauseQueueAction()
-    {
-        if ($this->Use4Indent('PauseQueue')) {
-            $txt = [
-                0 => $this->Translate('Set'),
-                1 => $this->Translate('Clear'),
-            ];
-
-            $value = $this->GetValue('PauseQueueAction');
-            $name = isset($txt[$value]) ? $txt[$value] : '???';
-            $associations = [
-                [
-                    'Value' => $value,
-                    'Name'  => $name,
-                ],
-            ];
-
-            $this->UpdateVarProfileAssociations($this->VarProf_PauseQueueAction, $associations);
-            $this->SetValue('PauseQueueAction', $value);
-        }
-    }
-
-    private function UpdateVarProf_StationStartManually()
-    {
-        if ($this->Use4Indent('StationStartManually')) {
-            $txt = [
-                0 => $this->Translate('Start'),
-                1 => $this->Translate('Stop'),
-            ];
-
-            $value = $this->GetValue('StationStartManually');
-            $name = isset($txt[$value]) ? $txt[$value] : '???';
-            $associations = [
-                [
-                    'Value' => $value,
-                    'Name'  => $name,
-                ],
-            ];
-
-            $this->UpdateVarProfileAssociations($this->VarProf_StationStartManually, $associations);
-        }
     }
 
     private function GetAllChildenIDs($objID, &$objIDs)
@@ -3663,22 +3854,11 @@ class OpenSprinkler extends IPSModule
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
 
-        $vS = [];
-
         $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
-        $vS[] = 'remote_extension=' . $this->bool2str($remote_extension);
-
         $feature = $this->GetArrayElem($controller_infos, 'feature', '');
-        $vS[] = 'feature=' . $feature;
-
         $sensor_type1 = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
-        $vS[] = 'sensor_type1=' . $sensor_type1;
-
         $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
-        $vS[] = 'sensor_type2=' . $sensor_type2;
-
         $has_flowmeter = (bool) $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
-        $vS[] = 'has_flowmeter=' . $this->bool2str($has_flowmeter);
 
         $is_master = false;
         if (is_null($sid) == false) {
@@ -3691,12 +3871,6 @@ class OpenSprinkler extends IPSModule
             }
         }
         $vS[] = 'is_master=' . $this->bool2str($is_master);
-
-        $with_daily_values = $this->ReadPropertyBoolean('with_daily_values');
-        $vS[] = 'with_daily_values=' . $this->bool2str($with_daily_values);
-
-        $with_total_values = $this->ReadPropertyBoolean('with_total_values');
-        $vS[] = 'with_total_values=' . $this->bool2str($with_total_values);
 
         $r = false;
 
@@ -3771,28 +3945,89 @@ class OpenSprinkler extends IPSModule
             default:
                 break;
         }
+
         switch ($ident) {
             case 'DailyDuration':
+                $with_controller_daily_duration = $this->ReadPropertyBoolean('with_controller_daily_duration');
+                if ($with_controller_daily_duration == false) {
+                    $r = false;
+                }
+                break;
             case 'DailyWaterUsage':
+                $with_controller_daily_usage = $this->ReadPropertyBoolean('with_controller_daily_usage');
+                if ($with_controller_daily_usage == false) {
+                    $r = false;
+                }
+                break;
+            case 'TotalDuration':
+                $with_station_total_duration = $this->ReadPropertyBoolean('with_station_total_duration');
+                if ($with_station_total_duration == false) {
+                    $r = false;
+                }
+                break;
+            case 'TotalWaterUsage':
+                $with_station_total_usage = $this->ReadPropertyBoolean('with_station_total_usage');
+                if ($with_station_total_usage == false) {
+                    $r = false;
+                }
+                break;
             case 'StationDailyDuration':
+                $with_station_daily_duration = $this->ReadPropertyBoolean('with_station_daily_duration');
+                if ($with_station_daily_duration == false) {
+                    $r = false;
+                }
+                break;
             case 'StationDailyWaterUsage':
-                if ($with_daily_values == false) {
+                $with_station_daily_usage = $this->ReadPropertyBoolean('with_station_daily_usage');
+                if ($with_station_daily_usage == false) {
                     $r = false;
                 }
                 break;
             case 'StationTotalDuration':
-            case 'StationTotalWaterUsage':
-            case 'TotalDuration':
-            case 'TotalWaterUsage':
-                if ($with_total_values == false) {
+                $with_controller_total_duration = $this->ReadPropertyBoolean('with_controller_total_duration');
+                if ($with_controller_total_duration == false) {
                     $r = false;
                 }
+                break;
+            case 'StationTotalWaterUsage':
+                $with_controller_total_usage = $this->ReadPropertyBoolean('with_controller_total_usage');
+                if ($with_controller_total_usage == false) {
+                    $r = false;
+                }
+                break;
+            case 'StationLastDuration':
+            case 'StationLastRun':
+                $with_station_last_run = $this->ReadPropertyBoolean('with_station_last_run');
+                if ($with_station_last_run == false) {
+                    $r = false;
+                }
+                break;
+            case 'StationNextDuration':
+            case 'StationNextRun':
+                $with_station_next_run = $this->ReadPropertyBoolean('with_station_next_run');
+                if ($with_station_next_run == false) {
+                    $r = false;
+                }
+                break;
+            case 'StationWaterUsage':
+                $with_station_usage = $this->ReadPropertyBoolean('with_station_usage');
+                if ($with_station_usage == false) {
+                    $r = false;
+                }
+                break;
+                break;
+            case 'StationFlowAverage':
+            case 'StationFlowThreshold':
+                $with_station_flow = $this->ReadPropertyBoolean('with_station_flow');
+                if ($with_station_flow == false) {
+                    $r = false;
+                }
+                break;
                 break;
             default:
                 break;
         }
 
-        $this->SendDebug(__FUNCTION__, 'ident=' . $ident . (is_null($sid) ? '' : ', sid=' . $sid) . ' => ' . $this->bool2str($r) . ' (' . implode(', ', $vS) . ')', 0);
         return $r;
     }
 }

@@ -26,6 +26,16 @@
 			"Sensors": "Sensoren",
 			"Programs": "Programme",
 
+			"No programs available because the controller is in remote expansion mode":
+				"Keine Programme verfügbar, da sich der Controller im Remote-Erweiterungsmodus befindet",
+			"No sensors available because the controller is in remote expansion mode":
+				"Keine Sensoren verfügbar, da sich der Controller im Remote-Erweiterungsmodus befindet",
+
+			"Transferring variables to OpenSprinkler requires the software extension “ASB” from OpenSprinklerShop.de":
+				"Übertragen von Variablen an OpenSprinkler setzt die Softwareerweiterung „ASB“ von OpenSprinklerShop.de voraus",
+			"Transferring variables to OpenSprinkler is not available because the controller is in remote expansion mode":
+				"die Übertragung von Variablen an OpenSprinkler ist nicht verfügbar, da sich der Controller im Remote-Erweiterungsmodus befindet",
+
 			"No": "Nr",
 			"Name": "Name",
 			"Information": "Information",
@@ -64,8 +74,20 @@
 			"Send interval": "Sendeintervall",
 			"Seconds": "Sekunden",
 
-			"Variables for daily totals": "Variablen für Tagessummen",
-			"Variables for totals": "Variablen für Gesamtsummen",
+			"Variables for the whole system": "Variablen für das gesamte System",
+			"Variables for daily watering time of the system": "Variablen für die tägliche Bewässerungszeit des Systems",
+			"Variables for daily water usage of the system": "Variablen für den täglichen Wasserverbrauch des Systems",
+			"Variables for total watering time of the system": "Variablen für die Gesamtbewässerungszeit des Systems",
+			"Variables for total water usage of the system": "Variablen für den Gesamtwasserverbrauch des Systems",
+			"Variables for each station": "Variablen für jede Station",
+			"Variables for daily watering time of a station": "Variablen für die tägliche Bewässerungszeit einer Station",
+			"Variables for daily water usage of a station": "Variablen für den täglichen Wasserverbrauch einer Station",
+			"Variables for total watering time of a station": "Variablen für die Gesamtbewässerungszeit einer Station",
+			"Variables for total water usage of a station": "Variablen für den Gesamtwasserverbrauch einer Station",
+			"Variables of the last run": "Variablen des letzten Durchlaufs",
+			"Variables of the next run": "Variablen des nächsten Durchlaufs",
+			"Variables with the water usage of the last run": "Variablen mit dem Wasserverbrauch des letzten Durchlaufs",
+			"Variables with the water flow of the last run": "Variablen mit dem Wasserdurchfluss des letzten Durchlaufs",
 			" ... by activating this switch, additional variables are created and logged as counters":
 				" ... durch Aktivierung dieses Schalters werden zusätzliche Variablen erstellt und als Zähler geloggt",
 			"Other configurations": "Sonstige Konfigurationen",
@@ -121,10 +143,9 @@
 			"Time left": "verbleibende Zeit",
 			"Last run": "letzter Lauf",
 			"Duration of last run": "Dauer des letzten Laufs",
+			"Water usage of last run": "Wasserverbrauch des letzen Laufs",
 			"Next run": "nächster Lauf",
 			"Duration of next run": "Dauer des nächsten Laufs",
-
-			"Water usage": "Wasserverbrauch",
 
 			"Unknown station": "Unbekannter Bewässerungskreis",
 
