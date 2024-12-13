@@ -3714,9 +3714,10 @@ class OpenSprinkler extends IPSModule
             1 => $this->Translate('Clear'),
         ];
 
+        $value = $this->GetValue('PauseQueueAction');
         $associations = [
             [
-                'Value' => $this->GetValue('PauseQueueAction'),
+                'Value' => $value,
                 'Name'  => isset($txt[$value]) ? $txt[$value] : '???',
             ],
         ];
@@ -3751,9 +3752,10 @@ class OpenSprinkler extends IPSModule
             1 => $this->Translate('Stop'),
         ];
 
+        $value = $this->GetValue('StationStartManually');
         $associations = [
             [
-                'Value' => $this->GetValue('StationStartManually'),
+                'Value' => $value,
                 'Name'  => isset($txt[$value]) ? $txt[$value] : '???',
             ],
         ];
