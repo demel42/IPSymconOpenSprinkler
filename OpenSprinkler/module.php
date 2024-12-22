@@ -218,6 +218,25 @@ class OpenSprinkler extends IPSModule
             $this->MaintainAction('ControllerEnabled', true);
         }
 
+        $vpos = 10;
+
+        $u = $this->Use4Indent('DeviceTime');
+        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
+        $u = $this->Use4Indent('WifiStrength');
+        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, $u);
+
+        $u = $this->Use4Indent('LastRebootTstamp');
+        $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
+        $u = $this->Use4Indent('LastRebootCause');
+        $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, $u);
+
+        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+
+        $u = $this->Use4Indent('WeatherQueryTstamp');
+        $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
+        $u = $this->Use4Indent('WeatherQueryStatus');
+        $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, $u);
+
         $vpos = 50;
         $u = $this->Use4Indent('WateringLevel');
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, $u);
@@ -242,7 +261,7 @@ class OpenSprinkler extends IPSModule
         @$varID = $this->GetIDForIdent('TotalWaterUsage');
         $this->MaintainVariable('TotalWaterUsage', $this->Translate('Water usage (total)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
         $varList[] = 'TotalWaterUsage';
-        if ($u && @$varID === false) {
+        if ($u && @$varID == false) {
             $this->SetVariableLogging('TotalWaterUsage', 1 /* Zähler */);
         }
 
@@ -255,7 +274,7 @@ class OpenSprinkler extends IPSModule
         @$varID = $this->GetIDForIdent('TotalDuration');
         $this->MaintainVariable('TotalDuration', $this->Translate('Watering time (total)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
         $varList[] = 'TotalDuration';
-        if ($u && @$varID === false) {
+        if ($u && @$varID == false) {
             $this->SetVariableLogging('TotalDuration', 1 /* Zähler */);
         }
 
@@ -460,14 +479,14 @@ class OpenSprinkler extends IPSModule
             @$varID = $this->GetIDForIdent('StationTotalWaterUsage' . $post);
             $this->MaintainVariable('StationTotalWaterUsage' . $post, $s . $this->Translate('Water usage (total)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
             $varList[] = 'StationTotalWaterUsage' . $post;
-            if ($u && @$varID === false) {
+            if ($u && @$varID == false) {
                 $this->SetVariableLogging('StationTotalWaterUsage' . $post, 1 /* Zähler */);
             }
             $u = $station_entry['use'] && $this->Use4Indent('StationTotalDuration', $station_n);
             @$varID = $this->GetIDForIdent('StationTotalDuration' . $post);
             $this->MaintainVariable('StationTotalDuration' . $post, $s . $this->Translate('Watering time (total)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationTotalDuration' . $post;
-            if ($u && @$varID === false) {
+            if ($u && @$varID == false) {
                 $this->SetVariableLogging('StationTotalDuration' . $post, 1 /* Zähler */);
             }
         }
@@ -513,25 +532,6 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $vpos = 20001;
-
-        $u = $this->Use4Indent('WeatherQueryTstamp');
-        $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('WeatherQueryStatus');
-        $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, $u);
-
-        $u = $this->Use4Indent('DeviceTime');
-        $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('WifiStrength');
-        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, $u);
-
-        $u = $this->Use4Indent('LastRebootTstamp');
-        $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('LastRebootCause');
-        $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, $u);
-
-        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
-
         $objList = [];
         $chldIDs = IPS_GetChildrenIDs($this->InstanceID);
         foreach ($chldIDs as $chldID) {
@@ -576,12 +576,12 @@ class OpenSprinkler extends IPSModule
         $this->MaintainStatus(IS_ACTIVE);
 
         if ($this->Use4Indent('StationSelection')) {
-            $this->SetStationSelection($this->GetValue('StationSelection'));
+            $this->SetStationSelection();
             $this->SetupStationSelection();
         }
 
         if ($this->Use4Indent('ProgramSelection')) {
-            $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+            $this->SetProgramSelection();
             $this->SetupProgramSelection();
         }
 
@@ -1255,12 +1255,14 @@ class OpenSprinkler extends IPSModule
         }
 
         $data = $this->do_HttpRequest('ja', []);
-        if ($data === false) {
+        if ($data == false) {
+            $this->SendDebug(__FUNCTION__, 'no data', 0);
             IPS_SemaphoreLeave($this->SemaphoreID);
             return;
         }
         $jdata = @json_decode($data, true);
-        if ($jdata === false) {
+        if ($jdata == false) {
+            $this->SendDebug(__FUNCTION__, 'malformed data', 0);
             IPS_SemaphoreLeave($this->SemaphoreID);
             return;
         }
@@ -1491,7 +1493,7 @@ class OpenSprinkler extends IPSModule
                     break;
                 }
             }
-            if ($station_info === false) {
+            if ($station_info == false) {
                 continue;
             }
 
@@ -1578,7 +1580,7 @@ class OpenSprinkler extends IPSModule
                 }
             }
 
-            if ($this->Use4Indent('StationFlowAverage')) {
+            if ($this->Use4Indent('StationFlowAverage', $sid)) {
                 $favg = $stn_favg[$sid] / 100;
                 $this->SendDebug(__FUNCTION__, '... StationFlowAverage' . $post . ' => ' . $favg, 0);
                 $this->SetValue('StationFlowAverage' . $post, $favg);
@@ -1588,12 +1590,12 @@ class OpenSprinkler extends IPSModule
         $this->SetValue('LastUpdate', $now);
 
         if ($this->Use4Indent('StationSelection')) {
-            $this->SetStationSelection($this->GetValue('StationSelection'));
+            $this->SetStationSelection();
             $this->SetupStationSelection();
         }
 
         if ($this->Use4Indent('ProgramSelection')) {
-            $this->SetProgramSelection($this->GetValue('ProgramSelection'));
+            $this->SetProgramSelection();
             $this->SetupProgramSelection();
         }
 
@@ -1645,13 +1647,15 @@ class OpenSprinkler extends IPSModule
                 $hardware .= substr($hwv, $i, 1);
             }
         }
-        $hwv = $this->GetArrayElem($jdata, 'options.hwv', 0, $fnd);
+        $hwt = $this->GetArrayElem($jdata, 'options.hwt', 0, $fnd);
         if ($fnd) {
-            if ($hwv == 172) {
-                $hardware .= ' AC';
-            }
-            if ($hwv == 220) {
-                $hardware .= ' DC';
+            $hwt2str = [
+                0xAC => 'AC',
+                0xDC => 'DC',
+                0x1A => 'Latch',
+            ];
+            if (isset($hwt2str[$hwt])) {
+                $hardware .= ' ' . $hwt2str[$hwt];
             }
         }
 
@@ -1720,6 +1724,7 @@ class OpenSprinkler extends IPSModule
 
             $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
 
+            $pname = '';
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
                 $ps_pid = $ps[$ps_sid][0];
                 if ($ps_pid == 0) {
@@ -1727,16 +1732,17 @@ class OpenSprinkler extends IPSModule
                 }
                 if ($ps_pid == ($pid + 1)) {
                     $pname = $program_entry['name'];
+                    break;
                 } elseif ($ps_pid == self::$ADHOC_PROGRAM) {
                     $pname = $this->Translate('Adhoc program');
+                    break;
                 } elseif ($ps_pid == self::$MANUAL_STATION_START) {
                     $pname = $this->Translate('Manual station start');
-                } else {
-                    $pname = $this->Translate('Unknown program') . ' ' . $ps_pid;
+                    break;
                 }
-                if (in_array($pname, $running_programsV) == false) {
-                    $running_programsV[] = $pname;
-                }
+            }
+            if ($pname != '' && in_array($pname, $running_programsV) == false) {
+                $running_programsV[] = $pname;
             }
         }
 
@@ -2084,7 +2090,7 @@ class OpenSprinkler extends IPSModule
         $old_program_list = (array) @json_decode($this->ReadPropertyString('program_list'), true);
 
         $data = $this->do_HttpRequest('ja', []);
-        if ($data === false) {
+        if ($data == false) {
             IPS_SemaphoreLeave($this->SemaphoreID);
             return;
         }
@@ -2097,7 +2103,7 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'programs=' . print_r($a, true), 0);
 
         $data = $this->do_HttpRequest('je', []);
-        if ($data === false) {
+        if ($data == false) {
             IPS_SemaphoreLeave($this->SemaphoreID);
             return;
         }
@@ -2392,7 +2398,7 @@ class OpenSprinkler extends IPSModule
                     break;
                 }
             }
-            if ($station_info === false) {
+            if ($station_info == false) {
                 $this->SendDebug(__FUNCTION__, 'no station_info for sid=' . $sid, 0);
                 $use = false;
             }
@@ -2960,7 +2966,7 @@ class OpenSprinkler extends IPSModule
 
         if ($statuscode == 0) {
             $jbody = json_decode($body, true);
-            if ($jbody === false) {
+            if ($jbody == false) {
                 $statuscode = self::$IS_INVALIDDATA;
                 $err = 'invalid/malformed data';
             }
@@ -3455,11 +3461,14 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'name of ' . $n_changed . ' variables changed', 0);
     }
 
-    private function SetStationSelection(int $value)
+    private function SetStationSelection(int $value = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
 
+        if (is_null($value)) {
+            $value = $this->GetValue('StationSelection');
+        }
         if ($value == 0) {
             if ($this->Use4Indent('StationState')) {
                 $this->SetValue('StationState', self::$STATION_STATE_DISABLED);
@@ -3540,7 +3549,7 @@ class OpenSprinkler extends IPSModule
                 break;
             }
         }
-        if ($station_info === false) {
+        if ($station_info == false) {
             $this->SendDebug(__FUNCTION__, 'no station_info for sid=' . $sid, 0);
             return false;
         }
@@ -3621,11 +3630,14 @@ class OpenSprinkler extends IPSModule
         return true;
     }
 
-    private function SetProgramSelection(int $value)
+    private function SetProgramSelection(int $value = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
 
+        if (is_null($value)) {
+            $value = $this->GetValue('ProgramSelection');
+        }
         if ($value == 0) {
             if ($this->Use4Indent('ProgramEnabled')) {
                 $this->SetValue('ProgramEnabled', false);
@@ -3658,7 +3670,7 @@ class OpenSprinkler extends IPSModule
                 break;
             }
         }
-        if ($program_info === false) {
+        if ($program_info == false) {
             $this->SendDebug(__FUNCTION__, 'no program_info for pid=' . $pid, 0);
             return false;
         }
