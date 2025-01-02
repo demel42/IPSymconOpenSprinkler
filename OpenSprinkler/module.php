@@ -212,52 +212,54 @@ class OpenSprinkler extends IPSModule
 
         // 1..100: Controller
         $vpos = 1;
-        $u = $this->Use4Indent('ControllerEnabled');
+        $u = $this->Use4Ident('ControllerEnabled');
+        $e = $this->Enable4Ident('ControllerEnabled');
         $this->MaintainVariable('ControllerEnabled', $this->Translate('Controller is enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('ControllerEnabled', true);
+            $this->MaintainAction('ControllerEnabled', $e);
         }
 
         $vpos = 10;
 
-        $u = $this->Use4Indent('DeviceTime');
+        $u = $this->Use4Ident('DeviceTime');
         $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('WifiStrength');
+        $u = $this->Use4Ident('WifiStrength');
         $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, $u);
 
-        $u = $this->Use4Indent('LastRebootTstamp');
+        $u = $this->Use4Ident('LastRebootTstamp');
         $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('LastRebootCause');
+        $u = $this->Use4Ident('LastRebootCause');
         $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, $u);
 
         $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
-        $u = $this->Use4Indent('WeatherQueryTstamp');
+        $u = $this->Use4Ident('WeatherQueryTstamp');
         $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('WeatherQueryStatus');
+        $u = $this->Use4Ident('WeatherQueryStatus');
         $this->MaintainVariable('WeatherQueryStatus', $this->Translate('Status of last weather query'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WeatherQueryStatus', $vpos++, $u);
 
         $vpos = 50;
-        $u = $this->Use4Indent('WateringLevel');
+        $u = $this->Use4Ident('WateringLevel');
+        $e = $this->Enable4Ident('WateringLevel');
         $this->MaintainVariable('WateringLevel', $this->Translate('Watering level'), VARIABLETYPE_INTEGER, 'OpenSprinkler.WateringLevel', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('WateringLevel', $this->WateringLevelChangeable());
+            $this->MaintainAction('WateringLevel', $e);
         }
 
         $vpos = 101;
-        $u = $this->Use4Indent('CurrentDraw');
+        $u = $this->Use4Ident('CurrentDraw');
         $this->MaintainVariable('CurrentDraw', $this->Translate('Current draw (actual)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Current', $vpos++, $u);
 
         $vpos = 111;
-        $u = $this->Use4Indent('WaterFlowrate');
+        $u = $this->Use4Ident('WaterFlowrate');
         $this->MaintainVariable('WaterFlowrate', $this->Translate('Water flow rate (actual)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $u);
         $varList[] = 'WaterFlowrate';
 
-        $u = $this->Use4Indent('DailyWaterUsage');
+        $u = $this->Use4Ident('DailyWaterUsage');
         $this->MaintainVariable('DailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
         $varList[] = 'DailyWaterUsage';
 
-        $u = $this->Use4Indent('TotalWaterUsage');
+        $u = $this->Use4Ident('TotalWaterUsage');
         @$varID = $this->GetIDForIdent('TotalWaterUsage');
         $this->MaintainVariable('TotalWaterUsage', $this->Translate('Water usage (total)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
         $varList[] = 'TotalWaterUsage';
@@ -266,11 +268,11 @@ class OpenSprinkler extends IPSModule
         }
 
         $vpos = 121;
-        $u = $this->Use4Indent('DailyDuration');
+        $u = $this->Use4Ident('DailyDuration');
         $this->MaintainVariable('DailyDuration', $this->Translate('Watering time (today)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
         $varList[] = 'DailyDuration';
 
-        $u = $this->Use4Indent('TotalDuration');
+        $u = $this->Use4Ident('TotalDuration');
         @$varID = $this->GetIDForIdent('TotalDuration');
         $this->MaintainVariable('TotalDuration', $this->Translate('Watering time (total)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
         $varList[] = 'TotalDuration';
@@ -279,142 +281,153 @@ class OpenSprinkler extends IPSModule
         }
 
         $vpos = 201;
-        $u = $this->Use4Indent('SensorState_1');
+        $u = $this->Use4Ident('SensorState_1');
         $this->MaintainVariable('SensorState_1', self::$SENSOR_PREFIX . '1: ' . $this->SensorType2String($sensor_type1), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $u);
         $varList[] = 'SensorState_1';
 
         $vpos = 211;
-        $u = $this->Use4Indent('SensorState_2');
+        $u = $this->Use4Ident('SensorState_2');
         $this->MaintainVariable('SensorState_2', self::$SENSOR_PREFIX . '2: ' . $this->SensorType2String($sensor_type2), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.SensorState', $vpos++, $u);
         $varList[] = 'SensorState_2';
 
         $vpos = 301;
-        $u = $this->Use4Indent('RainDelay');
+        $u = $this->Use4Ident('RainDelay');
+        $e = $this->Enable4Ident('RainDelay');
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $this->MaintainVariable('RainDelayDays', $this->Translate('Rain delay duration in days'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayDays', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('RainDelayDays', true);
+            $this->MaintainAction('RainDelayDays', $e);
         }
         $this->MaintainVariable('RainDelayHours', $this->Translate('Rain delay duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayHours', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('RainDelayHours', true);
+            $this->MaintainAction('RainDelayHours', $e);
         }
         $this->MaintainVariable('RainDelayAction', $this->Translate('Rain delay action'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayAction', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('RainDelayAction', true);
+            $this->MaintainAction('RainDelayAction', $e);
         }
 
         $vpos = 601;
-        $u = $this->Use4Indent('StopAllStations');
+        $u = $this->Use4Ident('StopAllStations');
+        $e = $this->Enable4Ident('StopAllStations');
         $this->MaintainVariable('StopAllStations', $this->Translate('Stop all stations'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StopAllStations', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StopAllStations', true);
+            $this->MaintainAction('StopAllStations', $e);
         }
 
         $vpos = 701;
-        $u = $this->Use4Indent('PauseQueue');
+        $u = $this->Use4Ident('PauseQueue');
+        $e = $this->Enable4Ident('PauseQueue');
         $this->MaintainVariable('PauseQueueUntil', $this->Translate('Pause queue until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $this->MaintainVariable('PauseQueueHours', $this->Translate('Pause queue duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueHours', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('PauseQueueHours', true);
+            $this->MaintainAction('PauseQueueHours', $e);
         }
         $this->MaintainVariable('PauseQueueMinutes', $this->Translate('Pause queue duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueMinutes', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('PauseQueueMinutes', true);
+            $this->MaintainAction('PauseQueueMinutes', $e);
         }
         $this->MaintainVariable('PauseQueueSeconds', $this->Translate('Pause queue duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueSeconds', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('PauseQueueSeconds', true);
+            $this->MaintainAction('PauseQueueSeconds', $e);
         }
         $this->MaintainVariable('PauseQueueAction', $this->Translate('Pause queue action'), VARIABLETYPE_INTEGER, $this->VarProf_PauseQueueAction, $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('PauseQueueAction', true);
+            $this->MaintainAction('PauseQueueAction', $e);
         }
 
         $vpos = 801;
-        $u = $this->Use4Indent('StationSelection');
+        $u = $this->Use4Ident('StationSelection');
+        $e = $this->Enable4Ident('StationSelection');
         $this->MaintainVariable('StationSelection', $this->Translate('Station selection'), VARIABLETYPE_INTEGER, $this->VarProf_Stations, $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationSelection', true);
+            $this->MaintainAction('StationSelection', $e);
         }
 
-        $u = $this->Use4Indent('StationState');
+        $u = $this->Use4Ident('StationState');
         $this->MaintainVariable('StationState', $this->Translate('Station state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationState', $vpos++, $u);
 
-        $u = $this->Use4Indent('StationDisabled');
+        $u = $this->Use4Ident('StationDisabled');
+        $e = $this->Enable4Ident('StationDisabled');
         $this->MaintainVariable('StationDisabled', $this->Translate('Station is disabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationDisabled', true);
+            $this->MaintainAction('StationDisabled', $e);
         }
 
-        $u = $this->Use4Indent('StationIgnoreRain');
+        $u = $this->Use4Ident('StationIgnoreRain');
+        $e = $this->Enable4Ident('StationIgnoreRain');
         $this->MaintainVariable('StationIgnoreRain', $this->Translate('Station ignores rain delay'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationIgnoreRain', true);
+            $this->MaintainAction('StationIgnoreRain', $e);
         }
 
-        $u = $this->Use4Indent('StationIgnoreSensor1');
+        $u = $this->Use4Ident('StationIgnoreSensor1');
+        $e = $this->Enable4Ident('StationIgnoreSensor1');
         $this->MaintainVariable('StationIgnoreSensor1', $this->Translate('Station ignores sensor 1'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationIgnoreSensor1', true);
+            $this->MaintainAction('StationIgnoreSensor1', $e);
         }
 
-        $u = $this->Use4Indent('StationIgnoreSensor2');
+        $u = $this->Use4Ident('StationIgnoreSensor2');
+        $e = $this->Enable4Ident('StationIgnoreSensor2');
         $this->MaintainVariable('StationIgnoreSensor2', $this->Translate('Station ignores sensor 2'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationIgnoreSensor2', true);
+            $this->MaintainAction('StationIgnoreSensor2', $e);
         }
 
-        $u = $this->Use4Indent('StationTimeLeft');
+        $u = $this->Use4Ident('StationTimeLeft');
         $this->MaintainVariable('StationTimeLeft', $this->Translate('Time left'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
-        $u = $this->Use4Indent('StationLastRun');
+        $u = $this->Use4Ident('StationLastRun');
         $this->MaintainVariable('StationLastRun', $this->Translate('Last run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('StationLastDuration');
+        $u = $this->Use4Ident('StationLastDuration');
         $this->MaintainVariable('StationLastDuration', $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
-        $u = $this->Use4Indent('StationWaterUsage');
+        $u = $this->Use4Ident('StationWaterUsage');
         $this->MaintainVariable('StationWaterUsage', $this->Translate('Water usage of last run'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
-        $u = $this->Use4Indent('StationNextRun');
+        $u = $this->Use4Ident('StationNextRun');
         $this->MaintainVariable('StationNextRun', $this->Translate('Next run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Indent('StationNextDuration');
+        $u = $this->Use4Ident('StationNextDuration');
         $this->MaintainVariable('StationNextDuration', $this->Translate('Duration of next run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
 
-        $u = $this->Use4Indent('StationFlowAverage');
+        $u = $this->Use4Ident('StationFlowAverage');
         $this->MaintainVariable('StationFlowAverage', $this->Translate('Average water flow'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $u);
-        $u = $this->Use4Indent('StationFlowThreshold');
+
+        $u = $this->Use4Ident('StationFlowThreshold');
+        $e = $this->Enable4Ident('StationFlowThreshold');
         $this->MaintainVariable('StationFlowThreshold', $this->Translate('Water flow monitoring threshold'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationFlowThreshold', true);
+            $this->MaintainAction('StationFlowThreshold', $e);
         }
 
         // Tageswerte
-        $u = $this->Use4Indent('StationDailyWaterUsage');
+        $u = $this->Use4Ident('StationDailyWaterUsage');
         $this->MaintainVariable('StationDailyWaterUsage', $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
-        $u = $this->Use4Indent('StationDailyDuration');
+        $u = $this->Use4Ident('StationDailyDuration');
         $this->MaintainVariable('StationDailyDuration', $this->Translate('Watering time (today)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
 
-        $u = $this->Use4Indent('StationStartManually');
+        $u = $this->Use4Ident('StationStartManually');
+        $e = $this->Enable4Ident('StationStartManually');
         $this->MaintainVariable('StationStartManuallyHours', $this->Translate('Station run duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyHours', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationStartManuallyHours', true);
+            $this->MaintainAction('StationStartManuallyHours', $e);
         }
         $this->MaintainVariable('StationStartManuallyMinutes', $this->Translate('Station run duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyMinutes', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationStartManuallyMinutes', true);
+            $this->MaintainAction('StationStartManuallyMinutes', $e);
         }
         $this->MaintainVariable('StationStartManuallySeconds', $this->Translate('Station run duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallySeconds', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationStartManuallySeconds', true);
+            $this->MaintainAction('StationStartManuallySeconds', $e);
         }
         $this->MaintainVariable('StationStartManually', $this->Translate('Station start manually'), VARIABLETYPE_INTEGER, $this->VarProf_StationStartManually, $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('StationStartManually', true);
+            $this->MaintainAction('StationStartManually', $e);
         }
 
-        $u = $this->Use4Indent('StationInfo');
+        $u = $this->Use4Ident('StationInfo');
         $this->MaintainVariable('StationInfo', $this->Translate('Station information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
-        $u = $this->Use4Indent('StationRunning');
+        $u = $this->Use4Ident('StationRunning');
         $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
-        $u = $this->Use4Indent('StationLast');
+        $u = $this->Use4Ident('StationLast');
         $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
 
         // 1001..8299: Stations (max 72)
@@ -433,56 +446,56 @@ class OpenSprinkler extends IPSModule
             $post = '_' . ($station_n + 1);
             $s = sprintf(self::$STATION_PREFIX . '%02d[%s]: ', $station_n + 1, $station_entry['name']);
 
-            $u = $station_entry['use'] && $this->Use4Indent('StationState', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationState', $station_n);
             $this->MaintainVariable('StationState' . $post, $s . $this->Translate('Station state'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationState', $vpos++, $u);
             $varList[] = 'StationState' . $post;
 
             // aktueller Bewässerungszyklus
-            $u = $station_entry['use'] && $this->Use4Indent('StationTimeLeft', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationTimeLeft', $station_n);
             $this->MaintainVariable('StationTimeLeft' . $post, $s . $this->Translate('Time left'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationTimeLeft' . $post;
 
             // letzter Bewässerungszyklus
-            $u = $station_entry['use'] && $this->Use4Indent('StationLastRun', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationLastRun', $station_n);
             $this->MaintainVariable('StationLastRun' . $post, $s . $this->Translate('Last run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
             $varList[] = 'StationLastRun' . $post;
-            $u = $station_entry['use'] && $this->Use4Indent('StationLastDuration', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationLastDuration', $station_n);
             $this->MaintainVariable('StationLastDuration' . $post, $s . $this->Translate('Duration of last run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationLastDuration' . $post;
-            $u = $station_entry['use'] && $this->Use4Indent('StationWaterUsage', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationWaterUsage', $station_n);
             $this->MaintainVariable('StationWaterUsage' . $post, $s . $this->Translate('Water usage of last run'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
             $varList[] = 'StationWaterUsage' . $post;
 
             // nächster Bewässerungszyklus
-            $u = $station_entry['use'] && $this->Use4Indent('StationNextRun', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationNextRun', $station_n);
             $this->MaintainVariable('StationNextRun' . $post, $s . $this->Translate('Next run'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
             $varList[] = 'StationNextRun' . $post;
-            $u = $station_entry['use'] && $this->Use4Indent('StationNextDuration', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationNextDuration', $station_n);
             $this->MaintainVariable('StationNextDuration' . $post, $s . $this->Translate('Duration of next run'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationNextDuration' . $post;
 
             // Strömungsüberwachung
-            $u = $station_entry['use'] && $this->Use4Indent('StationFlowAverage', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationFlowAverage', $station_n);
             $this->MaintainVariable('StationFlowAverage' . $post, $s . $this->Translate('Average water flow'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowrate', $vpos++, $u);
             $varList[] = 'StationFlowAverage' . $post;
 
             // Tagessummen
-            $u = $station_entry['use'] && $this->Use4Indent('StationDailyWaterUsage', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationDailyWaterUsage', $station_n);
             $this->MaintainVariable('StationDailyWaterUsage' . $post, $s . $this->Translate('Water usage (today)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
             $varList[] = 'StationDailyWaterUsage' . $post;
-            $u = $station_entry['use'] && $this->Use4Indent('StationDailyDuration', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationDailyDuration', $station_n);
             $this->MaintainVariable('StationDailyDuration' . $post, $s . $this->Translate('Watering time (today)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationDailyDuration' . $post;
 
             // Gesamtsummen
-            $u = $station_entry['use'] && $this->Use4Indent('StationTotalWaterUsage', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationTotalWaterUsage', $station_n);
             @$varID = $this->GetIDForIdent('StationTotalWaterUsage' . $post);
             $this->MaintainVariable('StationTotalWaterUsage' . $post, $s . $this->Translate('Water usage (total)'), VARIABLETYPE_FLOAT, 'OpenSprinkler.WaterFlowmeter', $vpos++, $u);
             $varList[] = 'StationTotalWaterUsage' . $post;
             if ($u && @$varID == false) {
                 $this->SetVariableLogging('StationTotalWaterUsage' . $post, 1 /* Zähler */);
             }
-            $u = $station_entry['use'] && $this->Use4Indent('StationTotalDuration', $station_n);
+            $u = $station_entry['use'] && $this->Use4Ident('StationTotalDuration', $station_n);
             @$varID = $this->GetIDForIdent('StationTotalDuration' . $post);
             $this->MaintainVariable('StationTotalDuration' . $post, $s . $this->Translate('Watering time (total)'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Duration', $vpos++, $u);
             $varList[] = 'StationTotalDuration' . $post;
@@ -492,31 +505,35 @@ class OpenSprinkler extends IPSModule
         }
 
         $vpos = 900;
-        $u = $this->Use4Indent('ProgramSelection');
+        $u = $this->Use4Ident('ProgramSelection');
+        $e = $this->Enable4Ident('ProgramSelection');
         $this->MaintainVariable('ProgramSelection', $this->Translate('Program selection'), VARIABLETYPE_INTEGER, $this->VarProf_Programs, $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('ProgramSelection', true);
+            $this->MaintainAction('ProgramSelection', $e);
         }
-        $u = $this->Use4Indent('ProgramEnabled');
+        $u = $this->Use4Ident('ProgramEnabled');
+        $e = $this->Enable4Ident('ProgramEnabled');
         $this->MaintainVariable('ProgramEnabled', $this->Translate('Program is enabled'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('ProgramEnabled', true);
+            $this->MaintainAction('ProgramEnabled', $e);
         }
-        $u = $this->Use4Indent('ProgramWeatherAdjust');
+        $u = $this->Use4Ident('ProgramWeatherAdjust');
+        $e = $this->Enable4Ident('ProgramWeatherAdjust');
         $this->MaintainVariable('ProgramWeatherAdjust', $this->Translate('Program with weather adjustments'), VARIABLETYPE_BOOLEAN, 'OpenSprinkler.YesNo', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('ProgramWeatherAdjust', true);
+            $this->MaintainAction('ProgramWeatherAdjust', $e);
         }
-        $u = $this->Use4Indent('ProgramStartManually');
+        $u = $this->Use4Ident('ProgramStartManually');
+        $e = $this->Enable4Ident('ProgramStartManually');
         $this->MaintainVariable('ProgramStartManually', $this->Translate('Program start manually'), VARIABLETYPE_INTEGER, 'OpenSprinkler.ProgramStart', $vpos++, $u);
         if ($u) {
-            $this->MaintainAction('ProgramStartManually', true);
+            $this->MaintainAction('ProgramStartManually', $e);
         }
-        $u = $this->Use4Indent('ProgramInfo');
+        $u = $this->Use4Ident('ProgramInfo');
         $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
-        $u = $this->Use4Indent('ProgramRunning');
+        $u = $this->Use4Ident('ProgramRunning');
         $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
-        $u = $this->Use4Indent('ProgramLast');
+        $u = $this->Use4Ident('ProgramLast');
         $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
 
         // 10001..14999: Programs (max 40)
@@ -575,21 +592,21 @@ class OpenSprinkler extends IPSModule
 
         $this->MaintainStatus(IS_ACTIVE);
 
-        if ($this->Use4Indent('StationSelection')) {
+        if ($this->Use4Ident('StationSelection')) {
             $this->SetStationSelection();
             $this->SetupStationSelection();
         }
 
-        if ($this->Use4Indent('ProgramSelection')) {
+        if ($this->Use4Ident('ProgramSelection')) {
             $this->SetProgramSelection();
             $this->SetupProgramSelection();
         }
 
-        if ($this->Use4Indent('RainDelay')) {
+        if ($this->Use4Ident('RainDelay')) {
             $this->SetupRainDelay();
         }
 
-        if ($this->Use4Indent('PauseQueue')) {
+        if ($this->Use4Ident('PauseQueue')) {
             $this->SetupPauseQueue();
         }
 
@@ -1204,10 +1221,10 @@ class OpenSprinkler extends IPSModule
 
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
 
-        if ($this->Use4Indent('DailyWaterUsage')) {
+        if ($this->Use4Ident('DailyWaterUsage')) {
             $this->SetValue('DailyWaterUsage', 0);
         }
-        if ($this->Use4Indent('DailyDuration')) {
+        if ($this->Use4Ident('DailyDuration')) {
             $this->SetValue('DailyDuration', 0);
         }
 
@@ -1231,10 +1248,10 @@ class OpenSprinkler extends IPSModule
 
             $post = '_' . ($station_n + 1);
 
-            if ($this->Use4Indent('StationDailyWaterUsage', $station_n)) {
+            if ($this->Use4Ident('StationDailyWaterUsage', $station_n)) {
                 $this->SetValue('StationDailyWaterUsage' . $post, 0);
             }
-            if ($this->Use4Indent('StationDailyDuration', $station_n)) {
+            if ($this->Use4Ident('StationDailyDuration', $station_n)) {
                 $this->SetValue('StationDailyDuration' . $post, 0);
             }
         }
@@ -1290,7 +1307,7 @@ class OpenSprinkler extends IPSModule
 
         $fnd = true;
 
-        if ($this->Use4Indent('ControllerEnabled')) {
+        if ($this->Use4Ident('ControllerEnabled')) {
             $en = $this->GetArrayElem($jdata, 'settings.en', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... ControllerEnabled (settings.en)=' . $en, 0);
@@ -1298,7 +1315,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('WateringLevel')) {
+        if ($this->Use4Ident('WateringLevel')) {
             $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl, 0);
@@ -1306,7 +1323,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('RainDelay')) {
+        if ($this->Use4Ident('RainDelay')) {
             $rdst = $this->GetArrayElem($jdata, 'settings.rdst', 0, $fnd);
             if ($fnd) {
                 $rdst_gm = $this->AdjustTimestamp($rdst);
@@ -1315,7 +1332,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('PauseQueue')) {
+        if ($this->Use4Ident('PauseQueue')) {
             $pt = $this->GetArrayElem($jdata, 'settings.pt', 0, $fnd);
             if ($fnd) {
                 $ts = $pt ? time() + $pt : 0;
@@ -1324,7 +1341,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('DeviceTime')) {
+        if ($this->Use4Ident('DeviceTime')) {
             $devt = $this->GetArrayElem($jdata, 'settings.devt', 0, $fnd);
             if ($fnd) {
                 $devt_gm = $this->AdjustTimestamp($devt);
@@ -1333,7 +1350,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('WifiStrength')) {
+        if ($this->Use4Ident('WifiStrength')) {
             $rssi = $this->GetArrayElem($jdata, 'settings.RSSI', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... WifiStrength (settings.RSSI)=' . $rssi, 0);
@@ -1341,7 +1358,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('WeatherQueryTstamp')) {
+        if ($this->Use4Ident('WeatherQueryTstamp')) {
             $lswc = $this->GetArrayElem($jdata, 'settings.lswc', 0, $fnd);
             if ($fnd) {
                 $lswc_gm = $this->AdjustTimestamp($lswc);
@@ -1350,7 +1367,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('WeatherQueryStatus')) {
+        if ($this->Use4Ident('WeatherQueryStatus')) {
             $wterr = $this->GetArrayElem($jdata, 'settings.wterr', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... WeatherQueryStatus (settings.wterr)=' . $wterr, 0);
@@ -1358,7 +1375,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('LastRebootTstamp')) {
+        if ($this->Use4Ident('LastRebootTstamp')) {
             $lupt = $this->GetArrayElem($jdata, 'settings.lupt', 0, $fnd);
             if ($fnd) {
                 $lupt_gm = $this->AdjustTimestamp($lupt);
@@ -1367,7 +1384,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('LastRebootCause')) {
+        if ($this->Use4Ident('LastRebootCause')) {
             $lrbtc = $this->GetArrayElem($jdata, 'settings.lrbtc', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... LastRebootCause (settings.lrbtc)=' . $lrbtc, 0);
@@ -1375,7 +1392,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('CurrentDraw')) {
+        if ($this->Use4Ident('CurrentDraw')) {
             $curr = $this->GetArrayElem($jdata, 'settings.curr', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... CurrentDraw (settings.curr)=' . $curr, 0);
@@ -1383,7 +1400,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('WaterFlowrate')) {
+        if ($this->Use4Ident('WaterFlowrate')) {
             $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
             $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
             if ($fnd) {
@@ -1393,7 +1410,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('SensorState_1')) {
+        if ($this->Use4Ident('SensorState_1')) {
             $sn1 = $this->GetArrayElem($jdata, 'settings.sn1', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... SensorState_1 (settings.sn1)=' . $sn1, 0);
@@ -1401,7 +1418,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        if ($this->Use4Indent('SensorState_2')) {
+        if ($this->Use4Ident('SensorState_2')) {
             $sn2 = $this->GetArrayElem($jdata, 'settings.sn2', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... SensorState_2 (settings.sn2)=' . $sn2, 0);
@@ -1538,22 +1555,22 @@ class OpenSprinkler extends IPSModule
                 }
             }
 
-            if ($this->Use4Indent('StationState', $sid)) {
+            if ($this->Use4Ident('StationState', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationState' . $post . ' => ' . $state, 0);
                 $this->SetValue('StationState' . $post, $state);
             }
 
-            if ($this->Use4Indent('StationTimeLeft', $sid)) {
+            if ($this->Use4Ident('StationTimeLeft', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationTimeLeft' . $post . ' => ' . $curLeft, 0);
                 $this->SetValue('StationTimeLeft' . $post, $curLeft);
             }
 
-            if ($this->Use4Indent('StationNextRun', $sid)) {
+            if ($this->Use4Ident('StationNextRun', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationNextRun' . $post . ' => ' . $nextStart, 0);
                 $this->SetValue('StationNextRun' . $post, $nextStart);
             }
 
-            if ($this->Use4Indent('StationNextDuration', $sid)) {
+            if ($this->Use4Ident('StationNextDuration', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationNextDuration' . $post . ' => ' . $nextDur, 0);
                 $this->SetValue('StationNextDuration' . $post, $nextDur);
             }
@@ -1570,17 +1587,17 @@ class OpenSprinkler extends IPSModule
             }
             if ($lr_sid == $sid && $lr_dur != 0 && $lr_end != 0) {
                 $lr_start = $lr_end - $lr_dur;
-                if ($this->Use4Indent('StationLastRun', $sid)) {
+                if ($this->Use4Ident('StationLastRun', $sid)) {
                     $this->SendDebug(__FUNCTION__, '... StationLastRun' . $post . ' => ' . date('d.m.y H:i:s', $lr_start), 0);
                     $this->SetValue('StationLastRun' . $post, $lr_start);
                 }
-                if ($this->Use4Indent('StationLastDuration', $sid)) {
+                if ($this->Use4Ident('StationLastDuration', $sid)) {
                     $this->SendDebug(__FUNCTION__, '... StationLastDuration' . $post . ' => ' . $lr_dur, 0);
                     $this->SetValue('StationLastDuration' . $post, $lr_dur);
                 }
             }
 
-            if ($this->Use4Indent('StationFlowAverage', $sid)) {
+            if ($this->Use4Ident('StationFlowAverage', $sid)) {
                 $favg = $stn_favg[$sid] / 100;
                 $this->SendDebug(__FUNCTION__, '... StationFlowAverage' . $post . ' => ' . $favg, 0);
                 $this->SetValue('StationFlowAverage' . $post, $favg);
@@ -1589,25 +1606,28 @@ class OpenSprinkler extends IPSModule
 
         $this->SetValue('LastUpdate', $now);
 
-        if ($this->Use4Indent('StationSelection')) {
+        if ($this->Use4Ident('StationSelection')) {
             $this->SetStationSelection();
             $this->SetupStationSelection();
         }
 
-        if ($this->Use4Indent('ProgramSelection')) {
+        if ($this->Use4Ident('ProgramSelection')) {
             $this->SetProgramSelection();
             $this->SetupProgramSelection();
         }
 
-        if ($this->Use4Indent('RainDelay')) {
+        if ($this->Use4Ident('RainDelay')) {
             $this->SetupRainDelay();
         }
 
-        if ($this->Use4Indent('PauseQueue')) {
+        if ($this->Use4Ident('PauseQueue')) {
             $this->SetupPauseQueue();
         }
 
-        $this->MaintainAction('WateringLevel', $this->WateringLevelChangeable());
+        if ($this->Use4Ident('WateringLevel')) {
+        $e = $this->Enable4Ident('WateringLevel');
+        $this->MaintainAction('WateringLevel', $e);
+		}
 
         $this->SetQueryInterval();
 
@@ -2412,7 +2432,7 @@ class OpenSprinkler extends IPSModule
                 $state = $this->GetArrayElem($payload, 'state', 0, $fnd);
                 if ($fnd) {
                     $st = $state ? self::$STATION_STATE_WATERING : self::$STATION_STATE_READY;
-                    if ($this->Use4Indent('StationState', $sid)) {
+                    if ($this->Use4Ident('StationState', $sid)) {
                         $this->SendDebug(__FUNCTION__, '... StationState' . $post . ' => ' . $st, 0);
                         $this->SetValue('StationState' . $post, $st);
                     }
@@ -2421,44 +2441,44 @@ class OpenSprinkler extends IPSModule
                     $duration = $this->GetArrayElem($payload, 'duration', 0, $fnd);
                     if ($fnd) {
                         if ($state) {
-                            if ($this->Use4Indent('StationTimeLeft', $sid)) {
+                            if ($this->Use4Ident('StationTimeLeft', $sid)) {
                                 $this->SendDebug(__FUNCTION__, '... StationTimeLeft' . $post . ' => ' . $duration, 0);
                                 $this->SetValue('StationTimeLeft' . $post, $duration);
                             }
                         } else {
                             $lastRun = time() - $duration;
-                            if ($this->Use4Indent('StationLastRun', $sid)) {
+                            if ($this->Use4Ident('StationLastRun', $sid)) {
                                 $this->SendDebug(__FUNCTION__, '... StationLastRun' . $post . ' => ' . date('d.m.y H:i:s', $lastRun), 0);
                                 $this->SetValue('StationLastRun' . $post, $lastRun);
                             }
 
-                            if ($this->Use4Indent('StationLastDuration', $sid)) {
+                            if ($this->Use4Ident('StationLastDuration', $sid)) {
                                 $this->SendDebug(__FUNCTION__, '... StationLastDuration' . $post . ' => ' . $duration, 0);
                                 $this->SetValue('StationLastDuration' . $post, $duration);
                             }
 
-                            if ($this->Use4Indent('DailyDuration')) {
+                            if ($this->Use4Ident('DailyDuration')) {
                                 $old_daily_duration = $this->GetValue('DailyDuration');
                                 $daily_duration = $old_daily_duration + $duration;
                                 $this->SendDebug(__FUNCTION__, '... DailyDuration => ' . $daily_duration . ' (old=' . $old_daily_duration . ')', 0);
                                 $this->SetValue('DailyDuration', $daily_duration);
                             }
 
-                            if ($this->Use4Indent('TotalDuration')) {
+                            if ($this->Use4Ident('TotalDuration')) {
                                 $old_total_duration = $this->GetValue('TotalDuration');
                                 $total_duration = $old_total_duration + $duration;
                                 $this->SendDebug(__FUNCTION__, '... TotalDuration => ' . $total_duration . ' (old=' . $old_total_duration . ')', 0);
                                 $this->SetValue('TotalDuration', $total_duration);
                             }
 
-                            if ($this->Use4Indent('StationTotalDuration', $sid)) {
+                            if ($this->Use4Ident('StationTotalDuration', $sid)) {
                                 $old_total_duration = $this->GetValue('StationTotalDuration' . $post);
                                 $total_duration = $old_total_duration + $duration;
                                 $this->SendDebug(__FUNCTION__, '... StationTotalDuration' . $post . ' => ' . $total_duration . ' (old=' . $old_total_duration . ')', 0);
                                 $this->SetValue('StationTotalDuration' . $post, $total_duration);
                             }
 
-                            if ($this->Use4Indent('StationDailyDuration', $sid)) {
+                            if ($this->Use4Ident('StationDailyDuration', $sid)) {
                                 $old_daily_duration = $this->GetValue('StationDailyDuration' . $post);
                                 $daily_duration = $old_daily_duration + $duration;
                                 $this->SendDebug(__FUNCTION__, '... StationDailyDuration' . $post . ' => ' . $daily_duration . ' (old=' . $old_daily_duration . ')', 0);
@@ -2470,32 +2490,32 @@ class OpenSprinkler extends IPSModule
                     if ($fnd) {
                         $usage = $duration * $flow;
 
-                        if ($this->Use4Indent('TotalWaterUsage')) {
+                        if ($this->Use4Ident('TotalWaterUsage')) {
                             $old_total_usage = $this->GetValue('TotalWaterUsage');
                             $total_usage = $old_total_usage + $usage;
                             $this->SendDebug(__FUNCTION__, '... TotalDuration => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
                             $this->SetValue('TotalWaterUsage', $total_usage);
                         }
 
-                        if ($this->Use4Indent('DailyWaterUsage')) {
+                        if ($this->Use4Ident('DailyWaterUsage')) {
                             $old_daily_usage = $this->GetValue('DailyWaterUsage');
                             $daily_usage = $old_daily_usage + $usage;
                             $this->SendDebug(__FUNCTION__, '... DailyDuration => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
                             $this->SetValue('DailyWaterUsage', $daily_usage);
                         }
 
-                        if ($this->Use4Indent('StationWaterUsage', $sid)) {
+                        if ($this->Use4Ident('StationWaterUsage', $sid)) {
                             $this->SetValue('StationWaterUsage' . $post, $usage);
                         }
 
-                        if ($this->Use4Indent('StationTotalWaterUsage', $sid)) {
+                        if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
                             $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $post);
                             $total_usage = $old_total_usage + $usage;
                             $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
                             $this->SetValue('StationTotalWaterUsage' . $post, $total_usage);
                         }
 
-                        if ($this->Use4Indent('StationDailyWaterUsage', $sid)) {
+                        if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
                             $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $post);
                             $daily_usage = $old_daily_usage + $usage;
                             $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
@@ -2655,7 +2675,7 @@ class OpenSprinkler extends IPSModule
         $queryInterval = 0;
         switch ($ident_base) {
             case 'ControllerEnabled':
-                if ($this->Use4Indent('ControllerEnabled')) {
+                if ($this->Use4Ident('ControllerEnabled')) {
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                     $r = $this->SetControllerEnabled((bool) $value);
                     if ($r) {
@@ -2664,7 +2684,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'WateringLevel':
-                if ($this->Use4Indent('WateringLevel')) {
+                if ($this->Use4Ident('WateringLevel')) {
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                     $r = $this->SetWateringLevel((int) $value);
                     if ($r) {
@@ -2673,7 +2693,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'RainDelayAction':
-                if ($this->Use4Indent('RainDelay')) {
+                if ($this->Use4Ident('RainDelay')) {
                     $d = $this->GetValue('RainDelayDays');
                     $h = $this->GetValue('RainDelayHours');
                     $t = $d * 24 + $h;
@@ -2685,7 +2705,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StopAllStations':
-                if ($this->Use4Indent('StopAllStations')) {
+                if ($this->Use4Ident('StopAllStations')) {
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                     $r = $this->StopAllStations();
                     if ($r) {
@@ -2694,7 +2714,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'PauseQueueAction':
-                if ($this->Use4Indent('PauseQueue')) {
+                if ($this->Use4Ident('PauseQueue')) {
                     $h = $this->GetValue('PauseQueueHours');
                     $m = $this->GetValue('PauseQueueMinutes');
                     $s = $this->GetValue('PauseQueueSeconds');
@@ -2707,13 +2727,13 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationSelection':
-                if ($this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationSelection')) {
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                     $r = $this->SetStationSelection((int) $value);
                 }
                 break;
             case 'StationDisabled':
-                if ($this->Use4Indent('StationDisabled') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationDisabled') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2727,7 +2747,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationIgnoreRain':
-                if ($this->Use4Indent('StationIgnoreRain') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationIgnoreRain') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2741,7 +2761,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationIgnoreSensor1':
-                if ($this->Use4Indent('StationIgnoreSensor1') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationIgnoreSensor1') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2755,7 +2775,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationIgnoreSensor2':
-                if ($this->Use4Indent('StationIgnoreSensor2') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationIgnoreSensor2') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2769,7 +2789,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationFlowThreshold':
-                if ($this->Use4Indent('StationFlowThreshold') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationFlowThreshold') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2783,7 +2803,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'StationStartManually':
-                if ($this->Use4Indent('StationStartManually') && $this->Use4Indent('StationSelection')) {
+                if ($this->Use4Ident('StationStartManually') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
                     if ($sid == 0) {
                         break;
@@ -2801,13 +2821,13 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'ProgramSelection':
-                if ($this->Use4Indent('ProgramSelection')) {
+                if ($this->Use4Ident('ProgramSelection')) {
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                     $r = $this->SetProgramSelection((int) $value);
                 }
                 break;
             case 'ProgramEnabled':
-                if ($this->Use4Indent('ProgramEnabled') && $this->Use4Indent('ProgramSelection')) {
+                if ($this->Use4Ident('ProgramEnabled') && $this->Use4Ident('ProgramSelection')) {
                     $pid = $this->GetValue('ProgramSelection');
                     if ($pid == 0) {
                         break;
@@ -2821,7 +2841,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'ProgramWeatherAdjust':
-                if ($this->Use4Indent('ProgramWeatherAdjust') && $this->Use4Indent('ProgramSelection')) {
+                if ($this->Use4Ident('ProgramWeatherAdjust') && $this->Use4Ident('ProgramSelection')) {
                     $pid = $this->GetValue('ProgramSelection');
                     if ($pid == 0) {
                         break;
@@ -2835,7 +2855,7 @@ class OpenSprinkler extends IPSModule
                 }
                 break;
             case 'ProgramStartManually':
-                if ($this->Use4Indent('ProgramStartManually') && $this->Use4Indent('ProgramSelection')) {
+                if ($this->Use4Ident('ProgramStartManually') && $this->Use4Ident('ProgramSelection')) {
                     $pid = $this->GetValue('ProgramSelection');
                     if ($pid == 0) {
                         break;
@@ -3025,7 +3045,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('ControllerEnabled') == false) {
+        if ($this->Use4Ident('ControllerEnabled') == false) {
             return false;
         }
 
@@ -3043,7 +3063,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('WateringLevel') == false) {
+        if ($this->Use4Ident('WateringLevel') == false) {
             return false;
         }
 
@@ -3077,7 +3097,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('RainDelay') == false) {
+        if ($this->Use4Ident('RainDelay') == false) {
             return false;
         }
 
@@ -3113,7 +3133,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StopAllStations') == false) {
+        if ($this->Use4Ident('StopAllStations') == false) {
             return false;
         }
 
@@ -3131,7 +3151,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationStartManually') == false) {
+        if ($this->Use4Ident('StationStartManually') == false) {
             return false;
         }
 
@@ -3172,7 +3192,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('PauseQueue') == false) {
+        if ($this->Use4Ident('PauseQueue') == false) {
             return false;
         }
 
@@ -3197,7 +3217,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationDisabled', $sid) == false) {
+        if ($this->Use4Ident('StationDisabled', $sid) == false) {
             return false;
         }
 
@@ -3232,7 +3252,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationIgnoreRain') == false) {
+        if ($this->Use4Ident('StationIgnoreRain') == false) {
             return false;
         }
 
@@ -3267,7 +3287,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationIgnoreSensor1') == false) {
+        if ($this->Use4Ident('StationIgnoreSensor1') == false) {
             return false;
         }
 
@@ -3302,7 +3322,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationIgnoreSensor2') == false) {
+        if ($this->Use4Ident('StationIgnoreSensor2') == false) {
             return false;
         }
 
@@ -3359,7 +3379,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('ProgramEnabled') == false) {
+        if ($this->Use4Ident('ProgramEnabled') == false) {
             return false;
         }
         $params = [
@@ -3377,7 +3397,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('ProgramWeatherAdjust') == false) {
+        if ($this->Use4Ident('ProgramWeatherAdjust') == false) {
             return false;
         }
         $params = [
@@ -3395,7 +3415,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('ProgramStartManually') == false) {
+        if ($this->Use4Ident('ProgramStartManually') == false) {
             return false;
         }
         if ($value == self::$PROGRAM_START_NOP) {
@@ -3470,67 +3490,67 @@ class OpenSprinkler extends IPSModule
             $value = $this->GetValue('StationSelection');
         }
         if ($value == 0) {
-            if ($this->Use4Indent('StationState')) {
+            if ($this->Use4Ident('StationState')) {
                 $this->SetValue('StationState', self::$STATION_STATE_DISABLED);
             }
-            if ($this->Use4Indent('StationDisabled')) {
+            if ($this->Use4Ident('StationDisabled')) {
                 $this->SetValue('StationDisabled', false);
                 $this->MaintainAction('StationDisabled', false);
             }
-            if ($this->Use4Indent('StationIgnoreRain')) {
+            if ($this->Use4Ident('StationIgnoreRain')) {
                 $this->SetValue('StationIgnoreRain', false);
                 $this->MaintainAction('StationIgnoreRain', false);
             }
-            if ($this->Use4Indent('StationIgnoreSensor1')) {
+            if ($this->Use4Ident('StationIgnoreSensor1')) {
                 $this->SetValue('StationIgnoreSensor1', false);
                 $this->MaintainAction('StationIgnoreSensor1', false);
             }
-            if ($this->Use4Indent('StationIgnoreSensor2')) {
+            if ($this->Use4Ident('StationIgnoreSensor2')) {
                 $this->SetValue('StationIgnoreSensor2', false);
                 $this->MaintainAction('StationIgnoreSensor2', false);
             }
-            if ($this->Use4Indent('StationTimeLeft')) {
+            if ($this->Use4Ident('StationTimeLeft')) {
                 $this->SetValue('StationTimeLeft', 0);
             }
-            if ($this->Use4Indent('StationLastRun')) {
+            if ($this->Use4Ident('StationLastRun')) {
                 $this->SetValue('StationLastRun', 0);
             }
-            if ($this->Use4Indent('StationLastDuration')) {
+            if ($this->Use4Ident('StationLastDuration')) {
                 $this->SetValue('StationLastDuration', 0);
             }
-            if ($this->Use4Indent('StationNextRun')) {
+            if ($this->Use4Ident('StationNextRun')) {
                 $this->SetValue('StationNextRun', 0);
             }
-            if ($this->Use4Indent('StationNextDuration')) {
+            if ($this->Use4Ident('StationNextDuration')) {
                 $this->SetValue('StationNextDuration', 0);
             }
-            if ($this->Use4Indent('StationDailyDuration')) {
+            if ($this->Use4Ident('StationDailyDuration')) {
                 $this->SetValue('StationDailyDuration', 0);
             }
-            if ($this->Use4Indent('StationFlowAverage')) {
+            if ($this->Use4Ident('StationFlowAverage')) {
                 $this->SetValue('StationFlowAverage', 0);
             }
-            if ($this->Use4Indent('StationFlowThreshold')) {
+            if ($this->Use4Ident('StationFlowThreshold')) {
                 $this->SetValue('StationFlowThreshold', 0);
                 $this->MaintainAction('StationFlowThreshold', false);
             }
-            if ($this->Use4Indent('StationWaterUsage')) {
+            if ($this->Use4Ident('StationWaterUsage')) {
                 $this->SetValue('StationWaterUsage', 0);
             }
-            if ($this->Use4Indent('StationDailyWaterUsage')) {
+            if ($this->Use4Ident('StationDailyWaterUsage')) {
                 $this->SetValue('StationDailyWaterUsage', 0);
             }
-            if ($this->Use4Indent('StationInfo')) {
+            if ($this->Use4Ident('StationInfo')) {
                 $this->SetValue('StationInfo', '');
             }
-            if ($this->Use4Indent('StationRunning')) {
+            if ($this->Use4Ident('StationRunning')) {
                 $this->SetValue('StationRunning', '');
             }
-            if ($this->Use4Indent('StationLast')) {
+            if ($this->Use4Ident('StationLast')) {
                 $this->SetValue('StationLast', '');
             }
 
-            if ($this->Use4Indent('StationStartManually')) {
+            if ($this->Use4Ident('StationStartManually')) {
                 $this->MaintainAction('StationStartManually', false);
                 $this->MaintainAction('StationStartManuallyHours', false);
                 $this->MaintainAction('StationStartManuallyMinutes', false);
@@ -3554,7 +3574,7 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('StationStartManually')) {
+        if ($this->Enable4Ident('StationStartManually')) {
             $this->MaintainAction('StationStartManually', true);
             $this->MaintainAction('StationStartManuallyHours', true);
             $this->MaintainAction('StationStartManuallyMinutes', true);
@@ -3563,67 +3583,77 @@ class OpenSprinkler extends IPSModule
 
         $post = '_' . ($sid + 1);
 
-        if ($this->Use4Indent('StationState', $sid)) {
+        if ($this->Use4Ident('StationState', $sid)) {
             $this->SetValue('StationState', $this->GetValue('StationState' . $post));
         }
-        if ($this->Use4Indent('StationDisabled', $sid)) {
+        if ($this->Use4Ident('StationDisabled', $sid)) {
             $this->SetValue('StationDisabled', $station_info['disabled']);
+        }
+        if ($this->Enable4Ident('StationDisabled', $sid)) {
             $this->MaintainAction('StationDisabled', true);
         }
-        if ($this->Use4Indent('StationIgnoreRain', $sid)) {
+        if ($this->Use4Ident('StationIgnoreRain', $sid)) {
             $this->SetValue('StationIgnoreRain', $station_info['ignore_rain']);
+        }
+        if ($this->Enable4Ident('StationIgnoreRain', $sid)) {
             $this->MaintainAction('StationIgnoreRain', true);
         }
-        if ($this->Use4Indent('StationIgnoreSensor1')) {
+        if ($this->Use4Ident('StationIgnoreSensor1')) {
             $this->SetValue('StationIgnoreSensor1', $station_info['ignore_sn1']);
+        }
+        if ($this->Enable4Ident('StationIgnoreSensor1')) {
             $this->MaintainAction('StationIgnoreSensor1', true);
         }
-        if ($this->Use4Indent('StationIgnoreSensor2')) {
+        if ($this->Use4Ident('StationIgnoreSensor2')) {
             $this->SetValue('StationIgnoreSensor2', $station_info['ignore_sn2']);
+        }
+        if ($this->Enable4Ident('StationIgnoreSensor2')) {
             $this->MaintainAction('StationIgnoreSensor2', true);
         }
-        if ($this->Use4Indent('StationTimeLeft', $sid)) {
+        if ($this->Use4Ident('StationTimeLeft', $sid)) {
             $this->SetValue('StationTimeLeft', $this->GetValue('StationTimeLeft' . $post));
         }
-        if ($this->Use4Indent('StationLastRun', $sid)) {
+        if ($this->Use4Ident('StationLastRun', $sid)) {
             $this->SetValue('StationLastRun', $this->GetValue('StationLastRun' . $post));
         }
-        if ($this->Use4Indent('StationLastDuration', $sid)) {
+        if ($this->Use4Ident('StationLastDuration', $sid)) {
             $this->SetValue('StationLastDuration', $this->GetValue('StationLastDuration' . $post));
         }
-        if ($this->Use4Indent('StationNextRun', $sid)) {
+        if ($this->Use4Ident('StationNextRun', $sid)) {
             $this->SetValue('StationNextRun', $this->GetValue('StationNextRun' . $post));
         }
-        if ($this->Use4Indent('StationNextDuration', $sid)) {
+        if ($this->Use4Ident('StationNextDuration', $sid)) {
             $this->SetValue('StationNextDuration', $this->GetValue('StationNextDuration' . $post));
         }
-        if ($this->Use4Indent('StationDailyDuration', $sid)) {
+        if ($this->Use4Ident('StationDailyDuration', $sid)) {
             $this->SetValue('StationDailyDuration', $this->GetValue('StationDailyDuration' . $post));
         }
-        if ($this->Use4Indent('StationFlowAverage', $sid)) {
+        if ($this->Use4Ident('StationFlowAverage', $sid)) {
             $this->SetValue('StationFlowAverage', $this->GetValue('StationFlowAverage' . $post));
         }
-        if ($this->Use4Indent('StationFlowThreshold', $sid)) {
+        if ($this->Use4Ident('StationFlowThreshold', $sid)) {
             $this->SetValue('StationFlowThreshold', $station_info['flow_threshold']);
+        }
+        if ($this->Enable4Ident('StationFlowThreshold', $sid)) {
             $this->MaintainAction('StationFlowThreshold', true);
         }
-        if ($this->Use4Indent('StationWaterUsage', $sid)) {
+        if ($this->Use4Ident('StationWaterUsage', $sid)) {
             $this->SetValue('StationWaterUsage', $this->GetValue('StationWaterUsage' . $post));
         }
-        if ($this->Use4Indent('StationDailyWaterUsage', $sid)) {
+        if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
             $this->SetValue('StationDailyWaterUsage', $this->GetValue('StationDailyWaterUsage' . $post));
         }
-        if ($this->Use4Indent('StationInfo')) {
+        if ($this->Use4Ident('StationInfo')) {
             $this->SetValue('StationInfo', $station_info['info']);
         }
-        if ($this->Use4Indent('StationRunning')) {
+        if ($this->Use4Ident('StationRunning')) {
             $this->SetValue('StationRunning', $controller_infos['running_stations']);
         }
-        if ($this->Use4Indent('StationLast')) {
+        if ($this->Use4Ident('StationLast')) {
             $this->SetValue('StationLast', $controller_infos['last_station']);
         }
 
-        if ($this->Use4Indent('StationStartManually')) {
+        if ($this->Use4Ident('StationStartManually')) {
             $this->SetupStationStartManually();
         }
 
@@ -3639,22 +3669,22 @@ class OpenSprinkler extends IPSModule
             $value = $this->GetValue('ProgramSelection');
         }
         if ($value == 0) {
-            if ($this->Use4Indent('ProgramEnabled')) {
+            if ($this->Use4Ident('ProgramEnabled')) {
                 $this->SetValue('ProgramEnabled', false);
             }
-            if ($this->Use4Indent('ProgramWeatherAdjust')) {
+            if ($this->Use4Ident('ProgramWeatherAdjust')) {
                 $this->SetValue('ProgramWeatherAdjust', false);
             }
-            if ($this->Use4Indent('ProgramStartManually')) {
+            if ($this->Use4Ident('ProgramStartManually')) {
                 $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
             }
-            if ($this->Use4Indent('ProgramInfo')) {
+            if ($this->Use4Ident('ProgramInfo')) {
                 $this->SetValue('ProgramInfo', '');
             }
-            if ($this->Use4Indent('ProgramRunning')) {
+            if ($this->Use4Ident('ProgramRunning')) {
                 $this->SetValue('ProgramRunning', '');
             }
-            if ($this->Use4Indent('ProgramLast')) {
+            if ($this->Use4Ident('ProgramLast')) {
                 $this->SetValue('ProgramLast', '');
             }
 
@@ -3675,22 +3705,22 @@ class OpenSprinkler extends IPSModule
             return false;
         }
 
-        if ($this->Use4Indent('ProgramEnabled')) {
+        if ($this->Use4Ident('ProgramEnabled')) {
             $this->SetValue('ProgramEnabled', $program_info['enabled']);
         }
-        if ($this->Use4Indent('ProgramWeatherAdjust')) {
+        if ($this->Use4Ident('ProgramWeatherAdjust')) {
             $this->SetValue('ProgramWeatherAdjust', $program_info['weather_adjustment']);
         }
-        if ($this->Use4Indent('ProgramStartManually')) {
+        if ($this->Use4Ident('ProgramStartManually')) {
             $this->SetValue('ProgramStartManually', self::$PROGRAM_START_NOP);
         }
-        if ($this->Use4Indent('ProgramInfo')) {
+        if ($this->Use4Ident('ProgramInfo')) {
             $this->SetValue('ProgramInfo', $program_info['info']);
         }
-        if ($this->Use4Indent('ProgramRunning')) {
+        if ($this->Use4Ident('ProgramRunning')) {
             $this->SetValue('ProgramRunning', $controller_infos['running_programs']);
         }
-        if ($this->Use4Indent('ProgramLast')) {
+        if ($this->Use4Ident('ProgramLast')) {
             $this->SetValue('ProgramLast', $controller_infos['last_program']);
         }
 
@@ -3739,14 +3769,14 @@ class OpenSprinkler extends IPSModule
 
     private function SetupStationStartManually()
     {
-        if ($this->Use4Indent('StationSelection') == false) {
+        if ($this->Use4Ident('StationSelection') == false) {
             return false;
         }
         $sid = $this->GetValue('StationSelection');
         if ($sid == 0) {
             return false;
         }
-        if ($this->Use4Indent('StationTimeLeft', $sid - 1) == false) {
+        if ($this->Use4Ident('StationTimeLeft', $sid - 1) == false) {
             return false;
         }
         $timeLeft = $this->GetValue('StationTimeLeft_' . $sid);
@@ -3864,7 +3894,7 @@ class OpenSprinkler extends IPSModule
         return $map;
     }
 
-    private function Use4Indent($ident, $sid = null)
+    private function Use4Ident($ident, $sid = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
 
@@ -3884,7 +3914,6 @@ class OpenSprinkler extends IPSModule
                 }
             }
         }
-        $vS[] = 'is_master=' . $this->bool2str($is_master);
 
         $r = false;
 
@@ -4029,7 +4058,6 @@ class OpenSprinkler extends IPSModule
                     $r = false;
                 }
                 break;
-                break;
             case 'StationFlowAverage':
             case 'StationFlowThreshold':
                 $with_station_flow = $this->ReadPropertyBoolean('with_station_flow');
@@ -4037,8 +4065,47 @@ class OpenSprinkler extends IPSModule
                     $r = false;
                 }
                 break;
-                break;
             default:
+                break;
+        }
+
+        return $r;
+    }
+
+    private function Enable4Ident($ident, $sid = null)
+    {
+        $r = false;
+
+        if ($this->Use4Ident($ident, $sid) == false) {
+            return $r;
+        }
+
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+
+        $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
+
+        switch ($ident) {
+            case 'ControllerEnabled':
+                $r = true;
+                break;
+            case 'WateringLevel':
+                $r = $remote_extension == false && $this->WateringLevelChangeable();
+                break;
+            case 'PauseQueue':
+            case 'ProgramEnabled':
+            case 'ProgramSelection':
+            case 'ProgramStartManually':
+            case 'ProgramWeatherAdjust':
+            case 'RainDelay':
+            case 'StopAllStations':
+            case 'StationDisabled':
+            case 'StationFlowThreshold':
+            case 'StationIgnoreRain':
+            case 'StationIgnoreSensor1':
+            case 'StationIgnoreSensor2':
+            case 'StationSelection':
+            case 'StationStartManually':
+                $r = $remote_extension == false;
                 break;
         }
 
