@@ -23,6 +23,8 @@ Programmiert wurde mit der Firmware-Version 2.2.3 auf einem OpenSprinkler-Contro
 Es werden alle relevanten Informationen geholt und Funktionen zur Verfügung gestellt; die Konfiguration muss aber weiterhin auf dem OpenSprinkler-Controller erfolgen.
 Zur Erleichterung der Einrichtung kann die relevante Konfiguration vom OpenSprinkler in der Instanz-Konfiguration geholt werden.
 
+Ein als *RemoteController* betriebener *OpenSprinkler* wird auch unterstützt, hier werden erwartungsbemäß nur wenige Informationen angezeigt und dient mehr dazu, grundsätzlich das Gerät auch im IPS zu haben.
+
 ## 2. Voraussetzungen
 
 - IP-Symcon ab Version 6.0
