@@ -21,7 +21,7 @@ Das Modul dient zur Anbindung eines [OpenSprinkler-Controller](https://opensprin
 Programmiert wurde mit der Firmware-Version 2.2.3 auf einem OpenSprinkler-Controller 3.3. Ein *OpenSprinkler Pi* sowie ein *Opensprinkler Bee* wurde mnicht getestet, sollte aber genauso funktionieren.
 
 Es werden alle relevanten Informationen geholt und Funktionen zur Verfügung gestellt; die Konfiguration muss aber weiterhin auf dem OpenSprinkler-Controller erfolgen.
-Zur Erleichterung deriEInrichtung kann die relevante Konfiguration vom OpenSprinkler in der INstanz-Konfiguration geholt werden.
+Zur Erleichterung der Einrichtung kann die relevante Konfiguration vom OpenSprinkler in der INstanz-Konfiguration geholt werden.
 
 ## 2. Voraussetzungen
 
