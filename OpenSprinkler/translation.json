@@ -71,7 +71,7 @@
 			"Ident on the controller (\"MQTT filter\")": "Ident auf dem Controller (\"MQTT-Filter\")",
 
 			"Query interval": "Abfrageintervall",
-			"Send interval": "Sendeintervall",
+			"Send variables interval": "Intervall der Übertragung der Variablen",
 			"Seconds": "Sekunden",
 
 			"Variables for the whole system": "Variablen für das gesamte System",

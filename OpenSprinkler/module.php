@@ -1625,9 +1625,23 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($this->Use4Ident('WateringLevel')) {
-        $e = $this->Enable4Ident('WateringLevel');
-        $this->MaintainAction('WateringLevel', $e);
-		}
+            $e = $this->Enable4Ident('WateringLevel');
+            $this->MaintainAction('WateringLevel', $e);
+        }
+
+        $db_data = $this->do_HttpRequest('db', []);
+        if ($db_data == false) {
+            $this->SendDebug(__FUNCTION__, 'no db_data', 0);
+            IPS_SemaphoreLeave($this->SemaphoreID);
+            return;
+        }
+        $db_jdata = @json_decode($db_data, true);
+        if ($db_jdata == false) {
+            $this->SendDebug(__FUNCTION__, 'malformed db_data', 0);
+            IPS_SemaphoreLeave($this->SemaphoreID);
+            return;
+        }
+        $this->SendDebug(__FUNCTION__, 'db_jdata=' . print_r($db_jdata, true), 0);
 
         $this->SetQueryInterval();
 
@@ -1652,9 +1666,9 @@ class OpenSprinkler extends IPSModule
                 $firmware .= substr($fwv, $i, 1);
             }
         }
-        $fwn = (string) $this->GetArrayElem($jdata, 'options.fwn', '', $fnd);
+        $fwm = (string) $this->GetArrayElem($jdata, 'options.fwm', '', $fnd);
         if ($fnd) {
-            $firmware .= '(' . $fwn . ')';
+            $firmware .= '(' . $fwm . ')';
         }
 
         $hardware = '';
@@ -2122,16 +2136,28 @@ class OpenSprinkler extends IPSModule
         $a = (array) $this->GetArrayElem($ja_data, 'programs', []);
         $this->SendDebug(__FUNCTION__, 'programs=' . print_r($a, true), 0);
 
-        $data = $this->do_HttpRequest('je', []);
-        if ($data == false) {
-            IPS_SemaphoreLeave($this->SemaphoreID);
-            return;
-        }
-        $special_stations = json_decode($data, true);
-        $this->SendDebug(__FUNCTION__, 'special_stations=' . print_r($special_stations, true), 0);
-
         $nbrd = $this->GetArrayElem($ja_data, 'settings.nbrd', 1);
         $station_count = $nbrd * 8;
+
+        $has_special = false;
+        $stn_spe = (array) $this->GetArrayElem($ja_data, 'stations.stn_spe', []);
+        for ($sid = 0; $sid < $station_count; $sid++) {
+            if ($this->idx_in_bytes($sid, $stn_spe)) {
+                $has_special = true;
+            }
+        }
+
+        if ($has_special) {
+            $data = $this->do_HttpRequest('je', []);
+            if ($data == false) {
+                IPS_SemaphoreLeave($this->SemaphoreID);
+                return;
+            }
+            $special_stations = json_decode($data, true);
+        } else {
+            $special_stations = [];
+        }
+        $this->SendDebug(__FUNCTION__, 'special_stations=' . print_r($special_stations, true), 0);
 
         $remote_extension = (bool) $this->GetArrayElem($ja_data, 'options.re', false);
 
@@ -2985,8 +3011,9 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($statuscode == 0) {
-            $jbody = json_decode($body, true);
+            $jbody = @json_decode($body, true);
             if ($jbody == false) {
+                $this->SendDebug(__FUNCTION__, 'json_last_error_msg=' . json_last_error_msg(), 0);
                 $statuscode = self::$IS_INVALIDDATA;
                 $err = 'invalid/malformed data';
             }
