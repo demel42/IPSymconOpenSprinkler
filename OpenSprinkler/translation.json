@@ -62,7 +62,7 @@
 			"remote (OTC)": "remote (OTC)",
 
 			"Weather adjustment": "Wetterbasierte Anpassung",
-			"Total duration is {$total_duration}m": "Gesamtdauer: {$total_duration}m",
+			"Total duration is {$total_duration}": "Gesamtdauer: {$total_duration}",
 
 			"External sensor values": "Externe Sensorwerte",
 			"MQTT topic für sensor values": "MQTT-Thema für Sensorwerte",

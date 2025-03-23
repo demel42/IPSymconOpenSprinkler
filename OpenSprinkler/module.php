@@ -2356,7 +2356,7 @@ class OpenSprinkler extends IPSModule
                     $infos[] = $this->Translate('Weather adjustment');
                 }
                 $total_duration = array_sum($duration);
-                $infos[] = $this->TranslateFormat('Total duration is {$total_duration}m', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
+                $infos[] = $this->TranslateFormat('Total duration is {$total_duration}', ['{$total_duration}' => $this->seconds2duration($total_duration)]);
 
                 $program_list[] = [
                     'pid'  => $pid,

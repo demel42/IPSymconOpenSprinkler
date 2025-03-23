@@ -79,9 +79,10 @@ Es werden folgende Variablenprofile angelegt:
 
 ## 7. Versions-Historie
 
-- 1.1 @ 23.03.2025 14:48
+- 1.1 @ 23.03.2025 15:07
   - Fix: Änderung in der API: der Abruf "je" liefert einen Leerstring, denn keine special-stations definiert sind
   - Fix: fehlende Übersetzung
+  - Fix: Schreibfehler
 
 - 1.0 @ 02.01.2025 13:48
   - Initiale Version
