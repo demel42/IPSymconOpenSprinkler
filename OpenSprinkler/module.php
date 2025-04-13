@@ -68,12 +68,6 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyString('variable_list', json_encode([]));
         $this->RegisterPropertyInteger('send_interval', 300);
 
-        $this->RegisterAttributeString('controller_infos', json_encode([]));
-        $this->RegisterAttributeString('station_infos', json_encode([]));
-        $this->RegisterAttributeString('program_infos', json_encode([]));
-
-        $this->RegisterAttributeInteger('daily_reference', 0);
-
         $this->RegisterPropertyBoolean('with_controller_daily_duration', false);
         $this->RegisterPropertyBoolean('with_controller_daily_usage', false);
         $this->RegisterPropertyBoolean('with_controller_total_duration', true);
@@ -87,6 +81,18 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyBoolean('with_station_next_run', false);
         $this->RegisterPropertyBoolean('with_station_usage', true);
         $this->RegisterPropertyBoolean('with_station_flow', true);
+
+        $this->RegisterPropertyInteger('notification_scriptID', 1);
+
+        $this->RegisterPropertyInteger('WaterMeterID', 0);
+        $this->RegisterPropertyFloat('WaterMeterFactor', 1);
+
+        $this->RegisterAttributeString('controller_infos', json_encode([]));
+        $this->RegisterAttributeString('station_infos', json_encode([]));
+        $this->RegisterAttributeString('program_infos', json_encode([]));
+
+        $this->RegisterAttributeString('cur_run', json_encode([]));
+        $this->RegisterAttributeInteger('daily_reference', 0);
 
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
         $this->RegisterAttributeString('ModuleStats', json_encode([]));
@@ -161,7 +167,12 @@ class OpenSprinkler extends IPSModule
     {
         parent::ApplyChanges();
 
-        $this->MaintainReferences();
+        $propertyNames = [
+            'notification_scriptID',
+            'WaterMeterID'
+        ];
+        $this->MaintainReferences($propertyNames);
+
         $varIDs = [];
         $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
         foreach ($variable_list as $variable) {
@@ -424,11 +435,11 @@ class OpenSprinkler extends IPSModule
         }
 
         $u = $this->Use4Ident('StationInfo');
-        $this->MaintainVariable('StationInfo', $this->Translate('Station information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('StationInfo', $this->Translate('Station information'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
         $u = $this->Use4Ident('StationRunning');
-        $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
         $u = $this->Use4Ident('StationLast');
-        $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
 
         // 1001..8299: Stations (max 72)
         for ($station_n = 0; $station_n < count($station_list); $station_n++) {
@@ -530,11 +541,11 @@ class OpenSprinkler extends IPSModule
             $this->MaintainAction('ProgramStartManually', $e);
         }
         $u = $this->Use4Ident('ProgramInfo');
-        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
         $u = $this->Use4Ident('ProgramRunning');
-        $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
         $u = $this->Use4Ident('ProgramLast');
-        $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
 
         // 10001..14999: Programs (max 40)
         for ($program_n = 0; $program_n < count($program_list); $program_n++) {
@@ -1101,9 +1112,39 @@ class OpenSprinkler extends IPSModule
                         ],
                     ],
                 ],
+                [
+                    'name'    => 'notification_scriptID',
+                    'type'    => 'SelectScript',
+                    'width'   => '500px',
+                    'caption' => 'Script to do notifications',
+                ],
             ],
             'caption' => 'Other configurations'
         ];
+
+        $formElements[] = [
+            'type'    => 'ExpansionPanel',
+            'items'   => [
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Used instead of the internal water flow sensor of the OpenSprinkler controller'
+                ],
+                [
+                    'type'    => 'SelectVariable',
+                    'name'    => 'WaterMeterID',
+                    'caption' => 'Counter variable'
+                ],
+                [
+                    'type'    => 'NumberSpinner',
+                    'digits'  => 4,
+                    'name'    => 'WaterMeterFactor',
+                    'caption' => ' ... conversion factor to liter'
+                ],
+            ],
+            'caption' => 'Optional external water meter'
+        ];
+
+        $this->MaintainReferences();
 
         return $formElements;
     }
@@ -1404,7 +1445,7 @@ class OpenSprinkler extends IPSModule
             $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
             $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
             if ($fnd) {
-                $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60);
+                $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60.0);
                 $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
                 $this->SetValue('WaterFlowrate', $flow_rate);
             }
@@ -1488,6 +1529,7 @@ class OpenSprinkler extends IPSModule
             }
         }
 
+        $cur_running = [];
         for ($sid = 0; $sid < $station_count; $sid++) {
             for ($n = 0; $n < count($station_list); $n++) {
                 if ($station_list[$n]['sid'] == $sid) {
@@ -1560,6 +1602,10 @@ class OpenSprinkler extends IPSModule
                 $this->SetValue('StationState' . $post, $state);
             }
 
+            if ($state == self::$STATION_STATE_WATERING) {
+                $cur_running[] = $sid;
+            }
+
             if ($this->Use4Ident('StationTimeLeft', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationTimeLeft' . $post . ' => ' . $curLeft, 0);
                 $this->SetValue('StationTimeLeft' . $post, $curLeft);
@@ -1605,6 +1651,75 @@ class OpenSprinkler extends IPSModule
         }
 
         $this->SetValue('LastUpdate', $now);
+
+        $cur_run = (array) @json_decode($this->ReadAttributeString('cur_run'), true);
+        $this->SendDebug(__FUNCTION__, 'cur_run=' . print_r($cur_run, true), 0);
+        // nicht mehr aktiv
+        if (isset($cur_run['sid']) && in_array($cur_run['sid'], $cur_running) == false) {
+            if ($this->HasWaterMeter()) {
+                $water_counter = $this->GetWaterMeter();
+                $last_water_counter = $cur_run['water_counter'];
+                $usage = $water_counter - $last_water_counter;
+                $this->SendDebug(__FUNCTION__, 'usage=' . $usage . ' l', 0);
+
+                $_post = '_' . ($cur_run['sid'] + 1);
+
+                if ($this->Use4Ident('TotalWaterUsage')) {
+                    $old_total_usage = $this->GetValue('TotalWaterUsage');
+                    $total_usage = $old_total_usage + $usage;
+                    $this->SendDebug(__FUNCTION__, '... TotalWaterUsage => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                    $this->SetValue('TotalWaterUsage', $total_usage);
+                }
+
+                if ($this->Use4Ident('DailyWaterUsage')) {
+                    $old_daily_usage = $this->GetValue('DailyWaterUsage');
+                    $daily_usage = $old_daily_usage + $usage;
+                    $this->SendDebug(__FUNCTION__, '... DailyWaterUsage => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                    $this->SetValue('DailyWaterUsage', $daily_usage);
+                }
+
+                if ($this->Use4Ident('StationWaterUsage', $sid)) {
+                    $this->SendDebug(__FUNCTION__, '... StationWaterUsage' . $_post . ' => ' . $usage, 0);
+                    $this->SetValue('StationWaterUsage' . $_post, $usage);
+                }
+
+                if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
+                    $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $_post);
+                    $total_usage = $old_total_usage + $usage;
+                    $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $_post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                    $this->SetValue('StationTotalWaterUsage' . $_post, $total_usage);
+                }
+
+                if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
+                    $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $_post);
+                    $daily_usage = $old_daily_usage + $usage;
+                    $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $_post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                    $this->SetValue('StationDailyWaterUsage' . $_post, $daily_usage);
+                }
+            }
+            $cur_run = [];
+        }
+
+        if (count($cur_running) == 1) {
+            // noch nicht aktiv
+            if (isset($cur_run['sid']) == false) {
+                $cur_run = [
+                    'sid'   => $cur_running[0],
+                    'start' => time(),
+                ];
+                if ($this->HasWaterMeter()) {
+                    $cur_run['water_counter'] = $this->GetWaterMeter();
+                }
+            }
+            $cur_run['left'] = $curLeft;
+        } elseif (count($cur_running) > 1) {
+            $this->SendDebug(__FUNCTION__, 'more than one station watering (' . implode(', ', $cur_running) . ')', 0);
+        }
+
+        if ($cur_run != (array) @json_decode($this->ReadAttributeString('cur_run'), true)) {
+            $this->SendDebug(__FUNCTION__, 'update cur_run=' . print_r($cur_run, true), 0);
+            $this->WriteAttributeString('cur_run', json_encode($cur_run));
+        }
 
         if ($this->Use4Ident('StationSelection')) {
             $this->SetStationSelection();
@@ -1755,8 +1870,6 @@ class OpenSprinkler extends IPSModule
             }
 
             $post = '_' . ($pid + 1);
-
-            $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
 
             $pname = '';
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
@@ -1957,11 +2070,20 @@ class OpenSprinkler extends IPSModule
                 }
 
                 $flag = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.0', '');
+
+                $enabled = $this->bit_test($flag, 0) == true;
+
+                if ($this->bit_test($flag, 6)) {
+                    $starttime_type = self::$PROGRAM_STARTTIME_TYPE_FIXED;
+                } else {
+                    $starttime_type = self::$PROGRAM_STARTTIME_TYPE_REPATING;
+                }
+
                 $start = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.3', []);
                 $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
 
                 $repV = [];
-                if ($this->bit_test($flag, 6)) {
+                if ($starttime_type == self::$PROGRAM_STARTTIME_TYPE_FIXED) {
                     for ($n = 0; $n < count($start); $n++) {
                         $min = $start[$n];
                         if ($min != -1) {
@@ -1978,7 +2100,7 @@ class OpenSprinkler extends IPSModule
                 }
 
                 $s = $name . '[' . $this->seconds2duration($duration[$sid]) . ' @ ' . implode('/', $repV) . ']';
-                if ($this->bit_test($flag, 0) == false) {
+                if ($enabled == false) {
                     $s .= '(' . $this->Translate('disabled') . ')';
                 }
                 $prV[] = $s;
@@ -1988,8 +2110,8 @@ class OpenSprinkler extends IPSModule
 
             $e = [
                 'sid'             => $sid,
-                'name'            => $snames[$sid],
-                'group'           => $this->Group2String($stn_grp[$sid]),
+                'name'            => (isset($snames[$sid]) ? $snames[$sid] : ''),
+                'group'           => (isset($stn_grp[$sid]) ? $this->Group2String($stn_grp[$sid]) : ''),
                 'disabled'        => $this->idx_in_bytes($sid, $stn_dis),
                 'ignore_rain'     => $this->idx_in_bytes($sid, $ignore_rain),
                 'ignore_sn1'      => $this->idx_in_bytes($sid, $ignore_sn1),
@@ -2001,12 +2123,10 @@ class OpenSprinkler extends IPSModule
                 'use'             => $station_entry['use'],
                 'info'            => $info,
             ];
-
             if ($controller_infos['has_flowmeter'] && $controller_infos['feature'] == 'ASB') {
                 $e['flow_average'] = $stn_favg[$sid] / 100;
                 $e['flow_threshold'] = $stn_fas[$sid] / 100;
             }
-
             $station_infos[] = $e;
         }
 
@@ -2030,8 +2150,34 @@ class OpenSprinkler extends IPSModule
             $name = $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.5', '');
             $daterange = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.6', []);
 
-            $repV = [];
+            $enabled = $this->bit_test($flag, 0) == true;
+
+            $weather_adjustment = $this->bit_test($flag, 1) == true;
+
+            if ($this->bit_test($flag, 2) == true && $this->bit_test($flag, 3) == false) {
+                $day_restriction = self::$PROGRAM_DAY_RESTRICTION_ODD;
+            } elseif ($this->bit_test($flag, 2) == false && $this->bit_test($flag, 3) == true) {
+                $day_restriction = self::$PROGRAM_DAY_RESTRICTION_EVEN;
+            } else {
+                $day_restriction = self::$PROGRAM_DAY_RESTRICTION_NONE;
+            }
+
+            if ($this->bit_test($flag, 4) && $this->bit_test($flag, 5)) {
+                $schedule_type = self::$PROGRAM_SCHEDULE_TYPE_INTERVAL;
+            } else {
+                $schedule_type = self::$PROGRAM_SCHEDULE_TYPE_WEEKDAY;
+            }
+
             if ($this->bit_test($flag, 6)) {
+                $starttime_type = self::$PROGRAM_STARTTIME_TYPE_FIXED;
+            } else {
+                $starttime_type = self::$PROGRAM_STARTTIME_TYPE_REPATING;
+            }
+
+            $enable_date_range = $this->bit_test($flag, 7) == true;
+
+            $repV = [];
+            if ($starttime_type == self::$PROGRAM_STARTTIME_TYPE_FIXED) {
                 for ($n = 0; $n < count($start); $n++) {
                     $min = $start[$n];
                     if ($min != -1) {
@@ -2075,12 +2221,15 @@ class OpenSprinkler extends IPSModule
 
             $info = $this->TranslateFormat('Start at {$rep} with: {$stations}', ['{$rep}' => implode('/', $repV), '{$stations}' => implode(', ', $stationsV)]);
 
-            $program_infos[] = [
+            $e = [
                 'pid'                => $pid,
                 'name'               => $name,
-                'enabled'            => $this->bit_test($flag, 0),
-                'weather_adjustment' => $this->bit_test($flag, 1),
-                'flag'               => $flag,
+                'enabled'            => $enabled,
+                'weather_adjustment' => $weather_adjustment,
+                'day_restriction'    => $day_restriction,
+                'schedule_type'      => $schedule_type,
+                'starttime_type'     => $starttime_type,
+                'enable_date_range'  => $enable_date_range,
                 'days0'              => $days0,
                 'days1'              => $days1,
                 'start'              => $start,
@@ -2090,6 +2239,7 @@ class OpenSprinkler extends IPSModule
                 'use'                => $program_entry['use'],
                 'info'               => $info,
             ];
+            $program_infos[] = $e;
         }
 
         $this->SendDebug(__FUNCTION__, 'controller_infos=' . print_r($controller_infos, true), 0);
@@ -2341,18 +2491,16 @@ class OpenSprinkler extends IPSModule
                 }
 
                 $flag = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.0', '');
-                $days0 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.1', '');
-                $days1 = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.2', '');
-                $start = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.3', '');
-                $duration = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.4', '');
-                $name = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.5', '');
-                $daterange = $this->GetArrayElem($ja_data, 'programs.pd.' . $pid . '.6', '');
+
+                $enabled = $this->bit_test($flag, 0) == true;
+
+                $weather_adjustment = $this->bit_test($flag, 1) == true;
 
                 $infos = [];
-                if ($this->bit_test($flag, 0) == false) {
+                if ($enabled == false) {
                     $infos[] = $this->Translate('Disabled');
                 }
-                if ($this->bit_test($flag, 1)) {
+                if ($weather_adjustment) {
                     $infos[] = $this->Translate('Weather adjustment');
                 }
                 $total_duration = array_sum($duration);
@@ -2512,40 +2660,43 @@ class OpenSprinkler extends IPSModule
                             }
                         }
                     }
-                    $flow = $this->GetArrayElem($payload, 'flow', 0, $fnd);
-                    if ($fnd) {
-                        $usage = $duration * $flow;
+                    if ($this->HasWaterMeter() == false) {
+                        $flow = $this->GetArrayElem($payload, 'flow', 0, $fnd);
+                        if ($fnd) {
+                            $usage = ($duration / 60.0) * $flow;
 
-                        if ($this->Use4Ident('TotalWaterUsage')) {
-                            $old_total_usage = $this->GetValue('TotalWaterUsage');
-                            $total_usage = $old_total_usage + $usage;
-                            $this->SendDebug(__FUNCTION__, '... TotalDuration => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
-                            $this->SetValue('TotalWaterUsage', $total_usage);
-                        }
+                            if ($this->Use4Ident('TotalWaterUsage')) {
+                                $old_total_usage = $this->GetValue('TotalWaterUsage');
+                                $total_usage = $old_total_usage + $usage;
+                                $this->SendDebug(__FUNCTION__, '... TotalWaterUsage => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                                $this->SetValue('TotalWaterUsage', $total_usage);
+                            }
 
-                        if ($this->Use4Ident('DailyWaterUsage')) {
-                            $old_daily_usage = $this->GetValue('DailyWaterUsage');
-                            $daily_usage = $old_daily_usage + $usage;
-                            $this->SendDebug(__FUNCTION__, '... DailyDuration => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
-                            $this->SetValue('DailyWaterUsage', $daily_usage);
-                        }
+                            if ($this->Use4Ident('DailyWaterUsage')) {
+                                $old_daily_usage = $this->GetValue('DailyWaterUsage');
+                                $daily_usage = $old_daily_usage + $usage;
+                                $this->SendDebug(__FUNCTION__, '... DailyWaterUsage => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                                $this->SetValue('DailyWaterUsage', $daily_usage);
+                            }
 
-                        if ($this->Use4Ident('StationWaterUsage', $sid)) {
-                            $this->SetValue('StationWaterUsage' . $post, $usage);
-                        }
+                            if ($this->Use4Ident('StationWaterUsage', $sid)) {
+                                $this->SendDebug(__FUNCTION__, '... StationWaterUsage' . $post . ' => ' . $usage, 0);
+                                $this->SetValue('StationWaterUsage' . $post, $usage);
+                            }
 
-                        if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
-                            $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $post);
-                            $total_usage = $old_total_usage + $usage;
-                            $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
-                            $this->SetValue('StationTotalWaterUsage' . $post, $total_usage);
-                        }
+                            if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
+                                $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $post);
+                                $total_usage = $old_total_usage + $usage;
+                                $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                                $this->SetValue('StationTotalWaterUsage' . $post, $total_usage);
+                            }
 
-                        if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
-                            $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $post);
-                            $daily_usage = $old_daily_usage + $usage;
-                            $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
-                            $this->SetValue('StationDailyWaterUsage' . $post, $daily_usage);
+                            if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
+                                $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $post);
+                                $daily_usage = $old_daily_usage + $usage;
+                                $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                                $this->SetValue('StationDailyWaterUsage' . $post, $daily_usage);
+                            }
                         }
                     }
                 }
@@ -2558,6 +2709,7 @@ class OpenSprinkler extends IPSModule
         if (preg_match('#^sensor/flow$#', $topic, $r)) {
         }
 
+        // topic=sensor1, payload=Array<LF>(<LF>    [state] => 1<LF>)<LF>
         // topic=sensor2, payload=Array<LF>(<LF>    [state] => 1<LF>)<LF>
         if (preg_match('#^sensor(\d)$#', $topic, $r)) {
             $sni = $r[1];
@@ -2580,15 +2732,82 @@ class OpenSprinkler extends IPSModule
             IPS_SemaphoreLeave($this->SemaphoreID);
         }
 
-        // station/0/alert/flow
+        // topic=station/0/alert/flow, payload=Array<LF>(<LF>    [flow_rate] => %f<LF>    [duration] => 0<LF>    [alert_setpoint] => 0<LF>)<LF>
         if (preg_match('#^station/(\d+)/alert/flow$#', $topic, $r)) {
             $sid = $r[1];
+
+            if (IPS_SemaphoreEnter($this->SemaphoreID, self::$semaphoreTM) == false) {
+                $this->SendDebug(__FUNCTION__, 'unable to lock sempahore ' . $this->SemaphoreID, 0);
+                return;
+            }
+
+            $params = [
+                'sid'     => $sid,
+            ];
+
+            $station_list = (array) @json_decode($this->ReadPropertyString('station_list'), true);
+            for ($n = 0; $n < count($station_list); $n++) {
+                if ($station_list[$n]['sid'] == $sid) {
+                    $params['name'] = $station_list[$n]['name'];
+                    break;
+                }
+            }
+
+            $params['flow_rate'] = $this->GetArrayElem($payload, 'flow_rate', 0);
+            $params['duration'] = $this->GetArrayElem($payload, 'duration', 0);
+            $params['alert_setpoint'] = $this->GetArrayElem($payload, 'alert_setpoint', 0);
+
+            $s = 'Current flow rate of station "{$name}" is {$flow_rate} l/min, limit is {$alert_setpoint}';
+            $p = [
+                '{$name}'           => $params['name'],
+                '{$flow_rate}'      => $params['flow_rate'],
+                '{$alert_setpoint}' => $params['alert_setpoint'],
+            ];
+            $msg = $this->TranslateFormat($s, $p);
+
+            $this->Notify($msg, 'alert', $params);
+
+            IPS_SemaphoreLeave($this->SemaphoreID);
         }
 
-        // system
-        // raindelay
-        // weather
-        // monitoring
+        // topic=monitoring, payload=Array<LF>(<LF>    [warning] => ""<LF>    [prio] => 0<LF>    [value] => 0.0<LF>)<LF>
+        if (preg_match('#^monitoring$#', $topic, $r)) {
+            if (IPS_SemaphoreEnter($this->SemaphoreID, self::$semaphoreTM) == false) {
+                $this->SendDebug(__FUNCTION__, 'unable to lock sempahore ' . $this->SemaphoreID, 0);
+                return;
+            }
+
+            $params['warning'] = $this->GetArrayElem($payload, 'warning', 0);
+            switch ($this->GetArrayElem($payload, 'prio', 0)) {
+                case 0:
+                    $params['prio'] = $this->Translate('low');
+                    break;
+                case 1:
+                default:
+                    $params['prio'] = $this->Translate('mid');
+                    break;
+                case 2:
+                    $params['prio'] = $this->Translate('high');
+                    break;
+            }
+            $params['value'] = $this->GetArrayElem($payload, 'value', 0);
+
+            $s = 'Warning {$warning} with priority {$prio}, current value {$value}';
+            $p = [
+                '{$warning}' => $params['warning'],
+                '{$prio}'    => $params['prio'],
+                '{$value}'   => $params['value'],
+            ];
+            $msg = $this->TranslateFormat($s, $p);
+
+            $this->Notify($msg, 'warning', $params);
+
+            IPS_SemaphoreLeave($this->SemaphoreID);
+        }
+
+        // topic=system, payload=Array<LF>(<LF>    [state] => "started"<LF>)<LF>
+        // topic=raindelay, payload=Array<LF>(<LF>    [state] => 0<LF>)<LF>
+        // tpoic=weather, payload=Array<LF>(<LF>    [water level] => 0<LF>)<LF>
 
         // topic=availability, payload=online
         // topic=availability, payload=offline
@@ -3194,14 +3413,14 @@ class OpenSprinkler extends IPSModule
                 $t = $t_max;
             }
             $params = [
-                'sid' => ($sid - 1),
+                'sid' => $sid,
                 'en'  => 1,
                 't'   => $t,
             ];
         }
         if ($value == 1 /* Clear */) {
             $params = [
-                'sid'  => ($sid - 1),
+                'sid'  => $sid,
                 'en'   => 0,
                 't'    => 0,
                 'ssta' => 1,
@@ -3307,7 +3526,7 @@ class OpenSprinkler extends IPSModule
         return $data !== false;
     }
 
-    public function SetStationIgnoreSensor1(bool $value)
+    public function SetStationIgnoreSensor1(int $sid, bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -3342,7 +3561,7 @@ class OpenSprinkler extends IPSModule
         return $data !== false;
     }
 
-    public function SetStationIgnoreSensor2(bool $value)
+    public function SetStationIgnoreSensor2(int $sid, bool $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -3377,7 +3596,7 @@ class OpenSprinkler extends IPSModule
         return $data !== false;
     }
 
-    public function SetStationFlowThreshold(float $value)
+    public function SetStationFlowThreshold(int $sid, float $value)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -3600,6 +3819,7 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, 'no station_info for sid=' . $sid, 0);
             return false;
         }
+        $this->SendDebug(__FUNCTION__, 'sid=' . $sid . ', info=' . print_r($station_info, true), 0);
 
         if ($this->Enable4Ident('StationStartManually')) {
             $this->MaintainAction('StationStartManually', true);
@@ -3731,6 +3951,7 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, 'no program_info for pid=' . $pid, 0);
             return false;
         }
+        $this->SendDebug(__FUNCTION__, 'pid=' . $pid . ', info=' . print_r($program_info, true), 0);
 
         if ($this->Use4Ident('ProgramEnabled')) {
             $this->SetValue('ProgramEnabled', $program_info['enabled']);
@@ -3930,6 +4151,7 @@ class OpenSprinkler extends IPSModule
         $sensor_type1 = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
         $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
         $has_flowmeter = (bool) $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
+        $has_watermeter = $this->HasWaterMeter();
 
         $is_master = false;
         if (is_null($sid) == false) {
@@ -3977,6 +4199,8 @@ class OpenSprinkler extends IPSModule
                 break;
             case 'DailyWaterUsage':
             case 'TotalWaterUsage':
+                $r = $remote_extension == false && ($has_flowmeter || $has_watermeter);
+                break;
             case 'WaterFlowrate':
                 $r = $remote_extension == false && $has_flowmeter;
                 break;
@@ -4006,7 +4230,7 @@ class OpenSprinkler extends IPSModule
             case 'StationDailyWaterUsage':
             case 'StationTotalWaterUsage':
             case 'StationWaterUsage':
-                $r = $remote_extension == false && $has_flowmeter && $is_master == false;
+                $r = $remote_extension == false && ($has_flowmeter || $has_watermeter) && $is_master == false;
                 break;
             case 'StationFlowAverage':
             case 'StationFlowThreshold':
@@ -4137,5 +4361,37 @@ class OpenSprinkler extends IPSModule
         }
 
         return $r;
+    }
+
+    private function Notify($message, $severity, $params)
+    {
+        $notification_scriptID = $this->ReadPropertyInteger('notification_scriptID');
+        if (IPS_ScriptExists($notification_scriptID)) {
+            $params['instanceID'] = $this->InstanceID;
+            $params['message'] = $message;
+            $params['severity'] = $severity;
+            @$s = IPS_RunScriptWaitEx($notification_scriptID, $params);
+            $this->SendDebug(__FUNCTION__, '... IPS_RunScriptWaitEx(' . $notification_scriptID . ', ' . print_r($params, true) . ')=' . $s, 0);
+        }
+    }
+
+    private function HasWaterMeter()
+    {
+        $waterMeterID = $this->ReadPropertyInteger('WaterMeterID');
+
+        return IPS_VariableExists($waterMeterID);
+    }
+
+    private function GetWaterMeter()
+    {
+        $waterMeterID = $this->ReadPropertyInteger('WaterMeterID');
+        $waterMeterFactor = $this->ReadPropertyFloat('WaterMeterFactor');
+
+        if (IPS_VariableExists($waterMeterID) == false) {
+            return false;
+        }
+        $water_counter = (float) GetValue($waterMeterID) * $waterMeterFactor;
+        $this->SendDebug(__FUNCTION__, 'water_counter=' . $water_counter . ' l', 0);
+        return $water_counter;
     }
 }

@@ -121,6 +121,16 @@ trait OpenSprinklerLocalLib
     public static $PROGRAM_START_WITHOUT_WEATHER = 1;
     public static $PROGRAM_START_WITH_WEATHER = 2;
 
+    public static $PROGRAM_DAY_RESTRICTION_NONE = 0;
+    public static $PROGRAM_DAY_RESTRICTION_ODD = 1;
+    public static $PROGRAM_DAY_RESTRICTION_EVEN = 2;
+
+    public static $PROGRAM_SCHEDULE_TYPE_WEEKDAY = 0;
+    public static $PROGRAM_SCHEDULE_TYPE_INTERVAL = 1;
+
+    public static $PROGRAM_STARTTIME_TYPE_REPATING = 0;
+    public static $PROGRAM_STARTTIME_TYPE_FIXED = 1;
+
     private function InstallVarProfiles(bool $reInstall = false)
     {
         if ($reInstall) {
@@ -159,7 +169,7 @@ trait OpenSprinklerLocalLib
         $this->CreateVarProfile('OpenSprinkler.Duration', VARIABLETYPE_INTEGER, ' s', 0, 0, 0, 0, 'Hourglass', [], $reInstall);
 
         $associations = [
-            ['Wert' => 250, 'Name' => '%d%%', 'Farbe' => -1],
+            ['Wert' => 1, 'Name' => '%d%%', 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.WateringLevel', VARIABLETYPE_INTEGER, '', 0, 250, 0, 1, '', $associations, $reInstall);
 
@@ -295,11 +305,11 @@ trait OpenSprinklerLocalLib
     private function WeatherMethodMapping()
     {
         return [
-            self::$WEATHER_METHOD_MANUAL      => 'Manual operation',
-            self::WEATHER_METHOD_ZIMMERMAN    => 'Zimmermann',
-            self::WEATHER_METHOD_AUTORAINDELY => 'Auto rain delay',
-            self::WEATHER_METHOD_ETO          => 'ETo',
-            self::WEATHER_METHOD_MONTHLY      => 'Monthly',
+            self::$WEATHER_METHOD_MANUAL       => 'Manual operation',
+            self::$WEATHER_METHOD_ZIMMERMAN    => 'Zimmermann',
+            self::$WEATHER_METHOD_AUTORAINDELY => 'Auto rain delay',
+            self::$WEATHER_METHOD_ETO          => 'ETo',
+            self::$WEATHER_METHOD_MONTHLY      => 'Monthly',
         ];
     }
 
@@ -310,6 +320,64 @@ trait OpenSprinklerLocalLib
             $s = $this->Translate($weatherMethodMap[$weatherMethod]);
         } else {
             $s = $this->Translate('Unknown weather method') . ' ' . $weatherMethod;
+        }
+        return $s;
+    }
+
+    private function ProgramDayRestrictionMapping()
+    {
+        return [
+            self::$PROGRAM_DAY_RESTRICTION_NONE => 'none',
+            self::$PROGRAM_DAY_RESTRICTION_ODD  => 'odd',
+            self::$PROGRAM_DAY_RESTRICTION_EVEN => 'even',
+        ];
+    }
+
+    private function ProgramDayRestriction2String($programDayRestriction)
+    {
+        $programDayRestrictionMap = $this->ProgramDayRestrictionMapping();
+        if (isset($programDayRestrictionMap[$programDayRestriction])) {
+            $s = $this->Translate($programDayRestrictionMap[$programDayRestriction]);
+        } else {
+            $s = $this->Translate('Unknown program day restriction') . ' ' . $programDayRestriction;
+        }
+        return $s;
+    }
+
+    private function ProgramScheduleTypeMapping()
+    {
+        return [
+            self::$PROGRAM_SCHEDULE_TYPE_WEEKDAY     => 'weekday',
+            self::$PROGRAM_SCHEDULE_TYPE_INTERVAL    => 'interval',
+        ];
+    }
+
+    private function ProgramScheduleType2String($programScheduleType)
+    {
+        $programScheduleTypeMap = $this->ProgramScheduleTypeMapping();
+        if (isset($programScheduleTypeMap[$programScheduleType])) {
+            $s = $this->Translate($programScheduleTypeMap[$programScheduleType]);
+        } else {
+            $s = $this->Translate('Unknown program schedule type') . ' ' . $programScheduleType;
+        }
+        return $s;
+    }
+
+    private function ProgramStarttimeTypeMapping()
+    {
+        return [
+            self::$PROGRAM_STARTTIME_TYPE_REPATING     => 'repeating',
+            self::$PROGRAM_STARTTIME_TYPE_FIXED        => 'fixed',
+        ];
+    }
+
+    private function ProgramStarttimeType2String($programStarttimeType)
+    {
+        $programStarttimeTypeMap = $this->ProgramStarttimeTypeMapping();
+        if (isset($programStarttimeTypeMap[$programStarttimeType])) {
+            $s = $this->Translate($programStarttimeTypeMap[$programStarttimeType]);
+        } else {
+            $s = $this->Translate('Unknown program starttime type') . ' ' . $programStarttimeType;
         }
         return $s;
     }

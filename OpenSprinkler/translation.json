@@ -22,6 +22,12 @@
 
 			"Controller configuration": "Konfiguration der Steuereinheit",
 
+			"Optional external water meter": "Optionaler externer Wasserzähler",
+			"Used instead of the internal water flow sensor of the OpenSprinkler controller":
+				"Wird anstelle des internen Wasserfluss-Sensors des OpenSprinkler-Controllers verwendet",
+			"Counter variable": "Zählervariable",
+			"... conversion factor to liter": "... Umrechnungsfaktor in Liter",
+
 			"Stations": "Bewässerungskreise",
 			"Sensors": "Sensoren",
 			"Programs": "Programme",
@@ -73,6 +79,15 @@
 			"Query interval": "Abfrageintervall",
 			"Send variables interval": "Intervall der Übertragung der Variablen",
 			"Seconds": "Sekunden",
+
+			"Script to do notifications": "Skript zur Durchführung von Benachrichtigungen",
+
+			"Optional external water meter": "Optionaler externer Wasserzähler",
+			"Used instead of the internal water flow sensor of the OpenSprinkler controller":
+				"Wird anstelle des internen Wasserdurchfluss-Sensors der OpenSprinkler-Steuerung verwendet",
+			"Counter variable": "Zähler-Variable",
+			" ... conversion factor to liter": " ... Umrechnungsfaktor in Liter",
+
 
 			"Variables for the whole system": "Variablen für das gesamte System",
 			"Variables for daily watering time of the system": "Variablen für die tägliche Bewässerungszeit des Systems",
@@ -174,6 +189,15 @@
 			"Wifi signal strenght": "WLAN-Signalstärke",
 
 			"Last update": "Letzte Aktualisierung",
+
+			"Current flow rate of station \"{$name}\" is {$flow_rate} l/min, limit is {$alert_setpoint}":
+				"Aktuelle Durchflussrate der Station \"{$name}\" ist {$flow_rate} l/min, Grenzwert ist {$alert_setpoint}",
+
+			"low": "niedrig",
+			"mid": "mittel",
+			"high": "hoch",
+			"Warning {$warning} with priority {$prio}, current value {$value}":
+				"Warnung {$warning} mit Priorität {$prio}, aktueller Wert {$value}",
 
 			"__actions__": "",
 			"Query status": "Status abfragen",

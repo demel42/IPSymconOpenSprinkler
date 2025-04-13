@@ -79,6 +79,11 @@ Es werden folgende Variablenprofile angelegt:
 
 ## 7. Versions-Historie
 
+- 1.2 @ 13.04.2025 17:17
+  - Neu: externe Wasseruhr zur Ermittlung des Wasserverbrauchs
+  - Neu: Script zur Ausgabe von Warnungen (derzeit Strömungsmenge und Monitoring (Bestandteil der Pakets "analogen Sensoren")
+  - Fix: diverne Anpassungen und Korrekturen
+
 - 1.1 @ 23.03.2025 15:07
   - Fix: Änderung in der API: der Abruf "je" liefert einen Leerstring, denn keine special-stations definiert sind
   - Fix: fehlende Übersetzung

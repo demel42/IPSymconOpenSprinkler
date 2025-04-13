@@ -108,6 +108,22 @@
 			"Monthly": "Monatlich",
 			"Unknown weather method": "Unbekannte Wetter-Methode",
 
+			"__options__": "ProgramDayRestriction",
+			"none": "keine",
+			"odd": "ungerade",
+			"even": "gerade",
+			"Unknown program day restriction": "Unbekannte Programm-Tageseinschränkung",
+
+			"__options__": "ProgramScheduleType",
+			"weekday": "Wochentag",
+			"interval": "Intervall",
+			"Unknown program schedule type": "Unbekannte Programmart-Typ",
+
+			"__options__": "ProgramStarttimeType",
+			"repeating": "wiederholt",
+			"fixed": "fest",
+			"Unknown program starttime type": "Unbekannte Programm-Startzeiten-Typ",
+
 			"__status__": "",
 			"Instance is inactive (unauthorized)": "Instanz ist inaktiv (Authorisierung fehlerhaft)",
 			"Instance is inactive (forbidden)": "Instanz ist inaktiv (fehlende Berechtigung)",
