@@ -1,5 +1,5 @@
 <?php
-  
+
 declare(strict_types=1);
 
 $scriptName = IPS_GetName($_IPS['SELF']) . '(' . $_IPS['SELF'] . ')';

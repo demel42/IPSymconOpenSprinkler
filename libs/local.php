@@ -128,7 +128,7 @@ trait OpenSprinklerLocalLib
     public static $PROGRAM_SCHEDULE_TYPE_WEEKDAY = 0;
     public static $PROGRAM_SCHEDULE_TYPE_INTERVAL = 1;
 
-    public static $PROGRAM_STARTTIME_TYPE_REPATING = 0;
+    public static $PROGRAM_STARTTIME_TYPE_REPEATING = 0;
     public static $PROGRAM_STARTTIME_TYPE_FIXED = 1;
 
     private function InstallVarProfiles(bool $reInstall = false)
@@ -245,6 +245,29 @@ trait OpenSprinklerLocalLib
 
         $this->CreateVarProfile('OpenSprinkler.Current', VARIABLETYPE_INTEGER, ' mA', 0, 0, 0, 0, '', [], $reInstall);
 
+        $associations = [
+            ['Wert' => self::$PROGRAM_DAY_RESTRICTION_NONE, 'Name' => $this->Translate('none'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_DAY_RESTRICTION_ODD, 'Name' => $this->Translate('odd'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_DAY_RESTRICTION_EVEN, 'Name' => $this->Translate('even'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.ProgramDayRestriction', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => self::$PROGRAM_SCHEDULE_TYPE_WEEKDAY, 'Name' => $this->Translate('weekday'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_SCHEDULE_TYPE_INTERVAL, 'Name' => $this->Translate('Interval'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.ProgramScheduleType', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => self::$PROGRAM_STARTTIME_TYPE_REPEATING, 'Name' => $this->Translate('repeating'), 'Farbe' => -1],
+            ['Wert' => self::$PROGRAM_STARTTIME_TYPE_FIXED, 'Name' => $this->Translate('fixed'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.ProgramStarttimeType', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $this->CreateVarProfile('OpenSprinkler.IrrigationDurationHours', VARIABLETYPE_INTEGER, ' h', 0, 18, 1, 0, 'Hourglass', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.IrrigationDurationMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+        $this->CreateVarProfile('OpenSprinkler.IrrigationDurationSeconds', VARIABLETYPE_INTEGER, ' s', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
+
         $this->CreateVarProfile('OpenSprinkler.WaterFlowrate', VARIABLETYPE_FLOAT, ' l/min', 0, 100, 0.1, 2, '', [], $reInstall);
         $this->CreateVarProfile('OpenSprinkler.WaterFlowmeter', VARIABLETYPE_FLOAT, ' l', 0, 0, 0, 1, 'Gauge', [], $reInstall);
     }
@@ -344,11 +367,24 @@ trait OpenSprinklerLocalLib
         return $s;
     }
 
+    private function ProgramDayAsOptions()
+    {
+        $maps = $this->ProgramDayMapping();
+        $opts = [];
+        foreach ($maps as $u => $e) {
+            $opts[] = [
+                'caption' => $e,
+                'value'   => $u,
+            ];
+        }
+        return $opts;
+    }
+
     private function ProgramScheduleTypeMapping()
     {
         return [
-            self::$PROGRAM_SCHEDULE_TYPE_WEEKDAY     => 'weekday',
-            self::$PROGRAM_SCHEDULE_TYPE_INTERVAL    => 'interval',
+            self::$PROGRAM_SCHEDULE_TYPE_WEEKDAY  => 'weekday',
+            self::$PROGRAM_SCHEDULE_TYPE_INTERVAL => 'interval',
         ];
     }
 
@@ -363,11 +399,24 @@ trait OpenSprinklerLocalLib
         return $s;
     }
 
+    private function ProgramScheduleTypeAsOptions()
+    {
+        $maps = $this->ProgramScheduleTypeMapping();
+        $opts = [];
+        foreach ($maps as $u => $e) {
+            $opts[] = [
+                'caption' => $e,
+                'value'   => $u,
+            ];
+        }
+        return $opts;
+    }
+
     private function ProgramStarttimeTypeMapping()
     {
         return [
-            self::$PROGRAM_STARTTIME_TYPE_REPATING     => 'repeating',
-            self::$PROGRAM_STARTTIME_TYPE_FIXED        => 'fixed',
+            self::$PROGRAM_STARTTIME_TYPE_REPEATING => 'repeating',
+            self::$PROGRAM_STARTTIME_TYPE_FIXED     => 'fixed',
         ];
     }
 
@@ -380,5 +429,18 @@ trait OpenSprinklerLocalLib
             $s = $this->Translate('Unknown program starttime type') . ' ' . $programStarttimeType;
         }
         return $s;
+    }
+
+    private function ProgramStarttimeTypeAsOptions()
+    {
+        $maps = $this->ProgramStarttimeTypeMapping();
+        $opts = [];
+        foreach ($maps as $u => $e) {
+            $opts[] = [
+                'caption' => $e,
+                'value'   => $u,
+            ];
+        }
+        return $opts;
     }
 }

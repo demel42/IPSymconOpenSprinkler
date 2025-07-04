@@ -88,7 +88,6 @@
 			"Counter variable": "Zähler-Variable",
 			" ... conversion factor to liter": " ... Umrechnungsfaktor in Liter",
 
-
 			"Variables for the whole system": "Variablen für das gesamte System",
 			"Variables for daily watering time of the system": "Variablen für die tägliche Bewässerungszeit des Systems",
 			"Variables for daily water usage of the system": "Variablen für den täglichen Wasserverbrauch des Systems",
@@ -106,6 +105,9 @@
 			" ... by activating this switch, additional variables are created and logged as counters":
 				" ... durch Aktivierung dieses Schalters werden zusätzliche Variablen erstellt und als Zähler geloggt",
 			"Other configurations": "Sonstige Konfigurationen",
+
+			"Maximum age of log until deletion": "maximales Alter von Logs bis zur Löschung",
+			"days": "Tage",
 
 			"Disabled": "Ausgeschaltet",
 
@@ -190,8 +192,12 @@
 
 			"Last update": "Letzte Aktualisierung",
 
-			"Current flow rate of station \"{$name}\" is {$flow_rate} l/min, limit is {$alert_setpoint}":
-				"Aktuelle Durchflussrate der Station \"{$name}\" ist {$flow_rate} l/min, Grenzwert ist {$alert_setpoint}",
+			"__media__": "",
+			"Log data": "Logdaten",
+
+			"__notification__": "",
+			"Current flow rate of station \"{$station}\" is {$flow_rate} l/min, limit is {$alert_setpoint}":
+				"Aktuelle Durchflussrate der Station \"{$station}\" ist {$flow_rate} l/min, Grenzwert ist {$alert_setpoint}",
 
 			"low": "niedrig",
 			"mid": "mittel",
@@ -205,6 +211,7 @@
 			"Adjust variable names": "Variablennamen anpassen",
 			"This adjusts the first part von the variable name acording to the retrived configuration":
 				"Hiermit wird der erste Teil des Variablennamens entsprechend der abgerufenen Konfiguration angepasst",
+			"Get controller logdata": "Controller-Logdaten abrufen",
 
 			"__end__": ""
 		}
