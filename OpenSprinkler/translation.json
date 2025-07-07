@@ -80,8 +80,6 @@
 			"Send variables interval": "Intervall der Übertragung der Variablen",
 			"Seconds": "Sekunden",
 
-			"Script to do notifications": "Skript zur Durchführung von Benachrichtigungen",
-
 			"Optional external water meter": "Optionaler externer Wasserzähler",
 			"Used instead of the internal water flow sensor of the OpenSprinkler controller":
 				"Wird anstelle des internen Wasserdurchfluss-Sensors der OpenSprinkler-Steuerung verwendet",
@@ -106,6 +104,16 @@
 				" ... durch Aktivierung dieses Schalters werden zusätzliche Variablen erstellt und als Zähler geloggt",
 			"Other configurations": "Sonstige Konfigurationen",
 
+			"Summary": "Zusammenfassung",
+			"HTML box with summary": "HTML-Box mit Zusammenfassung",
+			"Number of previous days": "Anzahl Vortage",
+ 			"Group by": "Gruppieren nach",
+			"Script for alternate summary": "Skript für alternative Zusammenfassung",
+
+			"Notifications": "Benachrichtigungen",
+			"Script to do notifications": "Skript zur Durchführung von Benachrichtigungen",
+
+			"Log": "Protokoll",
 			"Maximum age of log until deletion": "maximales Alter von Logs bis zur Löschung",
 			"days": "Tage",
 
@@ -192,12 +200,29 @@
 
 			"Last update": "Letzte Aktualisierung",
 
+			"Summary of irrigation": "Zusammenfassung der Bewässerung",
+			"Number of previous days in summary": "Anzahl der Vortage in der Zusammenfassung",
+			"Group by of summary": "Gruppierung der Zusammenfassung",
+
 			"__media__": "",
 			"Log data": "Logdaten",
 
 			"__notification__": "",
 			"Current flow rate of station \"{$station}\" is {$flow_rate} l/min, limit is {$alert_setpoint}":
 				"Aktuelle Durchflussrate der Station \"{$station}\" ist {$flow_rate} l/min, Grenzwert ist {$alert_setpoint}",
+
+			"__function__": "__BuildSummary__",
+			"{$from} until {$until}": "{$from} bis {$until}",
+			"{$title} - Usage {$usage} l": "{$title} – Verbrauch {$usage} l",
+			"Station": "Bewässerungskreis",
+			"Start time": "Startzeit",
+			"Run time": "Laufzeit",
+			"End time": "Endzeit",
+			"Flow": "Durchfluss",
+			"Usage": "Verbrauch",
+			"{$flow} l/min": "{$flow} l/min",
+			"{$usage} l": "{$usage} l",
+			"No irrigations": "Keine Bewässerung",
 
 			"low": "niedrig",
 			"mid": "mittel",

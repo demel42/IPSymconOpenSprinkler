@@ -124,6 +124,15 @@
 			"fixed": "fest",
 			"Unknown program starttime type": "Unbekannte Programm-Startzeiten-Typ",
 
+			"__options__": "LogGroupBy",
+			"None": "Keine",
+			"Date": "Datum",
+			"Station ID": "Bewässerungskreis-ID",
+			"Station name": "Bewässerungskreis-Name",
+
+			"__options__": "LogDays",
+			"today only": "nur heute",
+
 			"__status__": "",
 			"Instance is inactive (unauthorized)": "Instanz ist inaktiv (Authorisierung fehlerhaft)",
 			"Instance is inactive (forbidden)": "Instanz ist inaktiv (fehlende Berechtigung)",

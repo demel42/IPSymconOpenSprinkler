@@ -131,6 +131,11 @@ trait OpenSprinklerLocalLib
     public static $PROGRAM_STARTTIME_TYPE_REPEATING = 0;
     public static $PROGRAM_STARTTIME_TYPE_FIXED = 1;
 
+    public static $LOG_GROUPBY_NONE = 0;
+    public static $LOG_GROUPBY_DATE = 1;
+    public static $LOG_GROUPBY_SID = 2;
+    public static $LOG_GROUPBY_SNAME = 3;
+
     private function InstallVarProfiles(bool $reInstall = false)
     {
         if ($reInstall) {
@@ -263,6 +268,19 @@ trait OpenSprinklerLocalLib
             ['Wert' => self::$PROGRAM_STARTTIME_TYPE_FIXED, 'Name' => $this->Translate('fixed'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.ProgramStarttimeType', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+
+        $associations = [
+            ['Wert' => self::$LOG_GROUPBY_NONE, 'Name' => $this->Translate('None'), 'Farbe' => -1],
+            ['Wert' => self::$LOG_GROUPBY_DATE, 'Name' => $this->Translate('Date'), 'Farbe' => -1],
+            ['Wert' => self::$LOG_GROUPBY_SID, 'Name' => $this->Translate('Station ID'), 'Farbe' => -1],
+            ['Wert' => self::$LOG_GROUPBY_SNAME, 'Name' => $this->Translate('Station name'), 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.SummaryGroupBy', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);
+        $associations = [
+            ['Wert' => 0, 'Name' => $this->Translate('today only'), 'Farbe' => -1],
+            ['Wert' => 1, 'Name' => '%d', 'Farbe' => -1],
+        ];
+        $this->CreateVarProfile('OpenSprinkler.SummaryDays', VARIABLETYPE_INTEGER, '', 0, 90, 1, 0, 'Hourglass', $associations, $reInstall);
 
         $this->CreateVarProfile('OpenSprinkler.IrrigationDurationHours', VARIABLETYPE_INTEGER, ' h', 0, 18, 1, 0, 'Hourglass', [], $reInstall);
         $this->CreateVarProfile('OpenSprinkler.IrrigationDurationMinutes', VARIABLETYPE_INTEGER, ' m', 0, 59, 1, 0, 'Hourglass', [], $reInstall);
@@ -434,6 +452,29 @@ trait OpenSprinklerLocalLib
     private function ProgramStarttimeTypeAsOptions()
     {
         $maps = $this->ProgramStarttimeTypeMapping();
+        $opts = [];
+        foreach ($maps as $u => $e) {
+            $opts[] = [
+                'caption' => $e,
+                'value'   => $u,
+            ];
+        }
+        return $opts;
+    }
+
+    private function LogGroupByMapping()
+    {
+        return [
+            self::$LOG_GROUPBY_NONE    => 'None',
+            self::$LOG_GROUPBY_DATE    => 'Date',
+            self::$LOG_GROUPBY_SID     => 'Station ID',
+            self::$LOG_GROUPBY_SNAME   => 'Station name',
+        ];
+    }
+
+    private function LogGroupByAsOptions()
+    {
+        $maps = $this->LogGroupByMapping();
         $opts = [];
         foreach ($maps as $u => $e) {
             $opts[] = [

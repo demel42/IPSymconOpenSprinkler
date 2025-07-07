@@ -39,9 +39,59 @@ Alternativ kann das Modul über [Module Control](https://www.symcon.de/service/d
 
 ### b. Einrichtung in IPS
 
+Die Instanz ist mit einem MQTT-Server verbunden; hier kann der eventuell bereits vorhandene MQTT-Server mit der Portnummer ☆1883* verwendet werden; ich empfehle aber zur besseren Fehlersuche einen eigenen MQTT-Server auf einem anderen Port einzuricht - dem muss natprlich auf dem OpenSprinkler-Controller auch so angegeben werden.
+
 ## 4. Funktionsreferenz
 
-alle Funktionen sind über _RequestAction_ der jew. Variablen ansteuerbar
+`OpenSprinkler_SetControllerEnabled(int $InstanzID, bool $enable)`<br>
+Controller ausschalten (*enable*=**true**) ode einschalten (*enable*=**false**)
+
+`OpenSprinkler_SetWateringLevel(int $InstanzID, int $level)`<br>
+Bewässerungslevel (prozentuale Veränderung der eingestellten Bewässeungszeiten) manuell setzen, *level* darf den Wert von 0 .. 250 haben.
+
+`OpenSprinkler_SetRainDelay(int $InstanzID, int $mode, int $hour)`<br>
+Bewässerung aussetzen (*mode*=**0**), die Anzahl der Stunden (*hour*) kann 0 .. 32767 annehmen; *mode*=**1** (oder *hour*=**0**) hebt die Aussetzung auf.<br>
+Wichtig: die Bezeichnung *Delay* ist irreführend, in der ausgesetzten Zeit nicht durchgeführte Bewässerungen werden nicht nachgeholt.
+
+`OpenSprinkler_StopAllStations(int $InstanzID)`<br>
+Stoppen aller laufenden Bewässerungskreise.
+
+`OpenSprinkler_StationStartManually(int $InstanzID, int $sid, int $mode, int $seconds)`<br>
+Einen Bewässerungskreis manuell starten (*mode*=**0**), die Dauer (*seconds*) kann von 0 .. 64800 reichen; *mode*=**1** (oder *seconds*=**0**) stoppt den Kreis.
+Wenn der Kreis gestoppt wird, wird ein eventuell folgender Kreis aufrücken.
+
+`OpenSprinkler_PauseQueue(int $InstanzID, int $mode, int $seconds)`<br>
+Bewässerung pausieren (*mode*=**0**), die Dauer (*seconds*) darf nicht negativ sein; *mode*=**1** (oder *seconds*=**0**) hebt beendet die Pause..
+Nach Ende der Pause werden laufende Bewässeungen weiter ausgeführt.
+
+`OpenSprinkler_SetStationDisabled(int $InstanzID, int $sid, bool $disable)`<br>
+Den Bewässerungskreis mit der ID *sid* (0-relativ) ausschalten (*disable*=**true**) oder einschalten (*disable*=**false**).
+
+`OpenSprinkler_SetStationIgnoreRain(int $InstanzID, int $sid, bool $ignore)`<br>
+Im Bewässerungskreis mit der ID *sid* (0-relativ) die Beachtung von *RainDelay* ignorieren (*ignore*=**true**) oder beachten (*ignore*=**false**).
+
+`OpenSprinkler_SetStationIgnoreSensor1(int $InstanzID, int $sid, bool $ignore)`<br>
+Im Bewässerungskreis mit der ID *sid* (0-relativ) den Sensor 1 ignorieren (*ignore*=**true**) oder beachten (*ignore*=**false**).<br>
+Wichtig: das gilt nur, wenn der Sensor 1 nicht als Durchflusssensor eingerichtet ist.
+
+`OpenSprinkler_SetStationIgnoreSensor2(int $InstanzID, int $sid, bool $ignore)`<br>
+Im Bewässerungskreis mit der ID *sid* (0-relativ) den Sensor 2 ignorieren (*ignore*=**true**) oder beachten (*ignore*=**false**).
+
+`OpenSprinkler_SetStationFlowThreshold(int $InstanzID, int $sid, float $value)`<br>
+Im Bewässerungskreis mit der ID *sid* (0-relativ) den Wert für die Strömungsüberwachung (*value*) setzen; der Wert muss natürlich größßer als 0 sein.
+
+`OpenSprinkler_SetProgramEnabled(int $InstanzID, int $pid, bool $enable)`<br>
+Das Programm mit der ID *pid* (0-relativ) einschalten (*enable*=**true**) oder ausschalten (*enable*=**false**).
+
+`OpenSprinkler_SetProgramWeatherAdjust(int $InstanzID, int $pid, bool $enable)`<br>
+Im Programm mit der ID *pid* (0-relativ) die Beachtung von wetterbasierten Modifikationen der Bewässerungszeit einschalten (*enable*=**true**) oder ausschalten (*enable*=**false**).
+
+`OpenSprinkler_ProgramStartManually(int $InstanzID, int $pid, bool $weatherAdjustmnent)`<br>
+Das Programm mit der ID *pid* (0-relativ) starten unter Berücvksichtigung der wetterbasierten Anpassungen (*weatherAdjustment*=**true**) oder ohne (*weatherAdjustment*=**false**).
+
+`OpenSprinkler_GetLogs(int $InstanzID, int $from, int $until, int $groupBy)`<br>
+Instanz-interne Protokolle abrufen, Zeitstempel (Sekunden ab dem 1.1.1970) *von*/*bin* und der Gruppierung (*groupBy*: **0**=ohne, **1**=Datum, **2**=Bewässerungskreis-ID und **3**=Bewässerungskreis-Name).
+Zurückgeliefert wird eine JSON-kodierte Struktur, die recht selbserklärend sein sollte.
 
 ## 5. Konfiguration
 
@@ -63,8 +113,41 @@ alle Funktionen sind über _RequestAction_ der jew. Variablen ansteuerbar
 
 Es werden folgende Variablenprofile angelegt:
 * Boolean<br>
+OpenSprinkler.SensorState,
+OpenSprinkler.YesNo,
+
 * Integer<br>
+OpenSprinkler.Current,
+OpenSprinkler.Duration,
+OpenSprinkler.IrrigationDurationHours,
+OpenSprinkler.IrrigationDurationMinutes,
+OpenSprinkler.IrrigationDurationSeconds,
+OpenSprinkler.PauseQueueHours,
+OpenSprinkler.PauseQueueMinutes,
+OpenSprinkler.PauseQueueSeconds,
+OpenSprinkler.ProgramDayRestriction,
+OpenSprinkler.ProgramScheduleType,
+OpenSprinkler.ProgramStart,
+OpenSprinkler.ProgramStarttimeType,
+OpenSprinkler.RainDelayAction,
+OpenSprinkler.RainDelayDays,
+OpenSprinkler.RainDelayHours,
+OpenSprinkler.RebootCause,
+OpenSprinkler.StationStartManuallyHours,
+OpenSprinkler.StationStartManuallyMinutes,
+OpenSprinkler.StationStartManuallySeconds,
+OpenSprinkler.StationState,
+OpenSprinkler.StopAllStations,
+OpenSprinkler.SummaryDays,
+OpenSprinkler.SummaryGroupBy,
+OpenSprinkler.WateringLevel,
+OpenSprinkler.WeatherQueryStatus,
+OpenSprinkler.Wifi,
+
 * Float<br>
+OpenSprinkler.WaterFlowmeter,
+OpenSprinkler.WaterFlowrate,
+
 * String<br>
 
 ## 6. Anhang
@@ -78,6 +161,15 @@ Es werden folgende Variablenprofile angelegt:
 ### Quellen
 
 ## 7. Versions-Historie
+
+- 1.3 @ 07.07.2025 17:51
+  - Neu: internes Log incl. Abruffunktion GetLogs()
+  - Neu: testhalber Abruf und Auswertung vom Log des OpenSprinkler-Controllers; Ausgabe im Debug
+  - Neu: Rundung von Wasserdurchfluß und Wasserverbrauch
+  - Verbesserung: vervollständigte Auswertung von MQTT 'station/#' mit Berücksichtigung des externen Wasserzählers  und Erzeugung des internen Log-Eintrags.
+  - Verbesserung: die MQTT-Nachrichten (insbesondere auch 'station/#') kommen nicht in der Reihenfolge des realen Ablaufs, das wird nun abgefangen
+  - Verbesserung: README überarbeitet
+  - Fix: diverse Anpassungen und Korrekturen
 
 - 1.2 @ 13.04.2025 17:17
   - Neu: externe Wasseruhr zur Ermittlung des Wasserverbrauchs

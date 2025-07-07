@@ -85,6 +85,9 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyBoolean('with_station_usage', true);
         $this->RegisterPropertyBoolean('with_station_flow', true);
 
+        $this->RegisterPropertyBoolean('with_summary', false);
+        $this->RegisterPropertyInteger('summary_scriptID', 0);
+
         $this->RegisterPropertyInteger('log_max_age', 90);
 
         $this->RegisterPropertyInteger('notification_scriptID', 1);
@@ -96,7 +99,7 @@ class OpenSprinkler extends IPSModule
         $this->RegisterAttributeString('station_infos', json_encode([]));
         $this->RegisterAttributeString('program_infos', json_encode([]));
 
-        $this->RegisterAttributeString('cur_run', json_encode([]));
+        $this->RegisterAttributeString('cur_runs', json_encode([]));
         $this->RegisterAttributeInteger('daily_reference', 0);
 
         $this->RegisterAttributeString('UpdateInfo', json_encode([]));
@@ -173,8 +176,9 @@ class OpenSprinkler extends IPSModule
         parent::ApplyChanges();
 
         $propertyNames = [
+            'summary_scriptID',
             'notification_scriptID',
-            'WaterMeterID'
+            'WaterMeterID',
         ];
         $this->MaintainReferences($propertyNames);
 
@@ -293,6 +297,14 @@ class OpenSprinkler extends IPSModule
         }
 
         $vpos = 151;
+        $with_summary = $this->ReadPropertyBoolean('with_summary');
+        $this->MaintainVariable('Summary', $this->Translate('Summary of irrigation'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $with_summary);
+        $this->MaintainVariable('SummaryDays', $this->Translate('Number of previous days in summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryDays', $vpos++, $with_summary);
+        $this->MaintainVariable('SummaryGroupBy', $this->Translate('Group by of summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryGroupBy', $vpos++, $with_summary);
+        if ($with_summary) {
+            $this->MaintainAction('SummaryDays', true);
+            $this->MaintainAction('SummaryGroupBy', true);
+        }
 
         $vpos = 201;
         $u = $this->Use4Ident('SensorState_1');
@@ -1162,17 +1174,71 @@ class OpenSprinkler extends IPSModule
                     ],
                 ],
                 [
-                    'type'    => 'NumberSpinner',
-                    'name'    => 'log_max_age',
-                    'caption' => 'Maximum age of log until deletion',
-                    'minimum' => 0,
-                    'suffix'  => 'days'
+                    'type'    => 'Label',
+                    'caption' => 'Summary',
                 ],
                 [
-                    'type'    => 'SelectScript',
-                    'name'    => 'notification_scriptID',
-                    'width'   => '500px',
-                    'caption' => 'Script to do notifications',
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_summary',
+                            'caption' => 'HTML box with summary'
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'SelectScript',
+                            'name'    => 'summary_scriptID',
+                            'caption' => 'Script for alternate summary'
+                        ],
+                    ],
+                ],
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Log',
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'NumberSpinner',
+                            'name'    => 'log_max_age',
+                            'caption' => 'Maximum age of log until deletion',
+                            'minimum' => 0,
+                            'suffix'  => 'days'
+                        ],
+                    ],
+                ],
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Notifications',
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'SelectScript',
+                            'name'    => 'notification_scriptID',
+                            'width'   => '500px',
+                            'caption' => 'Script to do notifications',
+                        ],
+                    ],
                 ],
             ],
             'caption' => 'Other configurations'
@@ -1309,6 +1375,86 @@ class OpenSprinkler extends IPSModule
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $pulse_volume = $this->GetArrayElem($controller_infos, 'pulse_volume', 0);
         return $count * $pulse_volume;
+    }
+
+    private function GetCurRun($sid)
+    {
+        $cur_runs = (array) @json_decode($this->ReadAttributeString('cur_runs'), true);
+        // $this->SendDebug(__FUNCTION__, 'cur_runs=' . print_r($cur_runs, true), 0);
+
+        foreach ($cur_runs as $cur_run) {
+            if ($cur_run['sid'] == $sid) {
+                $this->SendDebug(__FUNCTION__, 'found cur_run=' . print_r($cur_run, true), 0);
+                return $cur_run;
+            }
+        }
+        return false;
+    }
+
+    private function SetCurRun($run)
+    {
+        $cur_runs = (array) @json_decode($this->ReadAttributeString('cur_runs'), true);
+        // $this->SendDebug(__FUNCTION__, 'cur_runs=' . print_r($cur_runs, true), 0);
+
+        $b = false;
+        for ($i = 0; $i < count($cur_runs); $i++) {
+            if ($cur_runs[$i]['sid'] == $run['sid']) {
+                foreach (['start', 'water_counter'] as $key) {
+                    if (isset($cur_runs[$i][$key]) == false || $cur_runs[$i][$key] == 0) {
+                        if (isset($run[$key])) {
+                            $cur_runs[$i][$key] = $run[$key];
+                        }
+                    }
+                }
+                foreach (['left', 'flow'] as $key) {
+                    if (isset($run[$key])) {
+                        $cur_runs[$i][$key] = $run[$key];
+                    }
+                }
+                $this->SendDebug(__FUNCTION__, 'update cur_run=' . print_r($cur_runs[$i], true), 0);
+                $b = true;
+                break;
+            }
+        }
+
+        if ($b == false) {
+            $cur_run = [];
+            foreach (['sid', 'start', 'water_counter', 'left', 'flow'] as $key) {
+                if (isset($run[$key])) {
+                    $cur_run[$key] = $run[$key];
+                }
+            }
+            if (isset($run['start']) == false) {
+                $cur_run['start'] = true;
+            }
+            $cur_runs[] = $cur_run;
+            $this->SendDebug(__FUNCTION__, 'create cur_run=' . print_r($cur_run, true), 0);
+        }
+
+        if ($cur_runs != (array) @json_decode($this->ReadAttributeString('cur_runs'), true)) {
+            $this->SendDebug(__FUNCTION__, 'write cur_runs=' . print_r($cur_runs, true), 0);
+            $this->WriteAttributeString('cur_runs', json_encode($cur_runs));
+        }
+    }
+
+    private function DelCurRun($sid)
+    {
+        $cur_runs = (array) @json_decode($this->ReadAttributeString('cur_runs'), true);
+        // $this->SendDebug(__FUNCTION__, 'cur_runs=' . print_r($cur_runs, true), 0);
+
+        $_runs = [];
+        foreach ($cur_runs as $cur_run) {
+            if ($cur_run['sid'] != $sid) {
+                $_runs[] = $cur_run;
+            } else {
+                $this->SendDebug(__FUNCTION__, 'delete cur_run=' . print_r($cur_run, true), 0);
+            }
+        }
+
+        if ($_runs != (array) @json_decode($this->ReadAttributeString('cur_runs'), true)) {
+            $this->SendDebug(__FUNCTION__, 'update cur_runs=' . print_r($_runs, true), 0);
+            $this->WriteAttributeString('cur_runs', json_encode($_runs));
+        }
     }
 
     private function DecodeDaterange($date)
@@ -1602,7 +1748,6 @@ class OpenSprinkler extends IPSModule
             }
         }
 
-        $cur_running = [];
         for ($sid = 0; $sid < $station_count; $sid++) {
             for ($n = 0; $n < count($station_list); $n++) {
                 if ($station_list[$n]['sid'] == $sid) {
@@ -1631,6 +1776,10 @@ class OpenSprinkler extends IPSModule
 
             $post = '_' . ($sid + 1);
 
+            $nextStart = 0;
+            $nextDur = 0;
+            $curLeft = 0;
+
             $is_master = $this->GetArrayElem($station_info, 'is_master', 0);
             if ($is_master == false && $remote_extension == false) {
                 $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
@@ -1641,10 +1790,6 @@ class OpenSprinkler extends IPSModule
                     $ps_rem = 0;
                     $ps_start = 0;
                 }
-
-                $nextStart = 0;
-                $nextDur = 0;
-                $curLeft = 0;
 
                 if ($this->idx_in_bytes($sid, $stn_dis)) {
                     $state = self::$STATION_STATE_DISABLED;
@@ -1673,10 +1818,6 @@ class OpenSprinkler extends IPSModule
             if ($this->Use4Ident('StationState', $sid)) {
                 $this->SendDebug(__FUNCTION__, '... StationState' . $post . ' => ' . $state, 0);
                 $this->SetValue('StationState' . $post, $state);
-            }
-
-            if ($state == self::$STATION_STATE_WATERING) {
-                $cur_running[] = $sid;
             }
 
             if ($this->Use4Ident('StationTimeLeft', $sid)) {
@@ -1721,94 +1862,91 @@ class OpenSprinkler extends IPSModule
                 $this->SendDebug(__FUNCTION__, '... StationFlowAverage' . $post . ' => ' . $favg, 0);
                 $this->SetValue('StationFlowAverage' . $post, $favg);
             }
+
+            $cur_run = $this->GetCurRun($sid);
+            $_post = '_' . ($sid + 1);
+            if ($state == self::$STATION_STATE_WATERING) {
+                if ($cur_run === false) {
+                    $cur_run = [
+                        'sid'   => $sid,
+                        'start' => time(),
+                    ];
+                    if ($this->HasWaterMeter()) {
+                        $cur_run['water_counter'] = $this->GetWaterMeter();
+                    }
+                }
+                $cur_run['left'] = $curLeft;
+                if ($this->Use4Ident('WaterFlowrate')) {
+                    $cur_run['flow'] = $this->GetValue('WaterFlowrate');
+                }
+                $this->SetCurRun($cur_run);
+            } else {
+                if ($cur_run !== false) {
+                    $duration = $lr_dur;
+
+                    if ($this->HasWaterMeter()) {
+                        $water_counter = $this->GetWaterMeter();
+                        $last_water_counter = $cur_run['water_counter'];
+                        $usage = round((float) $water_counter - (float) $last_water_counter, self::$PRECISION_USAGE);
+                        if ($duration > 0) {
+                            $flow = round($usage / (float) ($duration / 60), self::$PRECISION_FLOW);
+                        } else {
+                            $flow = 0;
+                        }
+                        $this->SendDebug(__FUNCTION__, 'water_counter=' . $last_water_counter . ' ... ' . $water_counter . ' => usage=' . $usage . ' l, real flow=' . $flow . ' l/min', 0);
+                    } else {
+                        $flow = isset($cur_run['flow']) ? $cur_run['flow'] : 0;
+                        if ($duration > 0) {
+                            $usage = round($flow * (float) ($duration / 60), self::$PRECISION_USAGE);
+                        } else {
+                            $usage = 0;
+                        }
+                        $this->SendDebug(__FUNCTION__, 'usage=' . $usage . ' l, flow=' . $flow . ' l/min', 0);
+                    }
+
+                    if ($this->Use4Ident('TotalWaterUsage')) {
+                        $old_total_usage = $this->GetValue('TotalWaterUsage');
+                        $total_usage = round($old_total_usage + $usage, self::$PRECISION_USAGE);
+                        $this->SendDebug(__FUNCTION__, '... TotalWaterUsage => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                        $this->SetValue('TotalWaterUsage', $total_usage);
+                    }
+
+                    if ($this->Use4Ident('DailyWaterUsage')) {
+                        $old_daily_usage = $this->GetValue('DailyWaterUsage');
+                        $daily_usage = round($old_daily_usage + $usage, self::$PRECISION_USAGE);
+                        $this->SendDebug(__FUNCTION__, '... DailyWaterUsage => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                        $this->SetValue('DailyWaterUsage', $daily_usage);
+                    }
+
+                    if ($this->Use4Ident('StationWaterUsage', $sid)) {
+                        $this->SendDebug(__FUNCTION__, '... StationWaterUsage' . $_post . ' => ' . $usage, 0);
+                        $this->SetValue('StationWaterUsage' . $_post, $usage);
+                    }
+
+                    if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
+                        $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $_post);
+                        $total_usage = round($old_total_usage + $usage, self::$PRECISION_USAGE);
+                        $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $_post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
+                        $this->SetValue('StationTotalWaterUsage' . $_post, $total_usage);
+                    }
+
+                    if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
+                        $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $_post);
+                        $daily_usage = round($old_daily_usage + $usage, self::$PRECISION_USAGE);
+                        $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $_post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
+                        $this->SetValue('StationDailyWaterUsage' . $_post, $daily_usage);
+                    }
+
+                    $start = $cur_run['start'];
+                    $end = $start + $duration;
+                    $this->AddLog4Station($sid, $start, $end, $duration, $flow, $usage);
+
+                    $this->DelCurRun($sid);
+                }
+            }
         }
 
         $this->SetValue('LastUpdate', $now);
-
-        $cur_run = (array) @json_decode($this->ReadAttributeString('cur_run'), true);
-        $this->SendDebug(__FUNCTION__, 'cur_run=' . print_r($cur_run, true), 0);
-        // nicht mehr aktiv
-        if (isset($cur_run['sid']) && in_array($cur_run['sid'], $cur_running) == false) {
-            $_post = '_' . ($cur_run['sid'] + 1);
-
-            $duration = $this->GetValue('StationLastDuration' . $_post);
-
-            if ($this->HasWaterMeter()) {
-                $water_counter = $this->GetWaterMeter();
-                $last_water_counter = $cur_run['water_counter'];
-                $usage = $water_counter - $last_water_counter;
-                // $flow = floor(($usage / (float) ($duration / 60)) * 100) / 100;
-                $flow = round($usage / (float) ($duration / 60), self::$PRECISION_FLOW);
-
-                $this->SendDebug(__FUNCTION__, 'water_counter=' . $last_water_counter . ' ... ' . $water_counter . ' => usage=' . $usage . ' l, real flow=' . $flow . ' l/min', 0);
-
-                if ($this->Use4Ident('TotalWaterUsage')) {
-                    $old_total_usage = $this->GetValue('TotalWaterUsage');
-                    $total_usage = round($old_total_usage + $usage, self::$PRECISION_USAGE);
-                    $this->SendDebug(__FUNCTION__, '... TotalWaterUsage => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
-                    $this->SetValue('TotalWaterUsage', $total_usage);
-                }
-
-                if ($this->Use4Ident('DailyWaterUsage')) {
-                    $old_daily_usage = $this->GetValue('DailyWaterUsage');
-                    $daily_usage = round($old_daily_usage + $usage, self::$PRECISION_USAGE);
-                    $this->SendDebug(__FUNCTION__, '... DailyWaterUsage => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
-                    $this->SetValue('DailyWaterUsage', $daily_usage);
-                }
-
-                if ($this->Use4Ident('StationWaterUsage', $sid)) {
-                    $this->SendDebug(__FUNCTION__, '... StationWaterUsage' . $_post . ' => ' . $usage, 0);
-                    $this->SetValue('StationWaterUsage' . $_post, $usage);
-                }
-
-                if ($this->Use4Ident('StationTotalWaterUsage', $sid)) {
-                    $old_total_usage = $this->GetValue('StationTotalWaterUsage' . $_post);
-                    $total_usage = round($old_total_usage + $usage, self::$PRECISION_USAGE);
-                    $this->SendDebug(__FUNCTION__, '... StationTotalWaterUsage' . $_post . ' => ' . $total_usage . ' (old=' . $old_total_usage . ')', 0);
-                    $this->SetValue('StationTotalWaterUsage' . $_post, $total_usage);
-                }
-
-                if ($this->Use4Ident('StationDailyWaterUsage', $sid)) {
-                    $old_daily_usage = $this->GetValue('StationDailyWaterUsage' . $_post);
-                    $daily_usage = round($old_daily_usage + $usage, self::$PRECISION_USAGE);
-                    $this->SendDebug(__FUNCTION__, '... StationDailyWaterUsage' . $_post . ' => ' . $daily_usage . ' (old=' . $old_daily_usage . ')', 0);
-                    $this->SetValue('StationDailyWaterUsage' . $_post, $daily_usage);
-                }
-            } else {
-                $flow = isset($cur_run['flow']) ? $cur_run['flow'] : 0;
-                // $usage = floor($flow * (float) ($duration / 60) * 100) / 100;
-                $usage = round($flow * (float) ($duration / 60), self::$PRECISION_USAGE);
-            }
-
-            $start = $cur_run['start'];
-            $end = $start + $duration;
-            $this->AddLog4Station($sid, $start, $end, $duration, $flow, $usage);
-
-            $cur_run = [];
-        }
-
-        if (count($cur_running) == 1) {
-            // noch nicht aktiv
-            if (isset($cur_run['sid']) == false) {
-                $cur_run = [
-                    'sid'   => $cur_running[0],
-                    'start' => time(),
-                ];
-                if ($this->HasWaterMeter()) {
-                    $cur_run['water_counter'] = $this->GetWaterMeter();
-                }
-            }
-            $_post = '_' . ($cur_run['sid'] + 1);
-            $cur_run['left'] = $this->GetValue('StationTimeLeft' . $_post);
-            $cur_run['flow'] = $this->GetValue('WaterFlowrate');
-        } elseif (count($cur_running) > 1) {
-            $this->SendDebug(__FUNCTION__, 'more than one station watering (' . implode(', ', $cur_running) . ')', 0);
-        }
-
-        if ($cur_run != (array) @json_decode($this->ReadAttributeString('cur_run'), true)) {
-            $this->SendDebug(__FUNCTION__, 'update cur_run=' . print_r($cur_run, true), 0);
-            $this->WriteAttributeString('cur_run', json_encode($cur_run));
-        }
 
         if ($this->Use4Ident('StationSelection')) {
             $this->SetStationSelection();
@@ -1846,6 +1984,17 @@ class OpenSprinkler extends IPSModule
             return;
         }
         $this->SendDebug(__FUNCTION__, 'db_jdata=' . print_r($db_jdata, true), 0);
+
+        $with_summary = $this->ReadPropertyBoolean('with_summary');
+        if ($with_summary) {
+            $days = (int) $this->GetValue('SummaryDays');
+            $groupBy = (int) $this->GetValue('SummaryGroupBy');
+            $until = time();
+            $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * $days)));
+
+            $html = $this->BuildSummary($from, $until, $groupBy);
+            $this->SetValue('Summary', $html);
+        }
 
         $this->SetQueryInterval();
 
@@ -2726,35 +2875,35 @@ class OpenSprinkler extends IPSModule
                 }
 
                 if ($master_id == 0) {
-                    $cur_run = (array) @json_decode($this->ReadAttributeString('cur_run'), true);
-                    $this->SendDebug(__FUNCTION__, 'cur_run=' . print_r($cur_run, true), 0);
+                    $has_duration = false;
+                    $duration = $this->GetArrayElem($payload, 'duration', 0, $has_duration);
+                    if ($has_duration) {
+                        if ($this->Use4Ident('StationTimeLeft', $sid)) {
+                            $this->SendDebug(__FUNCTION__, '... StationTimeLeft' . $post . ' => ' . $duration, 0);
+                            $this->SetValue('StationTimeLeft' . $post, $duration);
+                        }
+                    }
 
+                    $cur_run = $this->GetCurRun($sid);
                     if ($state) {
-                        // noch nicht aktiv
-                        if (isset($cur_run['sid']) == false) {
+                        if ($cur_run === false) {
                             $cur_run = [
                                 'sid'   => $sid,
                                 'start' => time(),
                             ];
-                        }
-
-                        $has_duration = false;
-                        $duration = $this->GetArrayElem($payload, 'duration', 0, $has_duration);
-                        if ($has_duration) {
-                            $cur_run['left'] = $duration;
-
-                            if ($this->Use4Ident('StationTimeLeft', $sid)) {
-                                $this->SendDebug(__FUNCTION__, '... StationTimeLeft' . $post . ' => ' . $duration, 0);
-                                $this->SetValue('StationTimeLeft' . $post, $duration);
+                            if ($this->HasWaterMeter()) {
+                                $cur_run['water_counter'] = $this->GetWaterMeter();
                             }
                         }
-
-                        if ($this->HasWaterMeter()) {
-                            $cur_run['water_counter'] = $this->GetWaterMeter();
+                        if ($this->Use4Ident('WaterFlowrate')) {
+                            $cur_run['flow'] = $this->GetValue('WaterFlowrate');
                         }
+                        if ($has_duration) {
+                            $cur_run['left'] = $duration;
+                        }
+
+                        $this->SetCurRun($cur_run);
                     } else {
-                        $has_duration = false;
-                        $duration = $this->GetArrayElem($payload, 'duration', 0, $has_duration);
                         if ($has_duration) {
                             if ($this->Use4Ident('StationLastRun', $sid)) {
                                 $last_run = time() - $duration;
@@ -2795,30 +2944,38 @@ class OpenSprinkler extends IPSModule
                                 $this->SetValue('StationDailyDuration' . $post, $daily_duration);
                             }
                         }
-
-                        // nicht mehr aktiv
-                        if (isset($cur_run['sid']) && $cur_run['sid'] == $sid) {
+                        if ($cur_run !== false) {
                             if ($this->HasWaterMeter()) {
-                                $water_counter = $this->GetWaterMeter();
-                                $last_water_counter = $cur_run['water_counter'];
-                                $usage = $water_counter - $last_water_counter;
-                                if ($has_duration) {
-                                    // $flow = floor(($usage / (float) ($duration / 60)) * 100) / 100;
-                                    $flow = round($usage / (float) ($duration / 60), self::$PRECISION_FLOW);
-                                } else {
-                                    $flow = 0;
-                                }
-                                $this->SendDebug(__FUNCTION__, 'water_counter=' . $last_water_counter . ' ... ' . $water_counter . ' => usage=' . $usage . ' l, real flow=' . $flow . ' l/min', 0);
-                                $has_usage = true;
-                            } else {
-                                $flow = $this->GetArrayElem($payload, 'flow', 0, $fnd);
-                                if ($fnd && $has_duration) {
-                                    // $usage = floor($flow * (float) ($duration / 60) * 100) / 100;
-                                    $usage = round($flow * (float) ($duration / 60), self::$PRECISION_USAGE);
-                                    $this->SendDebug(__FUNCTION__, 'flow=' . $flow . ', duration=' . $duration . ' => usage=' . $usage . ' l', 0);
+                                if ($cur_run !== false) {
+                                    $water_counter = $this->GetWaterMeter();
+                                    $last_water_counter = $cur_run['water_counter'];
+                                    $usage = round((float) $water_counter - (float) $last_water_counter, self::$PRECISION_USAGE);
                                     $has_usage = true;
+                                    if ($has_duration && $duration > 0) {
+                                        $flow = round($usage / (float) ($duration / 60), self::$PRECISION_FLOW);
+                                    } else {
+                                        $flow = 0;
+                                    }
+                                    $this->SendDebug(__FUNCTION__, 'water_counter=' . $last_water_counter . ' ... ' . $water_counter . ' => usage=' . $usage . ' l, real flow=' . $flow . ' l/min', 0);
                                 } else {
                                     $usage = 0;
+                                    $flow = 0;
+                                    $has_usage = false;
+                                }
+                            } else {
+                                $flow = $this->GetArrayElem($payload, 'flow', 0, $fnd);
+                                if ($fnd) {
+                                    if ($has_duration && $duration > 0) {
+                                        $usage = round($flow * (float) ($duration / 60), self::$PRECISION_USAGE);
+                                        $has_usage = true;
+                                    } else {
+                                        $usage = 0;
+                                    }
+                                    $this->SendDebug(__FUNCTION__, 'flow=' . $flow . ', duration=' . $duration . ' => usage=' . $usage . ' l', 0);
+                                } else {
+                                    $usage = 0;
+                                    $flow = 0;
+                                    $has_usage = false;
                                 }
                             }
                             if ($has_usage) {
@@ -2860,13 +3017,8 @@ class OpenSprinkler extends IPSModule
                             $end = $start + $duration;
                             $this->AddLog4Station($sid, $start, $end, $duration, $flow, $usage);
 
-                            $cur_run = [];
+                            $this->DelCurRun($sid);
                         }
-                    }
-
-                    if ($cur_run != (array) @json_decode($this->ReadAttributeString('cur_run'), true)) {
-                        $this->SendDebug(__FUNCTION__, 'update cur_run=' . print_r($cur_run, true), 0);
-                        $this->WriteAttributeString('cur_run', json_encode($cur_run));
                     }
                 }
             }
@@ -3288,7 +3440,7 @@ class OpenSprinkler extends IPSModule
                     }
                     $pid--;
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', pid=' . $pid, 0);
-                    $r = $this->ProgramStartManually($pid, (int) $value);
+                    $r = $this->ProgramStartManually($pid, (int) $value == self::$PROGRAM_START_WITH_WEATHER);
                     if ($r) {
                         $queryInterval = $shortInterval;
                     }
@@ -3308,6 +3460,20 @@ class OpenSprinkler extends IPSModule
             case 'IrrigationDuration':
                 $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
                 // $r = true;
+                break;
+            case 'SummaryDays':
+            case 'SummaryGroupBy':
+                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                $this->SetValue($ident, $value);
+
+                $days = (int) $this->GetValue('SummaryDays');
+                $groupBy = (int) $this->GetValue('SummaryGroupBy');
+                $until = time();
+                $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * $days)));
+
+                $html = $this->BuildSummary($from, $until, $groupBy);
+                $this->SetValue('Summary', $html);
+
                 break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
@@ -3631,6 +3797,12 @@ class OpenSprinkler extends IPSModule
 
         if ($mode == 0 /* Set */) {
             $dur = $sec;
+
+            $dur_min = 0;
+            if ($t < $dur_min) {
+                $this->SendDebug(__FUNCTION__, 'duration is < ' . $dur_min, 0);
+                $dur = $dur_min;
+            }
         }
         if ($mode == 1 /* Clear */) {
             $dur = 0;
@@ -3841,7 +4013,7 @@ class OpenSprinkler extends IPSModule
         return $data !== false;
     }
 
-    public function ProgramStartManually(int $pid, int $mode)
+    public function ProgramStartManually(int $pid, bool $weatherAdjustmnent)
     {
         if ($this->CheckStatus() == self::$STATUS_INVALID) {
             $this->SendDebug(__FUNCTION__, $this->GetStatusText() . ' => skip', 0);
@@ -3851,15 +4023,10 @@ class OpenSprinkler extends IPSModule
         if ($this->Use4Ident('ProgramStartManually') == false) {
             return false;
         }
-        if ($mode == self::$PROGRAM_START_NOP) {
-            return false;
-        }
-
-        $uwt = $mode == self::$PROGRAM_START_WITH_WEATHER ? 1 : 0;
 
         $params = [
             'pid' => $pid,
-            'uwt' => $uwt,
+            'uwt' => ($weatherAdjustmnent ? 1 : 0),
         ];
         $data = $this->do_HttpRequest('mp', $params);
         return $data !== false;
@@ -4662,8 +4829,11 @@ class OpenSprinkler extends IPSModule
                     $dur = $entry[2];
                     $start = $end - $dur;
                     $flow = isset($entry[4]) ? $entry[4] : 0;
-                    // $usage = floor($flow * (float) ($dur / 60) * 100) / 100;
-                    $usage = round($flow * (float) ($dur / 60), self::$PRECISION_USAGE);
+                    if ($dur > 0) {
+                        $usage = round($flow * (float) ($dur / 60), self::$PRECISION_USAGE);
+                    } else {
+                        $usage = 0;
+                    }
                     $s .= ', pid=' . $pid . '(' . $pname . '), sid=' . $sid . '(' . $sname . '), dur=' . $dur . 's, flow=' . $flow . ' l/min, usage=' . $usage . ' l';
                     break;
                 case 'wl':	// waterlevel
@@ -4691,14 +4861,14 @@ class OpenSprinkler extends IPSModule
     private function AddLog4Station($sid, $start, $end, $duration, $flow, $usage)
     {
         $log = [
-            'tstamp'      => $start,
-            'type'        => 'station',
-            'sid'         => $sid,
-            'start'       => $start,
-            'end'         => $end,
-            'duration'    => $duration,
-            'flow'        => $flow,
-            'usage'       => $usage,
+            'tstamp'   => $start,
+            'type'     => 'station',
+            'sid'      => $sid,
+            'start'    => $start,
+            'end'      => $end,
+            'duration' => $duration,
+            'flow'     => $flow,
+            'usage'    => $usage,
         ];
         return $this->AddLog($log);
     }
@@ -4766,31 +4936,40 @@ class OpenSprinkler extends IPSModule
         return true;
     }
 
-    public function GetLogs(int $start, int $end, string $groupBy)
+    public function GetLogs(int $from, int $until, int $groupBy)
     {
         $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
         $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
 
         $logs = $this->ReadLogs();
         $n_logs = count($logs);
-            usort($logs, function ($a, $b)
-            {
-                return ($a['tstamp'] > $b['tstamp']) ? -1 : 1;
-            });
+        usort($logs, function ($a, $b)
+        {
+            return ($a['tstamp'] > $b['tstamp']) ? -1 : 1;
+        });
 
         $new_logs = [];
         foreach ($logs as $log) {
-            if ($start != 0 && $log['tstamp'] < $start) {
+            if ($from != 0 && $log['tstamp'] < $from) {
                 continue;
             }
-            if ($end != 0 && $log['tstamp'] > $end) {
+            if ($until != 0 && $log['tstamp'] > $until) {
                 continue;
             }
+            for ($i = 0; $i < count($station_infos); $i++) {
+                if ($station_infos[$i]['sid'] == $log['sid']) {
+                    $sname = $station_infos[$i]['name'];
+                    break;
+                }
+            }
+            $log['sname'] = $sname;
+            $log['flow'] = round($log['flow'], self::$PRECISION_FLOW);
+            $log['usage'] = round($log['usage'], self::$PRECISION_USAGE);
             $new_logs[] = $log;
         }
 
         switch ($groupBy) {
-            case 'DAY':
+            case self::$LOG_GROUPBY_DATE:
                 $days = [];
                 foreach ($new_logs as $log) {
                     $day = date('d.m.Y', $log['tstamp']);
@@ -4799,28 +4978,29 @@ class OpenSprinkler extends IPSModule
                         $days[$ts] = $day;
                     }
                 }
-                ksort($days, SORT_NUMERIC);
+                krsort($days, SORT_NUMERIC);
 
                 $grouped_logs = [];
                 foreach ($days as $ts => $day) {
                     $grp = [];
-					$usage = 0;
+                    $usage = 0;
                     foreach ($new_logs as $log) {
                         if (date('d.m.Y', $log['tstamp']) == $day) {
                             $grp[] = $log;
-							$usage += $log['usage'];
+                            $usage += $log['usage'];
                         }
                     }
                     $grouped_logs[] = [
                         'ts'    => $ts,
                         'day'   => $day,
                         'title' => $day,
-						'usage' => round($usage, self::$PRECISION_USAGE),
+                        'usage' => round($usage, self::$PRECISION_USAGE),
                         'logs'  => $grp,
                     ];
                 }
                 break;
-            case 'STATION':
+            case self::$LOG_GROUPBY_SID:
+            case self::$LOG_GROUPBY_SNAME:
                 $stations = [];
                 foreach ($new_logs as $log) {
                     $sid = $log['sid'];
@@ -4834,41 +5014,235 @@ class OpenSprinkler extends IPSModule
                         $stations[$sid] = $sname;
                     }
                 }
-                ksort($stations, SORT_NUMERIC);
+                switch ($groupBy) {
+                    case self::$LOG_GROUPBY_SID:
+                        ksort($stations, SORT_NUMERIC);
+                        break;
+                    case self::$LOG_GROUPBY_SNAME:
+                        asort($stations);
+                        break;
+                    default:
+                        break;
+                }
 
                 $grouped_logs = [];
                 foreach ($stations as $sid => $sname) {
                     $grp = [];
-					$usage = 0;
+                    $usage = 0;
                     foreach ($new_logs as $log) {
                         if ($log['sid'] == $sid) {
                             $grp[] = $log;
-							$usage += $log['usage'];
+                            $usage += $log['usage'];
                         }
                     }
                     $grouped_logs[] = [
                         'sid'   => $sid,
                         'sname' => $sname,
                         'title' => $sname,
-						'usage' => round($usage, self::$PRECISION_USAGE),
+                        'usage' => round($usage, self::$PRECISION_USAGE),
                         'logs'  => $grp,
                     ];
                 }
                 break;
             default:
-				$usage = 0;
-				foreach (new_logs as $log) {
-					$usage += $log['usage'];
-				}
+                $usage = 0;
+                foreach ($new_logs as $log) {
+                    $usage += $log['usage'];
+                }
                 $grouped_logs = [
                     [
-                        'title' => 'all',
-						'usage' => round($usage, self::$PRECISION_USAGE),
+                        'title' => $this->TranslateFormat('{$from} until {$until}', ['{$from}' => date('d.m.Y', $from), '{$until}' => date('d.m.Y', $until)]),
+                        'usage' => round($usage, self::$PRECISION_USAGE),
                         'logs'  => $new_logs,
                     ],
                 ];
                 break;
         }
         return $grouped_logs;
+    }
+
+    public function BuildSummary(int $from, int $until, int $groupBy)
+    {
+        $summary_scriptID = $this->ReadPropertyInteger('summary_scriptID');
+
+        $grouped_logs = $this->GetLogs($from, $until, $groupBy);
+
+        if (IPS_ScriptExists($summary_scriptID)) {
+            $params = [
+                'InstanceID'   => $this->InstanceID,
+                'from'         => $from,
+                'until'        => $until,
+                'group_by'     => $groupBy,
+                'grouped_logs' => json_encode($grouped_logs),
+            ];
+            $html = IPS_RunScriptWaitEx($summary_scriptID, $params);
+            return $html;
+        }
+
+        $html = '';
+
+        $now = time();
+        $b = false;
+
+        $html = '';
+        $html .= '<html>' . PHP_EOL;
+        $html .= '<body>' . PHP_EOL;
+        $html .= '<style>' . PHP_EOL;
+        $html .= 'body { margin: 1; padding: 0; font-family: "Open Sans", sans-serif; font-size: 20px; }' . PHP_EOL;
+        $html .= 'table { border-collapse: collapse; border: 0px solid; margin: 0.5em;}' . PHP_EOL;
+        $html .= 'th, td { padding: 1; }' . PHP_EOL;
+        $html .= 'thead, tdata { text-align: left; }' . PHP_EOL;
+        $html .= '#spalte_zeitpunkt { width: 150px; }' . PHP_EOL;
+        $html .= '#spalte_station { width: 400px; }' . PHP_EOL;
+        $html .= '#spalte_time { width: 120px; }' . PHP_EOL;
+        $html .= '#spalte_datetime { width: 150px; }' . PHP_EOL;
+        $html .= '#spalte_duration { width: 100px; }' . PHP_EOL;
+        $html .= '#spalte_flow { width: 150px; }' . PHP_EOL;
+        $html .= '#spalte_usage { width: 150px; }' . PHP_EOL;
+        $html .= '</style>' . PHP_EOL;
+
+        foreach ($grouped_logs as $grouped_log) {
+            switch ($groupBy) {
+                case self::$LOG_GROUPBY_DATE:
+                    $title = $grouped_log['title'];
+                    $usage = $grouped_log['usage'];
+                    $logs = $grouped_log['logs'];
+                    break;
+                case self::$LOG_GROUPBY_SID:
+                case self::$LOG_GROUPBY_SNAME:
+                    $title = $grouped_log['title'];
+                    $usage = $grouped_log['usage'];
+                    $logs = $grouped_log['logs'];
+                    break;
+                default:
+                    $title = $grouped_log['title'];
+                    $usage = $grouped_log['usage'];
+                    $logs = $grouped_log['logs'];
+                    break;
+            }
+
+            $html .= '<h4>' . $this->TranslateFormat('{$title} - Usage {$usage} l', ['{$title}' => $title, '{$usage}' => $usage]) . '</h4>' . PHP_EOL;
+
+            switch ($groupBy) {
+                case self::$LOG_GROUPBY_DATE:
+                    $html .= '<table>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_station"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_time"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_duration"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_time"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_flow"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_usage"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup></colgroup>' . PHP_EOL;
+                    $html .= '<thead>' . PHP_EOL;
+                    $html .= '<tr>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Station') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Start time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Run time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('End time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Flow') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Usage') . '</th>' . PHP_EOL;
+                    $html .= '</tr>' . PHP_EOL;
+                    $html .= '</thead>' . PHP_EOL;
+                    $html .= '<tdata>' . PHP_EOL;
+                    break;
+                case self::$LOG_GROUPBY_SID:
+                case self::$LOG_GROUPBY_SNAME:
+                    $html .= '<table>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_datetime"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_duration"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_datetime"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_flow"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_usage"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup></colgroup>' . PHP_EOL;
+                    $html .= '<thead>' . PHP_EOL;
+                    $html .= '<tr>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Start time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Run time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('End time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Flow') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Usage') . '</th>' . PHP_EOL;
+                    $html .= '</tr>' . PHP_EOL;
+                    $html .= '</thead>' . PHP_EOL;
+                    $html .= '<tdata>' . PHP_EOL;
+                    break;
+                default:
+                    $html .= '<table>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_station"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_datetime"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_duration"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_datetime"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_flow"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup><col id="spalte_usage"></colgroup>' . PHP_EOL;
+                    $html .= '<colgroup></colgroup>' . PHP_EOL;
+                    $html .= '<thead>' . PHP_EOL;
+                    $html .= '<tr>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Station') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Start time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Run time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('End time') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Flow') . '</th>' . PHP_EOL;
+                    $html .= '<th>' . $this->Translate('Usage') . '</th>' . PHP_EOL;
+                    $html .= '</tr>' . PHP_EOL;
+                    $html .= '</thead>' . PHP_EOL;
+                    $html .= '<tdata>' . PHP_EOL;
+                    break;
+                    break;
+            }
+
+            foreach ($logs as $log) {
+                $tstamp = $log['tstamp'];
+                $sid = $log['sid'];
+                $sname = $log['sname'];
+                $start = $log['start'];
+                $end = $log['end'];
+                $duration = $log['duration'];
+                $flow = $log['flow'];
+                $usage = $log['usage'];
+
+                switch ($groupBy) {
+                    case self::$LOG_GROUPBY_DATE:
+                        $html .= '<tr>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $sname . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('H:i:s', $start) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->seconds2duration($duration) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('H:i:s', $end) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$flow} l/min', ['{$flow}' => $flow]) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$usage} l', ['{$usage}' => $usage]) . '</td>' . PHP_EOL;
+                        $html .= '</tr>' . PHP_EOL;
+                        break;
+                    case self::$LOG_GROUPBY_SID:
+                    case self::$LOG_GROUPBY_SNAME:
+                        $html .= '<tr>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('d.m H:i:s', $start) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->seconds2duration($duration) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('d.m H:i:s', $end) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$flow} l/min', ['{$flow}' => $flow]) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$usage} l', ['{$usage}' => $usage]) . '</td>' . PHP_EOL;
+                        $html .= '</tr>' . PHP_EOL;
+                        break;
+                    default:
+                        $html .= '<tr>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $sname . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('d.m H:i:s', $start) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->seconds2duration($duration) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . date('d.m H:i:s', $end) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$flow} l/min', ['{$flow}' => $flow]) . '</td>' . PHP_EOL;
+                        $html .= '<td valign=top>' . $this->TranslateFormat('{$usage} l', ['{$usage}' => $usage]) . '</td>' . PHP_EOL;
+                        $html .= '</tr>' . PHP_EOL;
+                        break;
+                }
+            }
+            $html .= '</tdata>' . PHP_EOL;
+            $html .= '</table>' . PHP_EOL;
+        }
+
+        if (count($grouped_logs) == 0) {
+            $html .= '<center>' . $this->Translate('No irrigations') . '</center><br>' . PHP_EOL;
+        }
+
+        $html .= '</body>' . PHP_EOL;
+        $html .= '</html>' . PHP_EOL;
+
+        return $html;
     }
 }
