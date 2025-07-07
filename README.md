@@ -16,14 +16,14 @@
 
 ## 1. Funktionsumfang
 
-Das Modul dient zur Anbindung eines [OpenSprinkler-Controller](https://opensprinkler.com). Dabei wird auch und insbesondere die deutsche Erweiterung von [OpenSprinklerShop](https://opensprinklershop.de) unterstützt.
+Das Modul dient zur Anbindung eines [OpenSprinkler-Controller](https://opensprinkler.com). Dabei wird auch und insbesondere die deutsche Erweiterung von [OpenSprinklerShop](https://opensprinklershop.de) unterstützt; besonders hingewisen wird hier auch auf die Übertragung von Messwerte vom IPS zum OpenSprinkler-Controller.
 
-Programmiert wurde mit der Firmware-Version 2.2.3 auf einem OpenSprinkler-Controller 3.3. Ein *OpenSprinkler Pi* sowie ein *Opensprinkler Bee* wurde mnicht getestet, sollte aber genauso funktionieren.
+Programmiert wurde mit der Firmware-Version 2.2.3 auf einem OpenSprinkler-Controller 3.3. Ein *OpenSprinkler Pi* sowie ein *Opensprinkler Bee* wurde nicht getestet, sollte aber genauso funktionieren, das die API gleich sein soll..
 
 Es werden alle relevanten Informationen geholt und Funktionen zur Verfügung gestellt; die Konfiguration muss aber weiterhin auf dem OpenSprinkler-Controller erfolgen.
 Zur Erleichterung der Einrichtung kann die relevante Konfiguration vom OpenSprinkler in der Instanz-Konfiguration geholt werden.
 
-Ein als *RemoteController* betriebener *OpenSprinkler* wird auch unterstützt, hier werden erwartungsbemäß nur wenige Informationen angezeigt und dient mehr dazu, grundsätzlich das Gerät auch im IPS zu haben.
+Ein als *RemoteController* betriebener *OpenSprinkler* wird auch unterstützt, hier werden erwartungsgemäß nur wenige Informationen angezeigt und dient mehr dazu, grundsätzlich das Gerät auch im IPS zu haben.
 
 ## 2. Voraussetzungen
 
@@ -39,7 +39,11 @@ Alternativ kann das Modul über [Module Control](https://www.symcon.de/service/d
 
 ### b. Einrichtung in IPS
 
-Die Instanz ist mit einem MQTT-Server verbunden; hier kann der eventuell bereits vorhandene MQTT-Server mit der Portnummer ☆1883* verwendet werden; ich empfehle aber zur besseren Fehlersuche einen eigenen MQTT-Server auf einem anderen Port einzuricht - dem muss natprlich auf dem OpenSprinkler-Controller auch so angegeben werden.
+Die Instanz ist mit einem MQTT-Server verbunden; hier kann der eventuell bereits vorhandene MQTT-Server mit der Portnummer ☆1883* verwendet werden.
+Ich empfehle aber zur besseren Fehlersuche einen eigenen MQTT-Server auf einem anderen Port einzuricht - dem muss natprlich auf dem OpenSprinkler-Controller auch so angegeben werden.
+
+Nach Einrichtung der Zugangsdaten des Controller kann die Konfiguration des Controller (unter *Konfiguration der Steuereinheit*) abgerufen werden und steht dann in der Instanz zur Verfügung.
+Die hier gewählten Bewässerungskreise, Sensoren und Programme werden dann als Variablen angelegt. Bei einem erneuten Abruf der Konfiguration kann kann die Änderung übernommen und ausgewertet werden - eventuell bereits umbenannte Variablen werden natürlich nicht geändert; hierzu steht die Funktion *Variablennamen anpassen* im Experten-Bereich des Aktionsbereichs zur Verfügung.
 
 ## 4. Funktionsreferenz
 
