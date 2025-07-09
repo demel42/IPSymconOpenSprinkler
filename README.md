@@ -16,7 +16,7 @@
 
 ## 1. Funktionsumfang
 
-Das Modul dient zur Anbindung eines [OpenSprinkler-Controller](https://opensprinkler.com). Dabei wird auch und insbesondere die deutsche Erweiterung von [OpenSprinklerShop](https://opensprinklershop.de) unterstützt; besonders hingewisen wird hier auch auf die Übertragung von Messwerte vom IPS zum OpenSprinkler-Controller.
+Das Modul dient zur Anbindung eines [OpenSprinkler-Controller](https://opensprinkler.com). Dabei wird auch und insbesondere die deutsche Erweiterung von [OpenSprinklerShop](https://opensprinklershop.de) unterstützt; besonders hingewisen wird hier auch auf die Übertragung von Messwerte vom IPS zum OpenSprinkler-Controller und der damit verbundenen Möglichkeit von Programm-Anpassung und Überwachung.
 
 Programmiert wurde mit der Firmware-Version 2.2.3 auf einem OpenSprinkler-Controller 3.3. Ein *OpenSprinkler Pi* sowie ein *Opensprinkler Bee* wurde nicht getestet, sollte aber genauso funktionieren, das die API gleich sein soll..
 
@@ -40,7 +40,7 @@ Alternativ kann das Modul über [Module Control](https://www.symcon.de/service/d
 ### b. Einrichtung in IPS
 
 Die Instanz ist mit einem MQTT-Server verbunden; hier kann der eventuell bereits vorhandene MQTT-Server mit der Portnummer ☆1883* verwendet werden.
-Ich empfehle aber zur besseren Fehlersuche einen eigenen MQTT-Server auf einem anderen Port einzuricht - dem muss natprlich auf dem OpenSprinkler-Controller auch so angegeben werden.
+Ich empfehle aber zur besseren Fehlersuche einen eigenen MQTT-Server auf einem anderen Port einzuricht - dem muss natürlich auf dem OpenSprinkler-Controller auch so angegeben werden.
 
 Nach Einrichtung der Zugangsdaten des Controller kann die Konfiguration des Controller (unter *Konfiguration der Steuereinheit*) abgerufen werden und steht dann in der Instanz zur Verfügung.
 Die hier gewählten Bewässerungskreise, Sensoren und Programme werden dann als Variablen angelegt. Bei einem erneuten Abruf der Konfiguration kann kann die Änderung übernommen und ausgewertet werden - eventuell bereits umbenannte Variablen werden natürlich nicht geändert; hierzu steht die Funktion *Variablennamen anpassen* im Experten-Bereich des Aktionsbereichs zur Verfügung.
@@ -93,9 +93,11 @@ Im Programm mit der ID *pid* (0-relativ) die Beachtung von wetterbasierten Modif
 `OpenSprinkler_ProgramStartManually(int $InstanzID, int $pid, bool $weatherAdjustmnent)`<br>
 Das Programm mit der ID *pid* (0-relativ) starten unter Berücvksichtigung der wetterbasierten Anpassungen (*weatherAdjustment*=**true**) oder ohne (*weatherAdjustment*=**false**).
 
-`OpenSprinkler_GetLogs(int $InstanzID, int $from, int $until, int $groupBy)`<br>
+`OpenSprinkler_GetLogs(int $InstanzID, int $from, int $until, int $groupBy, array $sidList)`<br>
 Instanz-interne Protokolle abrufen, Zeitstempel (Sekunden ab dem 1.1.1970) *von*/*bin* und der Gruppierung (*groupBy*: **0**=ohne, **1**=Datum, **2**=Bewässerungskreis-ID und **3**=Bewässerungskreis-Name).
-Zurückgeliefert wird eine JSON-kodierte Struktur, die recht selbserklärend sein sollte.
+Weiterhin kann man auf Bewässerungskreise einschränken: (*sidList*: **false**=keine Einschränkung, **[]**=jede Station, sonst einschränken auf die Liste der angegebenen *sid*'s.<br>
+Derzeit gibt es nur Bewässerungskreisbezogenen Einträge, kann perspektivisch aber auch erweitert werden.<br>
+Zurückgeliefert wird eine JSON-kodierte Struktur, die recht selbsterklärend sein sollte.
 
 ## 5. Konfiguration
 
@@ -166,10 +168,11 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
-- 1.3 @ 07.07.2025 17:51
+- 1.3 @ 09.07.2025 12:55
   - Neu: internes Log incl. Abruffunktion GetLogs()
   - Neu: testhalber Abruf und Auswertung vom Log des OpenSprinkler-Controllers; Ausgabe im Debug
   - Neu: Rundung von Wasserdurchfluß und Wasserverbrauch
+  - Neu: Zusammenfassung der Bewässerung für das ganze System mit Auswahl von Gruppierung und Anzahl Tagen und pro Bewässerungskreis
   - Verbesserung: vervollständigte Auswertung von MQTT 'station/#' mit Berücksichtigung des externen Wasserzählers  und Erzeugung des internen Log-Eintrags.
   - Verbesserung: die MQTT-Nachrichten (insbesondere auch 'station/#') kommen nicht in der Reihenfolge des realen Ablaufs, das wird nun abgefangen
   - Verbesserung: README überarbeitet

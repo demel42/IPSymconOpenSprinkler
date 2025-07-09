@@ -297,13 +297,14 @@ class OpenSprinkler extends IPSModule
         }
 
         $vpos = 151;
-        $with_summary = $this->ReadPropertyBoolean('with_summary');
-        $this->MaintainVariable('Summary', $this->Translate('Summary of irrigation'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $with_summary);
-        $this->MaintainVariable('SummaryDays', $this->Translate('Number of previous days in summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryDays', $vpos++, $with_summary);
-        $this->MaintainVariable('SummaryGroupBy', $this->Translate('Group by of summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryGroupBy', $vpos++, $with_summary);
-        if ($with_summary) {
-            $this->MaintainAction('SummaryDays', true);
-            $this->MaintainAction('SummaryGroupBy', true);
+        $u = $this->Use4Ident('Summary');
+        $e = $this->Enable4Ident('Summary');
+        $this->MaintainVariable('Summary', $this->Translate('Summary of irrigation'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
+        $this->MaintainVariable('SummaryDays', $this->Translate('Number of previous days in summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryDays', $vpos++, $u);
+        $this->MaintainVariable('SummaryGroupBy', $this->Translate('Group by of summary'), VARIABLETYPE_INTEGER, 'OpenSprinkler.SummaryGroupBy', $vpos++, $u);
+        if ($u) {
+            $this->MaintainAction('SummaryDays', $e);
+            $this->MaintainAction('SummaryGroupBy', $e);
         }
 
         $vpos = 201;
@@ -455,6 +456,9 @@ class OpenSprinkler extends IPSModule
         $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
         $u = $this->Use4Ident('StationLast');
         $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+
+        $u = $this->Use4Ident('StationSummary');
+        $this->MaintainVariable('StationSummary', $this->Translate('Summary of irrigation'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
 
         // 1001..8299: Stations (max 72)
         for ($station_n = 0; $station_n < count($station_list); $station_n++) {
@@ -1985,14 +1989,13 @@ class OpenSprinkler extends IPSModule
         }
         $this->SendDebug(__FUNCTION__, 'db_jdata=' . print_r($db_jdata, true), 0);
 
-        $with_summary = $this->ReadPropertyBoolean('with_summary');
-        if ($with_summary) {
+        if ($this->Use4Ident('Summary')) {
             $days = (int) $this->GetValue('SummaryDays');
             $groupBy = (int) $this->GetValue('SummaryGroupBy');
             $until = time();
             $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * $days)));
 
-            $html = $this->BuildSummary($from, $until, $groupBy);
+            $html = $this->BuildSummary($from, $until, $groupBy, []);
             $this->SetValue('Summary', $html);
         }
 
@@ -3463,17 +3466,18 @@ class OpenSprinkler extends IPSModule
                 break;
             case 'SummaryDays':
             case 'SummaryGroupBy':
-                $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
-                $this->SetValue($ident, $value);
+                if ($this->Use4Ident('Summary')) {
+                    $this->SendDebug(__FUNCTION__, $ident . '=' . $value, 0);
+                    $this->SetValue($ident, $value);
 
-                $days = (int) $this->GetValue('SummaryDays');
-                $groupBy = (int) $this->GetValue('SummaryGroupBy');
-                $until = time();
-                $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * $days)));
+                    $days = (int) $this->GetValue('SummaryDays');
+                    $groupBy = (int) $this->GetValue('SummaryGroupBy');
+                    $until = time();
+                    $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * $days)));
 
-                $html = $this->BuildSummary($from, $until, $groupBy);
-                $this->SetValue('Summary', $html);
-
+                    $html = $this->BuildSummary($from, $until, $groupBy, []);
+                    $this->SetValue('Summary', $html);
+                }
                 break;
             default:
                 $this->SendDebug(__FUNCTION__, 'invalid ident ' . $ident, 0);
@@ -4149,6 +4153,9 @@ class OpenSprinkler extends IPSModule
             if ($this->Use4Ident('StationLast')) {
                 $this->SetValue('StationLast', '');
             }
+            if ($this->Use4Ident('StationSummary')) {
+                $this->SetValue('StationSummary', '');
+            }
 
             if ($this->Use4Ident('StationStartManually')) {
                 $this->MaintainAction('StationStartManually', false);
@@ -4252,6 +4259,14 @@ class OpenSprinkler extends IPSModule
         }
         if ($this->Use4Ident('StationLast')) {
             $this->SetValue('StationLast', $controller_infos['last_station']);
+        }
+
+        if ($this->Use4Ident('StationSummary')) {
+            $until = time();
+            $from = strtotime(date('d.m.Y 00:00:00', $until - (24 * 60 * 60 * 3)));
+
+            $html = $this->BuildSummary($from, $until, self::$LOG_GROUPBY_SID, [$sid]);
+            $this->SetValue('StationSummary', $html);
         }
 
         if ($this->Use4Ident('StationStartManually')) {
@@ -4506,6 +4521,7 @@ class OpenSprinkler extends IPSModule
         $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
         $has_flowmeter = (bool) $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
         $has_watermeter = $this->HasWaterMeter();
+        $with_summary = $this->ReadPropertyBoolean('with_summary');
 
         $is_master = false;
         if (is_null($sid) == false) {
@@ -4550,6 +4566,10 @@ class OpenSprinkler extends IPSModule
             case 'WeatherQueryStatus':
             case 'WeatherQueryTstamp':
                 $r = $remote_extension == false;
+                break;
+            case 'Summary':
+            case 'StationSummary':
+                $r = $remote_extension == false && $with_summary;
                 break;
             case 'DailyWaterUsage':
             case 'TotalWaterUsage':
@@ -4680,6 +4700,8 @@ class OpenSprinkler extends IPSModule
 
     private function Enable4Ident($ident, $sid = null)
     {
+        $with_summary = $this->ReadPropertyBoolean('with_summary');
+
         $r = false;
 
         if ($this->Use4Ident($ident, $sid) == false) {
@@ -4712,6 +4734,10 @@ class OpenSprinkler extends IPSModule
             case 'StationSelection':
             case 'StationStartManually':
                 $r = $remote_extension == false;
+                break;
+            case 'Summary':
+            case 'StationSummary':
+                $r = $remote_extension == false && $with_summary;
                 break;
         }
 
@@ -4936,7 +4962,7 @@ class OpenSprinkler extends IPSModule
         return true;
     }
 
-    public function GetLogs(int $from, int $until, int $groupBy)
+    public function GetLogs(int $from, int $until, int $groupBy, array $sidList)
     {
         $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
         $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
@@ -4955,6 +4981,14 @@ class OpenSprinkler extends IPSModule
             }
             if ($until != 0 && $log['tstamp'] > $until) {
                 continue;
+            }
+            if ($sidList !== false) {
+                if ($log['type'] != 'station') {
+                    continue;
+                }
+                if ($sidList != [] && in_array($log['sid'], $sidList) == false) {
+                    continue;
+                }
             }
             for ($i = 0; $i < count($station_infos); $i++) {
                 if ($station_infos[$i]['sid'] == $log['sid']) {
@@ -5061,11 +5095,11 @@ class OpenSprinkler extends IPSModule
         return $grouped_logs;
     }
 
-    public function BuildSummary(int $from, int $until, int $groupBy)
+    private function BuildSummary(int $from, int $until, int $groupBy, array $sidList)
     {
         $summary_scriptID = $this->ReadPropertyInteger('summary_scriptID');
 
-        $grouped_logs = $this->GetLogs($from, $until, $groupBy);
+        $grouped_logs = $this->GetLogs($from, $until, $groupBy, $sidList);
 
         if (IPS_ScriptExists($summary_scriptID)) {
             $params = [
