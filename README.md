@@ -169,7 +169,7 @@ OpenSprinkler.WaterFlowrate,
 ## 7. Versions-Historie
 
 - 1.3.1 @ 14.08.2025 11:07
-  - Fxi: Typo in Beispiel-Script docs/notify.php
+  - Fix: Typo in Beispiel-Script docs/notify.php
 
 - 1.3 @ 09.07.2025 12:55
   - Neu: internes Log incl. Abruffunktion GetLogs()
