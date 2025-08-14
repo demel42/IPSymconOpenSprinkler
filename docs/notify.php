@@ -8,4 +8,4 @@ $instID = $_IPS['InstanceID'];
 $message = $_IPS['message'];
 $severity = $_IPS['severity']; // alert, warning
 
-PS_LogMessage($scriptName, $message);
+IPS_LogMessage($scriptName, $message);
