@@ -19,4 +19,4 @@ if ($type == 'flow') {
     $message = '"' . $station . '" hat erhöhten Wasserfluss von ' . $flow_rate . ' l/min (' . $percent . '%)';
 }
 
-IPS_LogMessages($scriptName, $message);
+IPS_LogMessage($scriptName, $message);
