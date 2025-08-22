@@ -85,6 +85,8 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyBoolean('with_station_usage', true);
         $this->RegisterPropertyBoolean('with_station_flow', true);
 
+        $this->RegisterPropertyBoolean('duration_parts_separate_vars', false);
+
         $this->RegisterPropertyBoolean('with_summary', false);
         $this->RegisterPropertyInteger('summary_scriptID', 0);
 
@@ -224,6 +226,8 @@ class OpenSprinkler extends IPSModule
         $sensor_type1 = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
         $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
 
+        $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+
         $varList = [];
 
         // 1..100: Controller
@@ -321,14 +325,26 @@ class OpenSprinkler extends IPSModule
         $u = $this->Use4Ident('RainDelay');
         $e = $this->Enable4Ident('RainDelay');
         $this->MaintainVariable('RainDelayUntil', $this->Translate('Rain delay until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $this->MaintainVariable('RainDelayDays', $this->Translate('Rain delay duration in days'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayDays', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('RainDelayDays', $e);
+
+        if ($duration_parts_separate_vars) {
+            $this->MaintainVariable('RainDelayDays', $this->Translate('Rain delay duration in days'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayDays', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('RainDelayDays', $e);
+            }
+            $this->MaintainVariable('RainDelayHours', $this->Translate('Rain delay duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayHours', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('RainDelayHours', $e);
+            }
+            $this->UnregisterVariable('RainDelayDuration');
+        } else {
+            $this->MaintainVariable('RainDelayDuration', $this->Translate('Rain delay duration (days/hours)'), VARIABLETYPE_STRING, 'OpenSprinkler.RainDelayDuration', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('RainDelayDuration', $e);
+            }
+            $this->UnregisterVariable('RainDelayDays');
+            $this->UnregisterVariable('RainDelayHours');
         }
-        $this->MaintainVariable('RainDelayHours', $this->Translate('Rain delay duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayHours', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('RainDelayHours', $e);
-        }
+
         $this->MaintainVariable('RainDelayAction', $this->Translate('Rain delay action'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RainDelayAction', $vpos++, $u);
         if ($u) {
             $this->MaintainAction('RainDelayAction', $e);
@@ -346,18 +362,31 @@ class OpenSprinkler extends IPSModule
         $u = $this->Use4Ident('PauseQueue');
         $e = $this->Enable4Ident('PauseQueue');
         $this->MaintainVariable('PauseQueueUntil', $this->Translate('Pause queue until'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $this->MaintainVariable('PauseQueueHours', $this->Translate('Pause queue duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueHours', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('PauseQueueHours', $e);
+
+        if ($duration_parts_separate_vars) {
+            $this->MaintainVariable('PauseQueueHours', $this->Translate('Pause queue duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueHours', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('PauseQueueHours', $e);
+            }
+            $this->MaintainVariable('PauseQueueMinutes', $this->Translate('Pause queue duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueMinutes', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('PauseQueueMinutes', $e);
+            }
+            $this->MaintainVariable('PauseQueueSeconds', $this->Translate('Pause queue duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueSeconds', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('PauseQueueSeconds', $e);
+            }
+            $this->UnregisterVariable('PauseQueueDuration');
+        } else {
+            $this->MaintainVariable('PauseQueueDuration', $this->Translate('Pause queue duration (hours/minutes/seconds)'), VARIABLETYPE_STRING, 'OpenSprinkler.PauseQueueDuration', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('PauseQueueDuration', $e);
+            }
+            $this->UnregisterVariable('PauseQueueHours');
+            $this->UnregisterVariable('PauseQueueMinutes');
+            $this->UnregisterVariable('PauseQueueSeconds');
         }
-        $this->MaintainVariable('PauseQueueMinutes', $this->Translate('Pause queue duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueMinutes', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('PauseQueueMinutes', $e);
-        }
-        $this->MaintainVariable('PauseQueueSeconds', $this->Translate('Pause queue duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.PauseQueueSeconds', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('PauseQueueSeconds', $e);
-        }
+
         $this->MaintainVariable('PauseQueueAction', $this->Translate('Pause queue action'), VARIABLETYPE_INTEGER, $this->VarProf_PauseQueueAction, $vpos++, $u);
         if ($u) {
             $this->MaintainAction('PauseQueueAction', $e);
@@ -433,18 +462,30 @@ class OpenSprinkler extends IPSModule
 
         $u = $this->Use4Ident('StationStartManually');
         $e = $this->Enable4Ident('StationStartManually');
-        $this->MaintainVariable('StationStartManuallyHours', $this->Translate('Station run duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyHours', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('StationStartManuallyHours', $e);
+        if ($duration_parts_separate_vars) {
+            $this->MaintainVariable('StationStartManuallyHours', $this->Translate('Station run duration in hours'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyHours', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('StationStartManuallyHours', $e);
+            }
+            $this->MaintainVariable('StationStartManuallyMinutes', $this->Translate('Station run duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyMinutes', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('StationStartManuallyMinutes', $e);
+            }
+            $this->MaintainVariable('StationStartManuallySeconds', $this->Translate('Station run duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallySeconds', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('StationStartManuallySeconds', $e);
+            }
+            $this->UnregisterVariable('StationStartManuallyDuration');
+        } else {
+            $this->MaintainVariable('StationStartManuallyDuration', $this->Translate('Station run duration (hours/minutes/seconds)'), VARIABLETYPE_STRING, 'OpenSprinkler.StationStartManuallyDuration', $vpos++, $u);
+            if ($u) {
+                $this->MaintainAction('StationStartManuallyDuration', $e);
+            }
+            $this->UnregisterVariable('StationStartManuallyHours');
+            $this->UnregisterVariable('StationStartManuallyMinutes');
+            $this->UnregisterVariable('StationStartManuallySeconds');
         }
-        $this->MaintainVariable('StationStartManuallyMinutes', $this->Translate('Station run duration in minutes'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallyMinutes', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('StationStartManuallyMinutes', $e);
-        }
-        $this->MaintainVariable('StationStartManuallySeconds', $this->Translate('Station run duration in seconds'), VARIABLETYPE_INTEGER, 'OpenSprinkler.StationStartManuallySeconds', $vpos++, $u);
-        if ($u) {
-            $this->MaintainAction('StationStartManuallySeconds', $e);
-        }
+
         $this->MaintainVariable('StationStartManually', $this->Translate('Station start manually'), VARIABLETYPE_INTEGER, $this->VarProf_StationStartManually, $vpos++, $u);
         if ($u) {
             $this->MaintainAction('StationStartManually', $e);
@@ -993,6 +1034,49 @@ class OpenSprinkler extends IPSModule
         $formElements[] = [
             'type'  => 'ExpansionPanel',
             'items' => [
+                [
+                    'type'    => 'Label',
+                    'caption' => 'Variables for input of time durations',
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'duration_parts_separate_vars',
+                            'caption' => 'Separate variable for each component (days/hours/minutes/seconds)',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'Label',
+                            'caption' => ' ... otherwise a character string with a series of combinations of numbers and symbols (d = days, h = hours, m = minutes, s = seconds)',
+                            'italic'  => true,
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'Label',
+                            'caption' => '     Example: "5h10m" means 5 hours and 10 minutes',
+                            'italic'  => true,
+                        ],
+                    ],
+                ],
                 [
                     'type'    => 'Label',
                     'caption' => 'Variables for the whole system',
@@ -3273,11 +3357,33 @@ class OpenSprinkler extends IPSModule
                     }
                 }
                 break;
+            case 'RainDelayDuration':
+                if ($this->Use4Ident('RainDelay')) {
+                    $t = $this->DecodeDuration((string) $value);
+                    if (($t % 3600) != $t) {
+                        $this->SendDebug(__FUNCTION__, 'ŗain delay is hour based => restricted (' . $this->FormatDuration($t % 3600) . ')', 0);
+                        $t -= ($t % 3600);
+                    }
+                }
+                if ($t) {
+                    $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's / ' . $this->FormatDuration($t), 0);
+                } else {
+                    $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's', 0);
+                }
+                $value = $this->FormatDuration($t);
+                $r = true;
+                break;
             case 'RainDelayAction':
                 if ($this->Use4Ident('RainDelay')) {
-                    $d = $this->GetValue('RainDelayDays');
-                    $h = $this->GetValue('RainDelayHours');
-                    $t = $d * 24 + $h;
+                    $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+                    if ($duration_parts_separate_vars) {
+                        $d = $this->GetValue('RainDelayDays');
+                        $h = $this->GetValue('RainDelayHours');
+                        $t = $d * 24 + $h;
+                    } else {
+                        $s = $this->GetValue('RainDelayDuration');
+                        $t = $this->DecodeDuration($s) / 3600;
+                    }
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 'h', 0);
                     $r = $this->SetRainDelay((int) $value, $t);
                     if ($r) {
@@ -3294,12 +3400,30 @@ class OpenSprinkler extends IPSModule
                     }
                 }
                 break;
+            case 'PauseQueueDuration':
+                if ($this->Use4Ident('PauseQueue')) {
+                    $t = $this->DecodeDuration((string) $value);
+                    if ($t) {
+                        $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's / ' . $this->FormatDuration($t), 0);
+                    } else {
+                        $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's', 0);
+                    }
+                    $value = $this->FormatDuration($t);
+                    $r = true;
+                }
+                break;
             case 'PauseQueueAction':
                 if ($this->Use4Ident('PauseQueue')) {
-                    $h = $this->GetValue('PauseQueueHours');
-                    $m = $this->GetValue('PauseQueueMinutes');
-                    $s = $this->GetValue('PauseQueueSeconds');
-                    $t = ($h * 60 + $m) * 60 + $s;
+                    $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+                    if ($duration_parts_separate_vars) {
+                        $h = $this->GetValue('PauseQueueHours');
+                        $m = $this->GetValue('PauseQueueMinutes');
+                        $s = $this->GetValue('PauseQueueSeconds');
+                        $t = ($h * 60 + $m) * 60 + $s;
+                    } else {
+                        $s = $this->GetValue('PauseQueueDuration');
+                        $t = $this->DecodeDuration($s);
+                    }
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's', 0);
                     $r = $this->PauseQueue((int) $value, $t);
                     if ($r) {
@@ -3383,6 +3507,18 @@ class OpenSprinkler extends IPSModule
                     }
                 }
                 break;
+            case 'StationStartManuallyDuration':
+                if ($this->Use4Ident('StationStartManually')) {
+                    $t = $this->DecodeDuration((string) $value);
+                    if ($t) {
+                        $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's / ' . $this->FormatDuration($t), 0);
+                    } else {
+                        $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', t=' . $t . 's', 0);
+                    }
+                    $value = $this->FormatDuration($t);
+                    $r = true;
+                }
+                break;
             case 'StationStartManually':
                 if ($this->Use4Ident('StationStartManually') && $this->Use4Ident('StationSelection')) {
                     $sid = $this->GetValue('StationSelection');
@@ -3390,14 +3526,20 @@ class OpenSprinkler extends IPSModule
                         break;
                     }
                     $sid--;
-                    $h = $this->GetValue('StationStartManuallyHours');
-                    $m = $this->GetValue('StationStartManuallyMinutes');
-                    $s = $this->GetValue('StationStartManuallySeconds');
-                    $t = ($h * 60 + $m) * 60 + $s;
+                    $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+                    if ($duration_parts_separate_vars) {
+                        $h = $this->GetValue('StationStartManuallyHours');
+                        $m = $this->GetValue('StationStartManuallyMinutes');
+                        $s = $this->GetValue('StationStartManuallySeconds');
+                        $t = ($h * 60 + $m) * 60 + $s;
+                    } else {
+                        $s = $this->GetValue('StationStartManuallyDuration');
+                        $t = $this->DecodeDuration($s);
+                    }
                     $this->SendDebug(__FUNCTION__, $ident . '=' . $value . ', sid=' . $sid . ', timer=' . $t . 's', 0);
                     $r = $this->StationStartManually($sid, (int) $value, $t);
                     if ($r) {
-                        $queryInterval = $shortInterval;
+                        $queryInterval = $longInterval;
                     }
                 }
                 break;
@@ -3803,7 +3945,7 @@ class OpenSprinkler extends IPSModule
             $dur = $sec;
 
             $dur_min = 0;
-            if ($t < $dur_min) {
+            if ($dur < $dur_min) {
                 $this->SendDebug(__FUNCTION__, 'duration is < ' . $dur_min, 0);
                 $dur = $dur_min;
             }
@@ -4350,9 +4492,15 @@ class OpenSprinkler extends IPSModule
         if ($rainDelayUntil == 0) {
             $this->SetValue('RainDelayAction', 0 /* Set */);
         } else {
-            $this->SetValue('RainDelayDays', 0);
-            $this->SetValue('RainDelayHours', 0);
             $this->SetValue('RainDelayAction', 1 /* Clear */);
+
+            $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+            if ($duration_parts_separate_vars) {
+                $this->SetValue('RainDelayDays', 0);
+                $this->SetValue('RainDelayHours', 0);
+            } else {
+                $this->SetValue('RainDelayDuration', '');
+            }
         }
     }
 
@@ -4362,10 +4510,16 @@ class OpenSprinkler extends IPSModule
         if ($pauseQueueUntil == 0) {
             $this->SetValue('PauseQueueAction', 0 /* Set */);
         } else {
-            $this->SetValue('PauseQueueHours', 0);
-            $this->SetValue('PauseQueueMinutes', 0);
-            $this->SetValue('PauseQueueSeconds', 0);
             $this->SetValue('PauseQueueAction', 1 /* Clear */);
+
+            $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+            if ($duration_parts_separate_vars) {
+                $this->SetValue('PauseQueueHours', 0);
+                $this->SetValue('PauseQueueMinutes', 0);
+                $this->SetValue('PauseQueueSeconds', 0);
+            } else {
+                $this->SetValue('PauseQueueDuration', '');
+            }
         }
 
         $txt = [
@@ -4400,10 +4554,16 @@ class OpenSprinkler extends IPSModule
         if ($timeLeft == 0) {
             $this->SetValue('StationStartManually', 0 /* Set */);
         } else {
-            $this->SetValue('StationStartManuallyHours', 0);
-            $this->SetValue('StationStartManuallyMinutes', 0);
-            $this->SetValue('StationStartManuallySeconds', 0);
             $this->SetValue('StationStartManually', 1 /* Clear */);
+
+            $duration_parts_separate_vars = $this->ReadPropertyBoolean('duration_parts_separate_vars');
+            if ($duration_parts_separate_vars) {
+                $this->SetValue('StationStartManuallyHours', 0);
+                $this->SetValue('StationStartManuallyMinutes', 0);
+                $this->SetValue('StationStartManuallySeconds', 0);
+            } else {
+                $this->SetValue('StationStartManuallyDuration', '');
+            }
         }
 
         $txt = [
@@ -5278,5 +5438,94 @@ class OpenSprinkler extends IPSModule
         $html .= '</html>' . PHP_EOL;
 
         return $html;
+    }
+
+    private function DecodeDuration($s)
+    {
+        $map = [
+            [
+                'part'    => 'seconds',
+                'pattern' => '/(\d+)s/i',
+                'factor'  => 1,
+            ],
+            [
+                'part'    => 'minutes',
+                'pattern' => '/(\d+)m/i',
+                'factor'  => 60,
+            ],
+            [
+                'part'    => 'hours',
+                'pattern' => '/(\d+)h/i',
+                'factor'  => 60 * 60,
+            ],
+            [
+                'part'    => 'days',
+                'pattern' => '/(\d+)d/i',
+                'factor'  => 60 * 60 * 24,
+            ],
+        ];
+
+        $e = [];
+        $p = trim($s, ' ');
+        // $this->SendDebug(__FUNCTION__, 'initial input=' . $p, 0);
+        if ($p != '') {
+            foreach ($map as $m) {
+                $v = 0;
+                while (preg_match($m['pattern'], $p, $r, PREG_OFFSET_CAPTURE)) {
+                    // $this->SendDebug(__FUNCTION__, 'part=' . $m['part'] . ', pattern=' . $m['pattern'] . ', r=' . print_r($r, true), 0);
+                    $n = isset($e[$m['part']]) ? $e[$m['part']] : 0;
+                    $v = preg_replace('/^[0]*(\d+)$/', '${1}', $r[1][0]) + $n;
+                    $e[$m['part']] = $v;
+                    $p = substr($p, 0, (int) $r[0][1]) . substr($p, (int) $r[0][1] + strlen($r[0][0]));
+                }
+                // $this->SendDebug(__FUNCTION__, 'part=' . $m['part'] . ', value=' . $v . ', rest input=' . $p, 0);
+            }
+        } else {
+            $e['seconds'] = 0;
+        }
+
+        $n = 0;
+        if ($s == '') {
+            $this->SendDebug(__FUNCTION__, 'input="' . $s . '" => 0 (0s)', 0);
+        } elseif (count($e)) {
+            foreach ($map as $m) {
+                if (isset($e[$m['part']])) {
+                    $n += $e[$m['part']] * $m['factor'];
+                }
+            }
+            $this->SendDebug(__FUNCTION__, 'input="' . $s . '" => ' . $n . '(' . $this->FormatDuration($n) . ')', 0);
+        } else {
+            $this->SendDebug(__FUNCTION__, 'input="' . $s . ' => failed', 0);
+        }
+
+        return $n;
+    }
+
+    private function FormatDuration(float $val)
+    {
+        $sec = (int) $val;
+        $msec = ($val * 1000) % 1000;
+
+        $duration = '';
+        if ($sec >= 86400) {
+            $duration .= sprintf('%dd', floor($sec / 86400));
+            $sec = $sec % 86400;
+        }
+        if ($sec >= 3600) {
+            $duration .= sprintf('%dh', floor($sec / 3600));
+            $sec = $sec % 3600;
+        }
+        if ($sec >= 60) {
+            $duration .= sprintf('%dm', floor($sec / 60));
+            $sec = $sec % 60;
+        }
+        if ($sec > 0) {
+            $duration .= sprintf('%ds', (int) $sec);
+            $sec = floor($sec);
+        }
+        if ($msec > 0) {
+            $duration .= sprintf('%dms', $msec);
+        }
+        return $duration;
     }
 }

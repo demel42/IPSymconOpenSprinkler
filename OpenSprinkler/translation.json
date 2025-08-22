@@ -86,6 +86,13 @@
 			"Counter variable": "Zähler-Variable",
 			" ... conversion factor to liter": " ... Umrechnungsfaktor in Liter",
 
+			"Variables for input of time durations": "Variablen für die Eingabe von Zeitdauern",
+			"Separate variable for each component (days/hours/minutes/seconds)": "Getrennte Variable für jede Komponente (Tage/Stunden/Minuten/Sekunden)",
+			" ... otherwise a character string with a series of combinations of numbers and symbols (d = days, h = hours, m = minutes, s = seconds)":
+				" ... andernfalls eine Zeichenfolge mit einer Reihe von Kombination aus Zahl und Kennzeichnung (d = Tage, h = Stunden, m = Minuten, s = Sekunden)",
+			"     Example: \"5h10m\" means 5 hours and 10 minutes":
+				"     Beispiel: \"5h10m\" bedeutet 5 Stunden und 10 Minuten",
+
 			"Variables for the whole system": "Variablen für das gesamte System",
 			"Variables for daily watering time of the system": "Variablen für die tägliche Bewässerungszeit des Systems",
 			"Variables for daily water usage of the system": "Variablen für den täglichen Wasserverbrauch des Systems",
@@ -135,6 +142,7 @@
 			"Watering time (total)": "Bewässerungsdauer (gesamt)",
 
 			"Rain delay until": "Regenbedingte Unterbrechung bis",
+			"Rain delay duration (days/hours)": "Regenbedingte Unterbrechungsdauer (Tage/Stunden)",
 			"Rain delay duration in days": "Regenbedingte Unterbrechungsdauer in Tagen",
 			"Rain delay duration in hours": "Regenbedingte Unterbrechungsdauer in Stunden",
 			"Rain delay action": "Regenbedingte Unterbrechung ausführen",
@@ -142,6 +150,7 @@
 			"Stop all stations": "Alle Kreise stoppen",
 
 			"Pause queue until": "Pause der Warteschlange bis",
+			"Pause queue duration (hours/minutes/seconds)": "Pause der Warteschlange (Stunden/Minuten/Sekunden)",
 			"Pause queue duration in hours": "Pause der Warteschlange in Stunden",
 			"Pause queue duration in minutes": "Pause der Warteschlange in Minuten",
 			"Pause queue duration in seconds": "Pause der Warteschlange in Sekunden",
@@ -157,6 +166,7 @@
 			"Station ignores sensor 2": "Kreis ignoriert Sensor 2",
 			"Average water flow": "Durchschnittlicher Wasserdurchfluss",
 			"Water flow monitoring threshold": "Schwellenwert der Überwachung des Wasserdurchfluss",
+			"Station run duration (hours/minutes/seconds)": "Kreis Laufzeit (Stunden/Minuten/Sekunden)",
 			"Station run duration in hours": "Kreis Laufzeit in Stunden",
 			"Station run duration in minutes": "Kreis Laufzeit in Minuten",
 			"Station run duration in seconds": "Kreis Laufzeit in Sekunden",

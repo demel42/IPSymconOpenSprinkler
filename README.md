@@ -168,6 +168,9 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.4 @ 18.08.2025 18:31
+  - Neu: Angabe von Dauern (Unterbrechung, Pause, Laufzeit) kann nun optional alternativ als Zeichenkette angegeben werden
+
 - 1.3.1 @ 14.08.2025 11:07
   - Fix: Typo in Beispiel-Script docs/notify.php
 
