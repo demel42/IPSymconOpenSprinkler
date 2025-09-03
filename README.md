@@ -168,6 +168,9 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.5 @ 03.09.2025 17:03
+  - Fix: Angabe zum "vendor" fehlte
+
 - 1.4 @ 18.08.2025 18:31
   - Neu: Angabe von Dauern (Unterbrechung, Pause, Laufzeit) kann nun optional alternativ als Zeichenkette angegeben werden
 
