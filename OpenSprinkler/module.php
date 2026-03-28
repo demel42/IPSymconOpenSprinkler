@@ -492,11 +492,11 @@ class OpenSprinkler extends IPSModule
         }
 
         $u = $this->Use4Ident('StationInfo');
-        $this->MaintainVariable('StationInfo', $this->Translate('Station information'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('StationInfo', $this->Translate('Station information'), VARIABLETYPE_STRING, '', $vpos++, $u);
         $u = $this->Use4Ident('StationRunning');
-        $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('StationRunning', $this->Translate('Station current running'), VARIABLETYPE_STRING, '', $vpos++, $u);
         $u = $this->Use4Ident('StationLast');
-        $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('StationLast', $this->Translate('Station last running'), VARIABLETYPE_STRING, '', $vpos++, $u);
 
         $u = $this->Use4Ident('StationSummary');
         $this->MaintainVariable('StationSummary', $this->Translate('Summary of irrigation'), VARIABLETYPE_STRING, '~HTMLBox', $vpos++, $u);
@@ -601,11 +601,11 @@ class OpenSprinkler extends IPSModule
             $this->MaintainAction('ProgramStartManually', $e);
         }
         $u = $this->Use4Ident('ProgramInfo');
-        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramInfo', $this->Translate('Program information'), VARIABLETYPE_STRING, '', $vpos++, $u);
         $u = $this->Use4Ident('ProgramRunning');
-        $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramRunning', $this->Translate('Program current running'), VARIABLETYPE_STRING, '', $vpos++, $u);
         $u = $this->Use4Ident('ProgramLast');
-        $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '~TextBox', $vpos++, $u);
+        $this->MaintainVariable('ProgramLast', $this->Translate('Program last running'), VARIABLETYPE_STRING, '', $vpos++, $u);
 
         $vpos = 950;
         /*
@@ -3721,8 +3721,17 @@ class OpenSprinkler extends IPSModule
                     $err = 'got http-code ' . $httpcode . ' (server error)';
                 } else {
                     $statuscode = self::$IS_HTTPERROR;
-                    $err = 'got http-code ' . $httpcode;
+                    $err = 'got http-code ' . $httpcode . ' (' . $this->HttpCode2Text($httpcode) . ')';
                 }
+            }
+        }
+
+        if ($statuscode == 0) {
+            $body = @mb_convert_encoding($body, 'UTF-8', 'auto');
+            if ($body == false) {
+                $this->SendDebug(__FUNCTION__, 'mb_convert_encoding() failed', 0);
+                $statuscode = self::$IS_INVALIDDATA;
+                $err = 'invalid/malformed data';
             }
         }
 
@@ -4755,12 +4764,14 @@ class OpenSprinkler extends IPSModule
             case 'StationLastRun':
             case 'StationNextDuration':
             case 'StationNextRun':
-            case 'StationRunning':
             case 'StationLast':
             case 'StationStartManually':
             case 'StationTimeLeft':
             case 'StationTotalDuration':
                 $r = $remote_extension == false && $is_master == false;
+                break;
+            case 'StationRunning':
+                $r = $is_master == false;
                 break;
             case 'StationDailyWaterUsage':
             case 'StationTotalWaterUsage':

@@ -168,8 +168,13 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
-- 1.5 @ 03.09.2025 17:03
+- 1.5 @ 28.03.2026 10:00
   - Fix: Angabe zum "vendor" fehlte
+  - Änderung: Daten vom OpenSprinkler kommen nun UTF8-kodiert
+  - Änderung: Variablen StationInfo, StationRunning, StationLast und ProgramInfo, ProgrammRunning, ProgramLast sind nun keine ~TextBox sondern ohne Variablenprofil
+  - Fix: Anpassung für IPS 9
+  - Fix: interne Änderung
+  - update submodule CommonStubs
 
 - 1.4 @ 18.08.2025 18:31
   - Neu: Angabe von Dauern (Unterbrechung, Pause, Laufzeit) kann nun optional alternativ als Zeichenkette angegeben werden
