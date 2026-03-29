@@ -2072,6 +2072,19 @@ class OpenSprinkler extends IPSModule
             return;
         }
         $this->SendDebug(__FUNCTION__, 'db_jdata=' . print_r($db_jdata, true), 0);
+        $heap = $this->GetArrayElem($db_jdata, 'heap', '');
+        if ($heap != '') {
+            $heap = $this->size2str((int) $heap);
+        }
+        $flash = $this->GetArrayElem($db_jdata, 'flash', '');
+        if ($flash != '') {
+            $flash = $this->size2str((int) $flash);
+        }
+        $used = $this->GetArrayElem($db_jdata, 'used', '');
+        if ($used != '') {
+            $used = $this->size2str((int) $used);
+        }
+        $this->SendDebug(__FUNCTION__, 'memory: heap=' . $heap . ', flash=' . $flash . ', used=' . $used, 0);
 
         if ($this->Use4Ident('Summary')) {
             $days = (int) $this->GetValue('SummaryDays');
@@ -3737,7 +3750,7 @@ class OpenSprinkler extends IPSModule
 
         if ($statuscode == 0) {
             $jbody = @json_decode($body, true);
-            if ($jbody == false) {
+            if ($jbody === false) {
                 $this->SendDebug(__FUNCTION__, 'json_last_error_msg=' . json_last_error_msg(), 0);
                 $statuscode = self::$IS_INVALIDDATA;
                 $err = 'invalid/malformed data';
@@ -4971,7 +4984,7 @@ class OpenSprinkler extends IPSModule
                 return;
             }
             $jdata = @json_decode($data, true);
-            if ($jdata == false) {
+            if ($jdata === false) {
                 $this->SendDebug(__FUNCTION__, 'malformed data', 0);
                 return;
             }

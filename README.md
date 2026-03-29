@@ -168,6 +168,10 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.6 @ 29.03.2026 15:18
+  - Fix: Unterschied zwischen fehlerhaften json-Daten und leerem Array beachten
+  - New: Ausgabe des Memory-Verbrauchs im Debug
+
 - 1.5 @ 28.03.2026 10:00
   - Fix: Angabe zum "vendor" fehlte
   - Änderung: Daten vom OpenSprinkler kommen nun UTF8-kodiert
