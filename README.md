@@ -170,7 +170,7 @@ OpenSprinkler.WaterFlowrate,
 
 - 1.6 @ 29.03.2026 15:18
   - Fix: Unterschied zwischen fehlerhaften json-Daten und leerem Array beachten
-  - New: Ausgabe des Memory-Verbrauchs im Debug
+  - Neu: Ausgabe des Memory-Verbrauchs des OpenSprinkler-Controller im Instanz-Debug
 
 - 1.5 @ 28.03.2026 10:00
   - Fix: Angabe zum "vendor" fehlte
