@@ -1438,6 +1438,18 @@ class OpenSprinkler extends IPSModule
         if (is_null($sec)) {
             $sec = $this->ReadPropertyInteger('send_interval');
         }
+
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
+        if ($remote_extension) {
+            $sec = 0;
+        }
+
+        $variables_mqtt_topic = $this->ReadPropertyString('variables_mqtt_topic');
+        if ($variables_mqtt_topic == '') {
+            $sec = 0;
+        }
+
         $this->MaintainTimer('SendVariables', $sec * 1000);
     }
 
@@ -2904,10 +2916,22 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
+        $mqtt_topic = $this->ReadPropertyString('mqtt_topic');
+        if ($mqtt_topic == '') {
+            $this->SendDebug(__FUNCTION__, 'no mqtt_topic configured => skip', 0);
+            return;
+        }
+
         $jdata = json_decode($data, true);
         $topic = isset($jdata['Topic']) ? $jdata['Topic'] : '';
-        $mqtt_topic = $this->ReadPropertyString('mqtt_topic');
-        $topic = substr($topic, strlen($mqtt_topic) + 1);
+        $_topic = explode('/', $topic);
+        $topic_base = $_topic[0];
+        if ($topic_base != $mqtt_topic) {
+            $this->SendDebug(__FUNCTION__, 'mqtt_topic mismatch => ignore', 0);
+            return;
+        }
+
+        $topic = substr($topic, strlen($topic_base) + 1);
         $payload = isset($jdata['Payload']) ? $jdata['Payload'] : '';
         switch ($topic) {
             case 'availability':
@@ -3254,7 +3278,18 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
+        if ($remote_extension) {
+            $this->SendDebug(__FUNCTION__, 'in remote extension mode => skip', 0);
+            return;
+        }
+
         $variables_mqtt_topic = $this->ReadPropertyString('variables_mqtt_topic');
+        if ($variables_mqtt_topic == '') {
+            $this->SendDebug(__FUNCTION__, 'no variables_mqtt_topic configured => skip', 0);
+            return;
+        }
 
         $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
         $payload = [];

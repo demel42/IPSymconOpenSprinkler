@@ -168,6 +168,10 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.7 @ 31.03.2026 08:42
+  - Verbesserung: Prüfen, ob bei dem Empfang von MQTT der Basis-Topic zu der Instanz passt
+  - Verbesserung: nur dann Variablenwerte per MQTT senden, wenn hierfür ein Topic sowie entsprechende Variablen konfiguriert sind
+
 - 1.6 @ 29.03.2026 15:18
   - Fix: Unterschied zwischen fehlerhaften json-Daten und leerem Array beachten
   - Neu: Ausgabe des Memory-Verbrauchs des OpenSprinkler-Controller im Instanz-Debug
