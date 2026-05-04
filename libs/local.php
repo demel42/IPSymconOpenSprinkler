@@ -76,15 +76,14 @@ trait OpenSprinklerLocalLib
     public static $REBOOT_CAUSE_NONE = 0;
     public static $REBOOT_CAUSE_RESET = 1;
     public static $REBOOT_CAUSE_BUTTON = 2;
-    public static $REBOOT_CAUSE_RSTAP = 3;
+    public static $REBOOT_CAUSE_TO_AP_MODE = 3;
     public static $REBOOT_CAUSE_TIMER = 4;
-    public static $REBOOT_CAUSE_WEB = 5;
-    public static $REBOOT_CAUSE_WIFIDONE = 6;
+    public static $REBOOT_CAUSE_API = 5;
+    public static $REBOOT_CAUSE_TO_CLIENT_MODE = 6;
     public static $REBOOT_CAUSE_FWUPDATE = 7;
     public static $REBOOT_CAUSE_WEATHER_FAIL = 8;
     public static $REBOOT_CAUSE_NETWORK_FAIL = 9;
-    public static $REBOOT_CAUSE_NTP = 10;
-    public static $REBOOT_CAUSE_PROGRAM = 11;
+    public static $REBOOT_CAUSE_NTP_SYNC = 10;
     public static $REBOOT_CAUSE_POWERON = 99;
 
     public static $NUM_SEQUENTIAL_GROUPS = 4;
@@ -209,6 +208,8 @@ trait OpenSprinklerLocalLib
 
         $this->CreateVarProfile('OpenSprinkler.Wifi', VARIABLETYPE_INTEGER, ' dBm', 0, 0, 0, 0, 'Intensity', [], $reInstall);
 
+        $this->CreateVarProfile('OpenSprinkler.KB', VARIABLETYPE_FLOAT, ' KB', 0, 0, 0, 1, '', [], $reInstall);
+
         $associations = [
             ['Wert' => self::$WEATHER_STATUS_OK, 'Name' => $this->Translate('Ok'), 'Farbe' => -1],
             ['Wert' => self::$WEATHER_STATUS_REQUEST_NOT_RECEIVED, 'Name' => $this->Translate('Request not received'), 'Farbe' => -1],
@@ -243,15 +244,14 @@ trait OpenSprinklerLocalLib
             ['Wert' => self::$REBOOT_CAUSE_NONE, 'Name' => $this->Translate('None'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_RESET, 'Name' => $this->Translate('Factory reset'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_BUTTON, 'Name' => $this->Translate('Triggered by buttons'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_RSTAP, 'Name' => $this->Translate('Reset to AP mode'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_TIMER, 'Name' => $this->Translate('Timer triggered reboot'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_WEB, 'Name' => $this->Translate('API triggered reboot'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_WIFIDONE, 'Name' => $this->Translate('Switch from AP to client mode'), 'Farbe' => -1],
+            ['Wert' => self::$REBOOT_CAUSE_TO_AP_MODE, 'Name' => $this->Translate('Reset to AP mode'), 'Farbe' => -1],
+            ['Wert' => self::$REBOOT_CAUSE_TIMER, 'Name' => $this->Translate('Web request'), 'Farbe' => -1],
+            ['Wert' => self::$REBOOT_CAUSE_API, 'Name' => $this->Translate('Web request'), 'Farbe' => -1],
+            ['Wert' => self::$REBOOT_CAUSE_TO_CLIENT_MODE, 'Name' => $this->Translate('Switch from AP to client mode'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_FWUPDATE, 'Name' => $this->Translate('Firmware update'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_WEATHER_FAIL, 'Name' => $this->Translate('Weather call failed for more than 24 hours'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_NETWORK_FAIL, 'Name' => $this->Translate('Network failed for too many times'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_NTP, 'Name' => $this->Translate('Reboot due to first-time NTP sync'), 'Farbe' => -1],
-            ['Wert' => self::$REBOOT_CAUSE_PROGRAM, 'Name' => $this->Translate('Triggered by program'), 'Farbe' => -1],
+            ['Wert' => self::$REBOOT_CAUSE_NTP_SYNC, 'Name' => $this->Translate('Reboot due to first-time NTP sync'), 'Farbe' => -1],
             ['Wert' => self::$REBOOT_CAUSE_POWERON, 'Name' => $this->Translate('Power on'), 'Farbe' => -1],
         ];
         $this->CreateVarProfile('OpenSprinkler.RebootCause', VARIABLETYPE_INTEGER, '', 0, 0, 0, 1, '', $associations, $reInstall);

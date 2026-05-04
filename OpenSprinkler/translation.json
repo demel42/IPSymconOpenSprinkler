@@ -110,6 +110,7 @@
 			" ... by activating this switch, additional variables are created and logged as counters":
 				" ... durch Aktivierung dieses Schalters werden zusätzliche Variablen erstellt und als Zähler geloggt",
 			"Other configurations": "Sonstige Konfigurationen",
+			"Variables with system diagnostic informations": "Variablen mit Informationsn zur Systemdiagnose",
 
 			"Summary": "Zusammenfassung",
 			"HTML box with summary": "HTML-Box mit Zusammenfassung",
@@ -205,6 +206,9 @@
 			"Cause of last reboot": "Ursache des letzten Neustarts",
 
 			"Device time": "Gerätezeit",
+
+			"Free memory": "freier Arbeitsspeicher",
+			"Free storage": "freier Speicherplatz",
 
 			"Wifi signal strenght": "WLAN-Signalstärke",
 

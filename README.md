@@ -168,9 +168,14 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.8 @ 18.04.2026 17:13
+  - Verbesserung: optionale Variablen für den verfügbaren Arbeitsspeicher und Speicherplatz
+  - Ergänzung: Unterstützung für die Hardware-Versіon 4.0
+  - Fix: Beachten des Schalters "verwende" bei der Erzeugung von Nachrichten zur Wertübertragung an der Controller
+
 - 1.7 @ 31.03.2026 08:42
   - Verbesserung: Prüfen, ob bei dem Empfang von MQTT der Basis-Topic zu der Instanz passt
-  - Verbesserung: nur dann Variablenwerte per MQTT senden, wenn hierfür ein Topic sowie entsprechende Variablen konfiguriert sind
+  - Verbesserung: nur dann eine Nachricht zur Werte-Übertragung per MQTT erzeugen, wenn ein Topic sowie entsprechende Variablen konfiguriert sind
 
 - 1.6 @ 29.03.2026 15:18
   - Fix: Unterschied zwischen fehlerhaften json-Daten und leerem Array beachten

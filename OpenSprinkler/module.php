@@ -67,7 +67,7 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyString('sensor_list', json_encode([]));
         $this->RegisterPropertyString('program_list', json_encode([]));
 
-        $this->RegisterPropertyString('variables_mqtt_topic', 'opensprinkler/variables');
+        $this->RegisterPropertyString('variables_mqtt_topic', 'opensprinkler-variables');
         $this->RegisterPropertyString('variable_list', json_encode([]));
         $this->RegisterPropertyInteger('send_interval', 300);
 
@@ -84,6 +84,8 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyBoolean('with_station_next_run', false);
         $this->RegisterPropertyBoolean('with_station_usage', true);
         $this->RegisterPropertyBoolean('with_station_flow', true);
+
+        $this->RegisterPropertyBoolean('with_system_diagnostigs', false);
 
         $this->RegisterPropertyBoolean('duration_parts_separate_vars', false);
 
@@ -243,16 +245,24 @@ class OpenSprinkler extends IPSModule
 
         $u = $this->Use4Ident('DeviceTime');
         $this->MaintainVariable('DeviceTime', $this->Translate('Device time'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
-        $u = $this->Use4Ident('WifiStrength');
-        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, $u);
+
+        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
 
         $u = $this->Use4Ident('LastRebootTstamp');
         $this->MaintainVariable('LastRebootTstamp', $this->Translate('Timestamp of last reboot'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $u = $this->Use4Ident('LastRebootCause');
         $this->MaintainVariable('LastRebootCause', $this->Translate('Cause of last reboot'), VARIABLETYPE_INTEGER, 'OpenSprinkler.RebootCause', $vpos++, $u);
 
-        $this->MaintainVariable('LastUpdate', $this->Translate('Last update'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, true);
+        $vpos = 20;
+        $u = $this->Use4Ident('WifiStrength');
+        $this->MaintainVariable('WifiStrength', $this->Translate('Wifi signal strenght'), VARIABLETYPE_INTEGER, 'OpenSprinkler.Wifi', $vpos++, $u);
 
+        $u = $this->Use4Ident('MemoryFree');
+        $this->MaintainVariable('MemoryFree', $this->Translate('Free memory'), VARIABLETYPE_FLOAT, 'OpenSprinkler.KB', $vpos++, $u);
+        $u = $this->Use4Ident('StorageFree');
+        $this->MaintainVariable('StorageFree', $this->Translate('Free storage'), VARIABLETYPE_FLOAT, 'OpenSprinkler.KB', $vpos++, $u);
+
+        $vpos = 30;
         $u = $this->Use4Ident('WeatherQueryTstamp');
         $this->MaintainVariable('WeatherQueryTstamp', $this->Translate('Timestamp of last weather information'), VARIABLETYPE_INTEGER, '~UnixTimestamp', $vpos++, $u);
         $u = $this->Use4Ident('WeatherQueryStatus');
@@ -957,8 +967,8 @@ class OpenSprinkler extends IPSModule
         ];
 
         $feature = $this->GetArrayElem($controller_infos, 'feature', '');
-
-        if ($feature != 'ASB') {
+        $has_ASB = in_array('ASB', explode(',', $feature));
+        if ($has_ASB == false) {
             $items = [
                 [
                     'type'    => 'Label',
@@ -1258,6 +1268,19 @@ class OpenSprinkler extends IPSModule
                             'type'    => 'CheckBox',
                             'name'    => 'with_station_flow',
                             'caption' => 'Variables with the water flow of the last run',
+                        ],
+                    ],
+                ],
+                [
+                    'type'  => 'RowLayout',
+                    'items' => [
+                        [
+                            'type' => 'Label',
+                        ],
+                        [
+                            'type'    => 'CheckBox',
+                            'name'    => 'with_system_diagnostigs',
+                            'caption' => 'Variables with system diagnostic informations',
                         ],
                     ],
                 ],
@@ -1659,6 +1682,7 @@ class OpenSprinkler extends IPSModule
         $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
 
         $feature = $this->GetArrayElem($controller_infos, 'feature', '');
+        $has_ASB = in_array('ASB', explode(',', $feature));
         $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
         $has_flowmeter = (bool) $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
         $station_count = $this->GetArrayElem($controller_infos, 'station_count', 0);
@@ -1676,9 +1700,31 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($this->Use4Ident('WateringLevel')) {
+            $vadd = [];
+            $wtrestr = $this->GetArrayElem($jdata, 'settings.wtrestr', 0, $fnd);
+            if ($fnd) {
+                $vadd[] = 'weather restriction=' . $this->bool2str((bool) $wtrestr);
+            }
+			/*
+				wtdata.h "Mean Humidity" formatHumidity
+				wtdata.t "Mean Temp" formatTemp
+				wtdata.p "Total Rain" formatPrecip
+				wtdata.eto "ETo" formatPrecip
+				wtdata.radiation "Mean Radiation" formatTemp
+				wtdata.maxT "Max Temp" formatTemp
+				wtdata.minH "Min Humidity" formatHumidity
+				wtdata.maxH "Max Humidity" formatHumidity
+				wtdata.wind "Mean Wind" formatSpeed
+
+
+				formatTemp Math.round( ( temp - 32 ) * ( 5 / 9 ) * 10 ) / 10 + " &#176;C";
+				formatPrecip Math.round( precip * 25.4 * 10 ) / 10 + " mm";
+				formatHumidity Math.round( humidity ) + " %";
+				formatSpeed Math.round( speed * 1.6 * 10 ) / 10 + " km/h";
+			*/
             $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
             if ($fnd) {
-                $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl, 0);
+                $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl . ' (' . implode(', ', $vadd) . ')', 0);
                 $this->SetValue('WateringLevel', $wl);
             }
         }
@@ -1753,19 +1799,54 @@ class OpenSprinkler extends IPSModule
         }
 
         if ($this->Use4Ident('CurrentDraw')) {
+            $vadd = [];
+            $blcurr = $this->GetArrayElem($jdata, 'settings.blcurr', 0, $fnd);
+            if ($fnd) {
+                $vadd[] = 'baseline=' . $blcurr;
+            }
+            $vcurr = $this->GetArrayElem($jdata, 'settings.vcurr', 0, $fnd);
+            if ($fnd) {
+                $vadd[] = 'valve=' . $vcurr;
+            }
+            $ocs = $this->GetArrayElem($jdata, 'settings.ocs', 0, $fnd);
+            if ($fnd) {
+                switch ($ocs) {
+                    case 0:
+                        $s = 'none';
+                        break;
+                    case 255:
+                        $s = 'systemwide';
+                        break;
+                    default:
+                        $s = 'station ' . $ocs;
+                        break;
+                }
+                $vadd[] = 'overcurrent=' . $s;
+            }
             $curr = $this->GetArrayElem($jdata, 'settings.curr', 0, $fnd);
             if ($fnd) {
-                $this->SendDebug(__FUNCTION__, '... CurrentDraw (settings.curr)=' . $curr, 0);
+                $this->SendDebug(__FUNCTION__, '... CurrentDraw (settings.curr)=' . $curr . ' (' . implode(', ', $vadd) . ')', 0);
                 $this->SetValue('CurrentDraw', $curr);
             }
         }
 
         if ($this->Use4Ident('WaterFlowrate')) {
             $flwrt = $this->GetArrayElem($jdata, 'settings.flwrt', 30);
+            $flcto = $this->GetArrayElem($jdata, 'settings.flcto', 0, $fnd);
+            if ($fnd) {
+                $devt = $this->GetArrayElem($jdata, 'settings.devt', 0);
+                $lupt = $this->GetArrayElem($jdata, 'settings.lupt', 0);
+                $period = $devt - $lupt;
+                if ($period > 0) {
+                    $flow_rate = $this->ConvertPulses2Volume($flcto) / ($flwrt / $period);
+                    $this->SendDebug(__FUNCTION__, '... WaterFlowrate[since boot] (settings.flwrt)=' . $flwrt . '/(settings.flcto)=' . $flcto . ' => ' . $flow_rate, 0);
+                }
+            }
             $flcrt = $this->GetArrayElem($jdata, 'settings.flcrt', 0, $fnd);
             if ($fnd) {
-                $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / 60.0);
-                $this->SendDebug(__FUNCTION__, '... WaterFlowrate (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
+                $period = 60;
+                $flow_rate = $this->ConvertPulses2Volume($flcrt) / ($flwrt / $period);
+                $this->SendDebug(__FUNCTION__, '... WaterFlowrate[last ' . $period . 's] (settings.flwrt)=' . $flwrt . '/(settings.flcrt)=' . $flcrt . ' => ' . $flow_rate, 0);
                 $this->SetValue('WaterFlowrate', $flow_rate);
             }
         }
@@ -1841,7 +1922,7 @@ class OpenSprinkler extends IPSModule
             $this->SendDebug(__FUNCTION__, '... (settings.sbits)=' . print_r($sbits, true) . ' => sid=' . implode(', ', $sidV), 0);
         }
 
-        if ($has_flowmeter && $feature == 'ASB') {
+        if ($has_flowmeter && $has_ASB) {
             $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', [], $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... (stations.stn_favg)=' . print_r($stn_favg, true), 0);
@@ -1884,8 +1965,8 @@ class OpenSprinkler extends IPSModule
             if ($is_master == false && $remote_extension == false) {
                 $ps = (array) $this->GetArrayElem($jdata, 'settings.ps', [], $fnd);
                 if ($fnd) {
-                    $ps_rem = $ps[$sid][1];
-                    $ps_start = $this->AdjustTimestamp($ps[$sid][2]);
+                    $ps_rem = $this->GetArrayElem($ps, $sid . '.1', 0);
+                    $ps_start = $this->AdjustTimestamp($this->GetArrayElem($ps, $sid . '.2', 0));
                 } else {
                     $ps_rem = 0;
                     $ps_start = 0;
@@ -1893,7 +1974,7 @@ class OpenSprinkler extends IPSModule
 
                 if ($this->idx_in_bytes($sid, $stn_dis)) {
                     $state = self::$STATION_STATE_DISABLED;
-                } elseif ($ps[$sid][0] != 0) {
+                } elseif ($this->GetArrayElem($ps, $sid . '.0', 0) != 0) {
                     if ($this->idx_in_bytes($sid, $sbits)) {
                         $state = self::$STATION_STATE_WATERING;
                         $curLeft = $ps_rem;
@@ -1958,7 +2039,7 @@ class OpenSprinkler extends IPSModule
             }
 
             if ($this->Use4Ident('StationFlowAverage', $sid)) {
-                $favg = $stn_favg[$sid] / 100;
+                $favg = isset($stn_favg[$sid]) ? ($stn_favg[$sid] / 100) : 0;
                 $this->SendDebug(__FUNCTION__, '... StationFlowAverage' . $post . ' => ' . $favg, 0);
                 $this->SetValue('StationFlowAverage' . $post, $favg);
             }
@@ -2071,6 +2152,7 @@ class OpenSprinkler extends IPSModule
             $this->MaintainAction('WateringLevel', $e);
         }
 
+        /*
         $db_data = $this->do_HttpRequest('db', []);
         if ($db_data == false) {
             $this->SendDebug(__FUNCTION__, 'no db_data', 0);
@@ -2097,6 +2179,70 @@ class OpenSprinkler extends IPSModule
             $used = $this->size2str((int) $used);
         }
         $this->SendDebug(__FUNCTION__, 'memory: heap=' . $heap . ', flash=' . $flash . ', used=' . $used, 0);
+         */
+
+        $with_system_diagnostigs = $this->ReadPropertyBoolean('with_system_diagnostigs');
+        if ($with_system_diagnostigs) {
+            $du_data = $this->do_HttpRequest('du', []);
+            if ($du_data == false) {
+                $this->SendDebug(__FUNCTION__, 'no du_data', 0);
+                IPS_SemaphoreLeave($this->SemaphoreID);
+                return;
+            }
+            $du_jdata = @json_decode($du_data, true);
+            if ($du_jdata == false) {
+                $this->SendDebug(__FUNCTION__, 'malformed du_data', 0);
+                IPS_SemaphoreLeave($this->SemaphoreID);
+                return;
+            }
+            $this->SendDebug(__FUNCTION__, 'du_jdata=' . print_r($du_jdata, true), 0);
+
+            /*
+            01.04.2026, 11:07:54 |          QueryStatus | du_jdata=Array
+                    (
+                        [status] => 1
+                        [freeMemory] => 10800
+                        [totalBytes] => 2072576
+                        [usedBytes] => 1548288
+                        [freeBytes] => 524288
+                        [blockSize] => 8192
+                        [pageSize] => 256
+                        [maxOpenFiles] => 5
+                        [maxPathLength] => 32
+                        [pingok] => 0
+                        [mqtt] => 1
+                        [ifttt] => 16777215
+                        [logfiles] => Array
+                            (
+                                [l01] => 0
+                                [l02] => 0
+                                [l11] => 0
+                                [l12] => 0
+                                [l21] => 0
+                                [l22] => 0
+                            )
+
+                    )
+             */
+
+            if ($this->Use4Ident('MemoryFree')) {
+                $freeMemory = $this->GetArrayElem($du_jdata, 'freeMemory', 0, $fnd);
+                if ($fnd) {
+                    $memoryFree = round($freeMemory / 1024, 1);
+                    $this->SendDebug(__FUNCTION__, '... MemoryFree (freeMemory)=' . $freeMemory . ' => ' . $memoryFree . ' KB', 0);
+                    $this->SetValue('MemoryFree', $memoryFree);
+                }
+            }
+
+            if ($this->Use4Ident('StorageFree')) {
+                $freeBytes = $this->GetArrayElem($du_jdata, 'freeBytes', 0, $fnd);
+                if ($fnd) {
+                    $storageFree = round($freeBytes / 1024, 1);
+                    $this->SendDebug(__FUNCTION__, '... StorageFree (freeBytes)=' . $freeBytes . ' => ' . $storageFree . ' KB', 0);
+                    $this->SetValue('StorageFree', $storageFree);
+                }
+            }
+        }
 
         if ($this->Use4Ident('Summary')) {
             $days = (int) $this->GetValue('SummaryDays');
@@ -2159,6 +2305,7 @@ class OpenSprinkler extends IPSModule
         }
 
         $feature = $this->GetArrayElem($jdata, 'options.feature', '');
+        $has_ASB = in_array('ASB', explode(',', $feature));
 
         $remote_extension = (bool) $this->GetArrayElem($jdata, 'options.re', false);
 
@@ -2192,10 +2339,10 @@ class OpenSprinkler extends IPSModule
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $ps[$ps_sid][0];
-                $rem = $ps[$ps_sid][1];
-                $start = $this->AdjustTimestamp($ps[$ps_sid][2]);
-                $gid = $ps[$ps_sid][3];
+                $ps_pid = $this->GetArrayElem($ps, $ps_sid . '.0', 0);
+                $rem = $this->GetArrayElem($ps, $ps_sid . '.1', 0);
+                $start = $this->AdjustTimestamp($this->GetArrayElem($ps, $ps_sid . '.2', 0));
+                $gid = $this->GetArrayElem($ps, $ps_sid . '.3', 0);
                 if ($ps_pid != 0 || $rem != 0 || $start != 0) {
                     $this->SendDebug(__FUNCTION__, '....... sid=' . $ps_sid . ', pid=' . $ps_pid . ', rem=' . $rem . 's, start=' . ($start ? date('d.m.y H:i:s', $start) : '-') . ', gid=' . $this->Group2String($gid), 0);
                 }
@@ -2223,7 +2370,7 @@ class OpenSprinkler extends IPSModule
 
             $pname = '';
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $ps[$ps_sid][0];
+                $ps_pid = $this->GetArrayElem($ps, $ps_sid . '.0', 0);
                 if ($ps_pid == 0) {
                     continue;
                 }
@@ -2371,7 +2518,7 @@ class OpenSprinkler extends IPSModule
         $mas2 = $this->GetArrayElem($jdata, 'options.mas2', 0);
         $masop = (array) $this->GetArrayElem($jdata, 'stations.masop', []);
         $masop2 = (array) $this->GetArrayElem($jdata, 'stations.masop2', []);
-        if ($controller_infos['has_flowmeter'] && $controller_infos['feature'] == 'ASB') {
+        if ($controller_infos['has_flowmeter'] && $has_ASB) {
             $stn_fas = (array) $this->GetArrayElem($jdata, 'stations.stn_fas', []);
             $stn_favg = (array) $this->GetArrayElem($jdata, 'stations.stn_favg', []);
         }
@@ -2478,9 +2625,9 @@ class OpenSprinkler extends IPSModule
                 'use'             => $station_entry['use'],
                 'info'            => $info,
             ];
-            if ($controller_infos['has_flowmeter'] && $controller_infos['feature'] == 'ASB') {
-                $e['flow_average'] = $stn_favg[$sid] / 100;
-                $e['flow_threshold'] = $stn_fas[$sid] / 100;
+            if ($controller_infos['has_flowmeter'] && $has_ASB) {
+                $e['flow_average'] = isset($stn_favg[$sid]) ? ($stn_favg[$sid] / 100) : 0;
+                $e['flow_threshold'] = isset($stn_fas[$sid]) ? ($stn_fas[$sid] / 100) : 0;
             }
             $station_infos[] = $e;
         }
@@ -3291,16 +3438,28 @@ class OpenSprinkler extends IPSModule
             return;
         }
 
-        $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
+        if (IPS_SemaphoreEnter($this->SemaphoreID, self::$semaphoreTM) == false) {
+            $this->SendDebug(__FUNCTION__, 'unable to lock sempahore ' . $this->SemaphoreID, 0);
+            return;
+        }
+
         $payload = [];
+        $variable_list = (array) @json_decode($this->ReadPropertyString('variable_list'), true);
         foreach ($variable_list as $variable) {
             $varID = $variable['varID'];
             if (IPS_VariableExists($varID) == false) {
                 continue;
             }
+            if ($variable['use'] == false) {
+                continue;
+            }
             $payload[$variable['mqtt_filter']] = GetValue($varID);
         }
-        $r = $this->PublishToOpenSprinkler($variables_mqtt_topic, $payload);
+        if (count($payload)) {
+            $r = $this->PublishToOpenSprinkler($variables_mqtt_topic, $payload);
+        }
+
+        IPS_SemaphoreLeave($this->SemaphoreID);
 
         $this->SendDebug(__FUNCTION__, $this->PrintTimer('SendVariables'), 0);
     }
@@ -3311,9 +3470,9 @@ class OpenSprinkler extends IPSModule
             'DataID'           => '{043EA491-0325-4ADD-8FC2-A30C8EEB4D3F}',
             'PacketType'       => 3,
             'QualityOfService' => 0,
-            'Retain'           => false,
+            'Retain'           => true,
             'Topic'            => $topic,
-            'Payload'          => json_encode($payload),
+            'Payload'          => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ];
 
         $data = json_encode($jdata);
@@ -4010,6 +4169,10 @@ class OpenSprinkler extends IPSModule
         if ($mode == 1 /* Clear */) {
             $dur = 0;
         }
+        /*
+            dur		Toggle-style pause. If no pause is active and dur>0, start a pause of dur seconds. If a pause is active, cancels the pause (resume stations) regardless of dur value.
+            repl	Replace/set pause. Sets the pause to repl seconds (starts new or updates existing). repl=0 cancels any active pause. If both repl and dur are present, repl takes precedence
+         */
 
         $params = [
             'dur' => $dur,
@@ -4208,6 +4371,7 @@ class OpenSprinkler extends IPSModule
         if ($this->Use4Ident('ProgramWeatherAdjust') == false) {
             return false;
         }
+
         $params = [
             'pid' => $pid,
             'uwt' => ($enab ? 1 : 0),
@@ -4226,6 +4390,14 @@ class OpenSprinkler extends IPSModule
         if ($this->Use4Ident('ProgramStartManually') == false) {
             return false;
         }
+
+        /*
+        qo	Queuing option.
+            0: append the new program to the end of the queue;
+            1: insert at front (preemptive);
+            2: replace, i.e. reset all zones, clear queue, then start the new program.
+            If qo is omitted, the default behavior is 2 (backward compatible).
+         */
 
         $params = [
             'pid' => $pid,
@@ -4734,10 +4906,12 @@ class OpenSprinkler extends IPSModule
 
         $remote_extension = (bool) $this->GetArrayElem($controller_infos, 'remote_extension', false);
         $feature = $this->GetArrayElem($controller_infos, 'feature', '');
+        $has_ASB = in_array('ASB', explode(',', $feature));
         $sensor_type1 = $this->GetArrayElem($controller_infos, 'sensor_type.1', self::$SENSOR_TYPE_NONE);
         $sensor_type2 = $this->GetArrayElem($controller_infos, 'sensor_type.2', self::$SENSOR_TYPE_NONE);
         $has_flowmeter = (bool) $this->GetArrayElem($controller_infos, 'has_flowmeter', false);
         $has_watermeter = $this->HasWaterMeter();
+        $with_system_diagnostigs = $this->ReadPropertyBoolean('with_system_diagnostigs');
         $with_summary = $this->ReadPropertyBoolean('with_summary');
 
         $is_master = false;
@@ -4763,8 +4937,12 @@ class OpenSprinkler extends IPSModule
             case 'StationInfo':
             case 'StationSelection':
             case 'StationState':
-            case 'WifiStrength':
                 $r = true;
+                break;
+            case 'WifiStrength':
+            case 'MemoryFree':
+            case 'StorageFree':
+                $r = $with_system_diagnostigs;
                 break;
             case 'DailyDuration':
             case 'PauseQueue':
@@ -4828,7 +5006,7 @@ class OpenSprinkler extends IPSModule
                 break;
             case 'StationFlowAverage':
             case 'StationFlowThreshold':
-                $r = $remote_extension == false && $has_flowmeter && $feature == 'ASB' && $is_master == false;
+                $r = $remote_extension == false && $has_flowmeter && $has_ASB && $is_master == false;
                 break;
             default:
                 break;
@@ -5081,14 +5259,14 @@ class OpenSprinkler extends IPSModule
                     }
                     $s .= ', pid=' . $pid . '(' . $pname . '), sid=' . $sid . '(' . $sname . '), dur=' . $dur . 's, flow=' . $flow . ' l/min, usage=' . $usage . ' l';
                     break;
-                case 'wl':	// waterlevel
+                case 'wl':	// watering level
                     $level = $entry[2];
                     $s .= ', type=' . $type . ', level=' . $level . '%';
                     break;
-                case 'fl':	// flowsense
+                case 'fl':	// flow reading
                     $count = $entry[0];
                     $volume = $this->ConvertPulses2Volume($count);
-                    $s .= ', type=' . $type . ', count=' . $count . ', volume=' . $volume . ' l';
+                    $s .= ', type=' . $type . ', count=' . $count . ' => volume=' . $volume . ' l';
                     break;
                 case 'sn1':	// sensor 1
                 case 'sn2':	// sensor 2
