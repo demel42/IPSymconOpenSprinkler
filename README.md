@@ -168,6 +168,10 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.9 @ 09.05.2026 11:36
+  - Fix: Änderung von deprecated php code
+  - update submodule CommonStubs
+
 - 1.8 @ 18.04.2026 17:13
   - Verbesserung: optionale Variablen für den verfügbaren Arbeitsspeicher und Speicherplatz
   - Ergänzung: Unterstützung für die Hardware-Versіon 4.0

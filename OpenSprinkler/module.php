@@ -1448,7 +1448,7 @@ class OpenSprinkler extends IPSModule
         return $formActions;
     }
 
-    private function SetQueryInterval(int $sec = null)
+    private function SetQueryInterval(?int $sec = null)
     {
         if (is_null($sec)) {
             $sec = $this->ReadPropertyInteger('query_interval');
@@ -1456,7 +1456,7 @@ class OpenSprinkler extends IPSModule
         $this->MaintainTimer('QueryStatus', $sec * 1000);
     }
 
-    private function SetSendInterval(int $sec = null)
+    private function SetSendInterval(?int $sec = null)
     {
         if (is_null($sec)) {
             $sec = $this->ReadPropertyInteger('send_interval');
@@ -1705,23 +1705,6 @@ class OpenSprinkler extends IPSModule
             if ($fnd) {
                 $vadd[] = 'weather restriction=' . $this->bool2str((bool) $wtrestr);
             }
-			/*
-				wtdata.h "Mean Humidity" formatHumidity
-				wtdata.t "Mean Temp" formatTemp
-				wtdata.p "Total Rain" formatPrecip
-				wtdata.eto "ETo" formatPrecip
-				wtdata.radiation "Mean Radiation" formatTemp
-				wtdata.maxT "Max Temp" formatTemp
-				wtdata.minH "Min Humidity" formatHumidity
-				wtdata.maxH "Max Humidity" formatHumidity
-				wtdata.wind "Mean Wind" formatSpeed
-
-
-				formatTemp Math.round( ( temp - 32 ) * ( 5 / 9 ) * 10 ) / 10 + " &#176;C";
-				formatPrecip Math.round( precip * 25.4 * 10 ) / 10 + " mm";
-				formatHumidity Math.round( humidity ) + " %";
-				formatSpeed Math.round( speed * 1.6 * 10 ) / 10 + " km/h";
-			*/
             $wl = $this->GetArrayElem($jdata, 'options.wl', 0, $fnd);
             if ($fnd) {
                 $this->SendDebug(__FUNCTION__, '... WateringLevel (options.wl)=' . $wl . ' (' . implode(', ', $vadd) . ')', 0);
@@ -3903,7 +3886,9 @@ class OpenSprinkler extends IPSModule
         $cerror = $cerrno ? curl_error($ch) : '';
         $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curl_info = curl_getinfo($ch);
-        curl_close($ch);
+        if (IPS_GetKernelVersion() < 8.5) {
+            curl_close($ch);
+        }
 
         $duration = round(microtime(true) - $time_start, 2);
         $this->SendDebug(__FUNCTION__, ' => errno=' . $cerrno . ', httpcode=' . $httpcode . ', duration=' . $duration . 's', 0);
@@ -4456,7 +4441,7 @@ class OpenSprinkler extends IPSModule
         $this->SendDebug(__FUNCTION__, 'name of ' . $n_changed . ' variables changed', 0);
     }
 
-    private function SetStationSelection(int $value = null)
+    private function SetStationSelection(?int $value = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $station_infos = (array) @json_decode($this->ReadAttributeString('station_infos'), true);
@@ -4647,7 +4632,7 @@ class OpenSprinkler extends IPSModule
         return true;
     }
 
-    private function SetProgramSelection(int $value = null)
+    private function SetProgramSelection(?int $value = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
         $program_infos = (array) @json_decode($this->ReadAttributeString('program_infos'), true);
@@ -4811,7 +4796,7 @@ class OpenSprinkler extends IPSModule
         $this->UpdateVarProfileAssociations($this->VarProf_StationStartManually, $associations);
     }
 
-    private function UpdateVarProfileAssociations(string $ident, $associations = null)
+    private function UpdateVarProfileAssociations(string $ident, ?array $associations = null)
     {
         $varProfile = IPS_GetVariableProfile($ident);
         $old_associations = $varProfile['Associations'];
@@ -4900,7 +4885,7 @@ class OpenSprinkler extends IPSModule
         return $map;
     }
 
-    private function Use4Ident($ident, $sid = null)
+    private function Use4Ident(string $ident, ?string $sid = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
 
@@ -5095,7 +5080,7 @@ class OpenSprinkler extends IPSModule
         return $r;
     }
 
-    private function Enable4Ident($ident, $sid = null)
+    private function Enable4Ident(string $ident, ?string $sid = null)
     {
         $with_summary = $this->ReadPropertyBoolean('with_summary');
 
