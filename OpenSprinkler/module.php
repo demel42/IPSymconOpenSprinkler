@@ -2001,7 +2001,7 @@ class OpenSprinkler extends IPSModule
 
             $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
             if ($fnd) {
-                $lr_sid = $lrun[0];
+                $lr_sid = (int) $lrun[0];
                 $lr_dur = $lrun[2];
                 $lr_end = $this->AdjustTimestamp($lrun[3]);
             } else {
@@ -2322,7 +2322,7 @@ class OpenSprinkler extends IPSModule
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... (settings.ps)=' . print_r($ps, true), 0);
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $this->GetArrayElem($ps, $ps_sid . '.0', 0);
+                $ps_pid = (int) $this->GetArrayElem($ps, $ps_sid . '.0', 0);
                 $rem = $this->GetArrayElem($ps, $ps_sid . '.1', 0);
                 $start = $this->AdjustTimestamp($this->GetArrayElem($ps, $ps_sid . '.2', 0));
                 $gid = $this->GetArrayElem($ps, $ps_sid . '.3', 0);
@@ -2353,7 +2353,7 @@ class OpenSprinkler extends IPSModule
 
             $pname = '';
             for ($ps_sid = 0; $ps_sid < count($ps); $ps_sid++) {
-                $ps_pid = $this->GetArrayElem($ps, $ps_sid . '.0', 0);
+                $ps_pid = (int) $this->GetArrayElem($ps, $ps_sid . '.0', 0);
                 if ($ps_pid == 0) {
                     continue;
                 }
@@ -2401,8 +2401,8 @@ class OpenSprinkler extends IPSModule
         $lrun = (array) $this->GetArrayElem($jdata, 'settings.lrun', [], $fnd);
         if ($fnd) {
             $this->SendDebug(__FUNCTION__, '... (settings.lrun)=' . print_r($lrun, true), 0);
-            $lr_sid = $lrun[0];
-            $lr_pid = $lrun[1];
+            $lr_sid = (int) $lrun[0];
+            $lr_pid = (int) $lrun[1];
             $lr_dur = $lrun[2];
             $lr_end = $this->AdjustTimestamp($lrun[3]);
             $this->SendDebug(__FUNCTION__, '....... sid=' . $lr_sid . ', pid=' . $lr_pid . ', dur=' . $lr_dur . ', end=' . ($lr_end ? date('d.m.y H:i:s', $lr_end) : '-'), 0);
@@ -3081,7 +3081,7 @@ class OpenSprinkler extends IPSModule
         // topic=station/0, payload=Array<LF>(<LF>    [state] => 1<LF>    [duration] => 300<LF>)<LF>
         // topic=station/0, payload=Array<LF>(<LF>    [state] => 0<LF>    [duration] => 300<LF>    [flow] => 0<LF>)<LF>
         if (preg_match('#^station/(\d+)$#', $topic, $r)) {
-            $sid = $r[1];
+            $sid = (int) $r[1];
 
             if (IPS_SemaphoreEnter($this->SemaphoreID, self::$semaphoreTM) == false) {
                 $this->SendDebug(__FUNCTION__, 'unable to lock sempahore ' . $this->SemaphoreID, 0);
@@ -3309,7 +3309,7 @@ class OpenSprinkler extends IPSModule
 
         // topic=station/0/alert/flow, payload=Array<LF>(<LF>    [flow_rate] => %f<LF>    [duration] => 0<LF>    [alert_setpoint] => 0<LF>)<LF>
         if (preg_match('#^station/(\d+)/alert/flow$#', $topic, $r)) {
-            $sid = $r[1];
+            $sid = (int) $r[1];
 
             if (IPS_SemaphoreEnter($this->SemaphoreID, self::$semaphoreTM) == false) {
                 $this->SendDebug(__FUNCTION__, 'unable to lock sempahore ' . $this->SemaphoreID, 0);
@@ -5203,10 +5203,10 @@ class OpenSprinkler extends IPSModule
             $sname = '';
             $type = '';
 
-            $pid = $entry[0];
+            $pid = (int) $entry[0];
 
             if (is_numeric($entry[1])) {
-                $sid = $entry[1];
+                $sid = (int) $entry[1];
                 for ($i = 0; $i < count($program_infos); $i++) {
                     if (($program_infos[$i]['pid'] + 1) == $pid) {
                         $pname = $program_infos[$i]['name'];
@@ -5419,7 +5419,7 @@ class OpenSprinkler extends IPSModule
             case self::$LOG_GROUPBY_SNAME:
                 $stations = [];
                 foreach ($new_logs as $log) {
-                    $sid = $log['sid'];
+                    $sid = (int) $log['sid'];
                     if (isset($stations[$sid]) == false) {
                         $sname = sprintf(self::$STATION_PREFIX . '%02d', ($sid + 1));
                         for ($i = 0; $i < count($station_infos); $i++) {
@@ -5607,7 +5607,7 @@ class OpenSprinkler extends IPSModule
 
             foreach ($logs as $log) {
                 $tstamp = $log['tstamp'];
-                $sid = $log['sid'];
+                $sid = (int) $log['sid'];
                 $sname = $log['sname'];
                 $start = $log['start'];
                 $end = $log['end'];

@@ -168,7 +168,7 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
-- 1.9 @ 16.05.2026 09:06
+- 1.9 @ 16.05.2026 12:53
   - Fix: Änderung von deprecated php code
   - update submodule CommonStubs
 
