@@ -4885,7 +4885,7 @@ class OpenSprinkler extends IPSModule
         return $map;
     }
 
-    private function Use4Ident(string $ident, ?string $sid = null)
+    private function Use4Ident(string $ident, ?int $sid = null)
     {
         $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
 
@@ -5080,7 +5080,7 @@ class OpenSprinkler extends IPSModule
         return $r;
     }
 
-    private function Enable4Ident(string $ident, ?string $sid = null)
+    private function Enable4Ident(string $ident, ?int $sid = null)
     {
         $with_summary = $this->ReadPropertyBoolean('with_summary');
 
