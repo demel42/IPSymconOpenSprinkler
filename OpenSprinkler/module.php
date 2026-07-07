@@ -71,6 +71,8 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyString('variable_list', json_encode([]));
         $this->RegisterPropertyInteger('send_interval', 300);
 
+        $this->RegisterPropertyString('sensor_value_list', json_encode([]));
+
         $this->RegisterPropertyBoolean('with_controller_daily_duration', false);
         $this->RegisterPropertyBoolean('with_controller_daily_usage', false);
         $this->RegisterPropertyBoolean('with_controller_total_duration', true);
@@ -99,6 +101,10 @@ class OpenSprinkler extends IPSModule
         $this->RegisterPropertyInteger('WaterMeterID', 0);
         $this->RegisterPropertyFloat('WaterMeterFactor', 1);
 
+        $this->RegisterPropertyString('backup_path', '');
+        $this->RegisterPropertyInteger('backup_max_age', 28);
+        $this->RegisterPropertyString('backup_time', '{"hour":0,"minute":5,"second":0}');
+
         $this->RegisterAttributeString('controller_infos', json_encode([]));
         $this->RegisterAttributeString('station_infos', json_encode([]));
         $this->RegisterAttributeString('program_infos', json_encode([]));
@@ -118,6 +124,7 @@ class OpenSprinkler extends IPSModule
 
         $this->RegisterTimer('QueryStatus', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "QueryStatus", "");');
         $this->RegisterTimer('SendVariables', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "SendVariables", "");');
+        $this->RegisterTimer('BackupConfig', 0, 'IPS_RequestAction(' . $this->InstanceID . ', "BackupConfig", "");');
 
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
@@ -149,6 +156,7 @@ class OpenSprinkler extends IPSModule
         if ($message == IPS_KERNELMESSAGE && $data[0] == KR_READY) {
             $this->SetQueryInterval();
             $this->SetSendInterval();
+            $this->SetBackupInterval();
         }
 
         if (IPS_GetKernelRunlevel() == KR_READY && $message == VM_UPDATE && $data[1] == true /* changed */) {
@@ -196,9 +204,18 @@ class OpenSprinkler extends IPSModule
             }
         }
 
+        $sensor_value_list = (array) @json_decode($this->ReadPropertyString('sensor_value_list'), true);
+        foreach ($sensor_value_list as $variable) {
+            $varID = $variable['varID'];
+            if ($this->IsValidID($varID) && IPS_VariableExists($varID)) {
+                $this->RegisterReference($varID);
+            }
+        }
+
         if ($this->CheckPrerequisites() != false) {
             $this->MaintainTimer('QueryStatus', 0);
             $this->MaintainTimer('SendVariables', 0);
+            $this->MaintainTimer('BackupConfig', 0);
             $this->MaintainStatus(self::$IS_INVALIDPREREQUISITES);
             return;
         }
@@ -206,6 +223,7 @@ class OpenSprinkler extends IPSModule
         if ($this->CheckUpdate() != false) {
             $this->MaintainTimer('QueryStatus', 0);
             $this->MaintainTimer('SendVariables', 0);
+            $this->MaintainTimer('BackupConfig', 0);
             $this->MaintainStatus(self::$IS_UPDATEUNCOMPLETED);
             return;
         }
@@ -213,6 +231,7 @@ class OpenSprinkler extends IPSModule
         if ($this->CheckConfiguration() != false) {
             $this->MaintainTimer('QueryStatus', 0);
             $this->MaintainTimer('SendVariables', 0);
+            $this->MaintainTimer('BackupConfig', 0);
             $this->MaintainStatus(self::$IS_INVALIDCONFIG);
             return;
         }
@@ -740,6 +759,7 @@ class OpenSprinkler extends IPSModule
         if (IPS_GetKernelRunlevel() == KR_READY) {
             $this->SetQueryInterval();
             $this->SetSendInterval();
+            $this->SetBackupInterval();
         }
     }
 
@@ -834,13 +854,13 @@ class OpenSprinkler extends IPSModule
                         [
                             'caption' => 'Group',
                             'name'    => 'group',
-                            'width'   => '100px',
+                            'width'   => '50px',
                             'save'    => true,
                         ],
                         [
                             'caption' => 'Interface',
                             'name'    => 'interface',
-                            'width'   => '200px',
+                            'width'   => '100px',
                             'save'    => true,
                         ],
                         [
@@ -938,7 +958,7 @@ class OpenSprinkler extends IPSModule
                         [
                             'caption' => 'Information',
                             'name'    => 'info',
-                            'width'   => '800px',
+                            'width'   => '700px',
                             'save'    => true,
                         ],
                         [
@@ -1031,6 +1051,46 @@ class OpenSprinkler extends IPSModule
                     'add'     => true,
                     'delete'  => true,
                     'caption' => 'Variables to be transferred',
+                ],
+                [
+                    'type'    => 'Label',
+                ],
+                [
+                    'type'    => 'List',
+                    'name'    => 'sensor_value_list',
+                    'columns' => [
+                        [
+                            'name' => 'sensor_no',
+                            'add'  => 0,
+                            'edit' => [
+                                'type'    => 'NumberSpinner',
+                                'minimum' => 0,
+                            ],
+                            'width'   => '150px',
+                            'caption' => 'Sensor No.',
+                        ],
+                        [
+                            'name' => 'varID',
+                            'add'  => 0,
+                            'edit' => [
+                                'type' => 'SelectVariable',
+                            ],
+                            'width'   => 'auto',
+                            'caption' => 'Destination variable',
+                        ],
+                        [
+                            'add'   => true,
+                            'name'  => 'use',
+                            'width' => '90px',
+                            'edit'  => [
+                                'type' => 'CheckBox'
+                            ],
+                            'caption' => 'Use',
+                        ],
+                    ],
+                    'add'     => true,
+                    'delete'  => true,
+                    'caption' => 'Variables to be received',
                 ],
             ];
         }
@@ -1359,6 +1419,31 @@ class OpenSprinkler extends IPSModule
             'type'    => 'ExpansionPanel',
             'items'   => [
                 [
+                    'type'    => 'ValidationTextBox',
+                    'name'    => 'backup_path',
+                    'width'   => '80%',
+                    'caption' => 'Path to backup directory'
+                ],
+                [
+                    'type'    => 'NumberSpinner',
+                    'digits'  => 0,
+                    'suffix'  => 'days',
+                    'name'    => 'backup_max_age',
+                    'caption' => 'Maximum age until deletion'
+                ],
+                [
+                    'name'    => 'backup_time',
+                    'type'    => 'SelectTime',
+                    'caption' => 'Time for the cyclical backup',
+                ],
+            ],
+            'caption' => 'Backup of the opensprinkler configuration'
+        ];
+
+        $formElements[] = [
+            'type'    => 'ExpansionPanel',
+            'items'   => [
+                [
                     'type'    => 'Label',
                     'caption' => 'Used instead of the internal water flow sensor of the OpenSprinkler controller'
                 ],
@@ -1412,6 +1497,11 @@ class OpenSprinkler extends IPSModule
                     'type'    => 'Button',
                     'caption' => 'Get controller logdata',
                     'onClick' => 'IPS_RequestAction($id, "GetControllerLog", "");',
+                ],
+                [
+                    'type'    => 'Button',
+                    'caption' => 'Backup controller',
+                    'onClick' => 'IPS_RequestAction($id, "BackupConfig", "");',
                 ],
             ],
         ];
@@ -1474,6 +1564,24 @@ class OpenSprinkler extends IPSModule
         }
 
         $this->MaintainTimer('SendVariables', $sec * 1000);
+    }
+
+    private function SetBackupInterval()
+    {
+        $path = $this->GetBackupPath();
+        if ($path == false) {
+            $sec = 0;
+        } else {
+            $now = time();
+            $backup_time = json_decode($this->ReadPropertyString('backup_time'), true);
+            $fmt = sprintf('d.m.Y %02d:%02d:%02d', (int) $backup_time['hour'], (int) $backup_time['minute'], (int) $backup_time['second']);
+            $next_tstamp = strtotime(date($fmt, $now));
+            if ($next_tstamp <= $now) {
+                $next_tstamp += 86400;
+            }
+            $sec = $next_tstamp - $now;
+        }
+        $this->MaintainTimer('BackupConfig', $sec * 1000);
     }
 
     private function WateringLevelChangeable()
@@ -2550,7 +2658,7 @@ class OpenSprinkler extends IPSModule
                 }
 
                 $duration = (array) $this->GetArrayElem($jdata, 'programs.pd.' . $pid . '.4', []);
-                if ($duration[$sid] == 0) {
+                if (isset($duration[$sid]) == false || $duration[$sid] == 0) {
                     continue;
                 }
 
@@ -2694,7 +2802,7 @@ class OpenSprinkler extends IPSModule
                     continue;
                 }
 
-                if ($duration[$sid] == 0) {
+                if (isset($duration[$sid]) == false || $duration[$sid] == 0) {
                     continue;
                 }
                 $s = $snames[$sid] . '[' . $this->seconds2duration($duration[$sid]) . ']';
@@ -3389,14 +3497,43 @@ class OpenSprinkler extends IPSModule
             IPS_SemaphoreLeave($this->SemaphoreID);
         }
 
+        // topic=analogsensor/Luftfeuchte, payload=Array<LF>(<LF>    [nr] => 2<LF>    [type] => 90<LF>    [data_o] => 1<LF>    [time] => 1732540919<LF>    [value] => 68<LF>    [unit] => %<LF>)<LF>
+        if (preg_match('#^analogsensor/(.*)$#', $topic, $r)) {
+            $name = $r[1];
+
+            $fnd = true;
+            $nr = $this->GetArrayElem($payload, 'nr', 0, $fnd);
+            if ($fnd == false) {
+                $this->SendDebug(__FUNCTION__, '... analogsensor: field "nr" not found', 0);
+            } else {
+                $value = $this->GetArrayElem($payload, 'value', 0, $fnd);
+                if ($fnd == false) {
+                    $this->SendDebug(__FUNCTION__, '... analogsensor: field "value" not found', 0);
+                } else {
+                    $sensor_value_list = (array) @json_decode($this->ReadPropertyString('sensor_value_list'), true);
+                    $time = $this->GetArrayElem($payload, 'time', 0);
+                    $ts = $this->AdjustTimestamp($time);
+                    foreach ($sensor_value_list as $variable) {
+                        if ($variable['use'] == false) {
+                            continue;
+                        }
+                        if ($variable['sensor_no'] == $nr) {
+                            $varID = $variable['varID'];
+                            SetValue($varID, $value);
+                            $this->SendDebug(__FUNCTION__, 'analogsensor ' . $name . ': nr=' . $nr . ', var=' . $varID . '(' . IPS_GetName($varID) . '), value=' . $value . ', tstamp=' . ($ts ? date('d.m.y H:i:s', $ts) : '-'), 0);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         // topic=system, payload=Array<LF>(<LF>    [state] => "started"<LF>)<LF>
         // topic=raindelay, payload=Array<LF>(<LF>    [state] => 0<LF>)<LF>
         // tpoic=weather, payload=Array<LF>(<LF>    [water level] => 0<LF>)<LF>
 
         // topic=availability, payload=online
         // topic=availability, payload=offline
-
-        // topic=analogsensor/Luftfeuchte, payload=Array<LF>(<LF>    [nr] => 2<LF>    [type] => 90<LF>    [data_o] => 1<LF>    [time] => 1732540919<LF>    [value] => 68<LF>    [unit] => %<LF>)<LF>
 
         $this->MaintainStatus(IS_ACTIVE);
     }
@@ -3496,6 +3633,9 @@ class OpenSprinkler extends IPSModule
                 break;
             case 'AdjustVariablenames':
                 $this->AdjustVariablenames();
+                break;
+            case 'BackupConfig':
+                $this->BackupConfig();
                 break;
             default:
                 $r = false;
@@ -5749,5 +5889,154 @@ class OpenSprinkler extends IPSModule
             $duration .= sprintf('%dms', $msec);
         }
         return $duration;
+    }
+
+    private function GetBackupPath()
+    {
+        $path = $this->ReadPropertyString('backup_path');
+        if ($path == '') {
+            return false;
+        }
+        if (file_exists($path) == false) {
+            if (mkdir($path) == false) {
+                $this->SendDebug(__FUNCTION__, 'unable to create directory ' . $path, 0);
+                return false;
+            }
+        } elseif (is_dir($path) == false) {
+            $this->SendDebug(__FUNCTION__, $path . ' is not a directory', 0);
+            return false;
+        }
+        return $path;
+    }
+
+    private function BackupConfig()
+    {
+        $path = $this->GetBackupPath();
+        if ($path == false) {
+            $this->SendDebug(__FUNCTION__, 'no backup path', 0);
+            return;
+        }
+
+        $data = $this->do_HttpRequest('ja', []);
+        if ($data == false) {
+            $this->SendDebug(__FUNCTION__, 'no data', 0);
+            return;
+        }
+
+        $jdata = @json_decode($data, true);
+        if ($jdata == false) {
+            $this->SendDebug(__FUNCTION__, 'malformed data', 0);
+            return;
+        }
+
+        $data = $this->do_HttpRequest('je', []);
+        if ($data == false) {
+            $this->SendDebug(__FUNCTION__, 'malformed data', 0);
+            return;
+        }
+        $jdata['special'] = json_decode($data, true);
+
+        // Fix gemäß Opensprinkler-App
+        $jdata['status'] = $jdata['status']['sn'];
+
+        $data = json_encode($jdata);
+        $this->SendDebug(__FUNCTION__, 'jdata=' . print_r($jdata, true), 0);
+
+        $now = time();
+
+        $dname = $this->GetArrayElem($jdata, 'settings.dname', '');
+        $fname = $path . DIRECTORY_SEPARATOR . 'backup-' . $dname . '_' . date('YmdHis', $now) . '.csv';
+
+        $fp = fopen($fname, 'w');
+        if ($fp == false) {
+            $this->SendDebug(__FUNCTION__, 'unabloe to open file "' . $tmpfile . '"', 0);
+            return;
+        }
+        $n = strlen($data);
+        if (fwrite($fp, $data, $n) === false) {
+            $this->SendDebug(__FUNCTION__, 'unable to write ' . $n . ' bytes to file ' . $fname, 0);
+            $err = 'unable to write ' . $n . ' bytes to file ' . $fname;
+            return;
+        }
+        if (fclose($fp) == false) {
+            $this->SendDebug(__FUNCTION__, 'unable to close file', 0);
+            return;
+        }
+
+        $this->SendDebug(__FUNCTION__, 'written ' . $n . ' bytes to ' . $fname, 0);
+
+        $controller_infos = (array) @json_decode($this->ReadAttributeString('controller_infos'), true);
+        $feature = $this->GetArrayElem($controller_infos, 'feature', '');
+        $has_ASB = in_array('ASB', explode(',', $feature));
+
+        if ($has_ASB) {
+            $data = $this->do_HttpRequest('sx', []);
+            if ($data == false) {
+                $this->SendDebug(__FUNCTION__, 'no data', 0);
+                return false;
+            }
+
+            $fname = $path . DIRECTORY_SEPARATOR . 'backup_sensors-' . $dname . '_' . date('YmdHis', $now) . '.csv';
+
+            $fp = fopen($fname, 'w');
+            if ($fp == false) {
+                $this->SendDebug(__FUNCTION__, 'unabloe to open file "' . $tmpfile . '"', 0);
+                return;
+            }
+            $n = strlen($data);
+            if (fwrite($fp, $data, $n) === false) {
+                $this->SendDebug(__FUNCTION__, 'unable to write ' . $n . ' bytes to file ' . $fname, 0);
+                $err = 'unable to write ' . $n . ' bytes to file ' . $fname;
+                return;
+            }
+            if (fclose($fp) == false) {
+                $this->SendDebug(__FUNCTION__, 'unable to close file', 0);
+                return;
+            }
+
+            $this->SendDebug(__FUNCTION__, 'written ' . $n . ' bytes to ' . $fname, 0);
+        }
+
+        $backup_max_age = $this->ReadPropertyInteger('backup_max_age');
+        $age = $backup_max_age * 24 * 60 * 60;
+
+        $this->SendDebug(__FUNCTION__, '* cleanup files before ' . date('d.m.Y H:i:s', $now - $age), 0);
+
+        $verbose = true;
+
+        $n_files_total = 0;
+        $n_files_deleted = 0;
+        $n_dirs_total = 0;
+        $n_dirs_deleted = 0;
+        $directory = new RecursiveDirectoryIterator($path, FilesystemIterator::SKIP_DOTS);
+        $objects = new RecursiveIteratorIterator($directory, RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($objects as $object) {
+            $isFile = $object->isFile();
+            if ($isFile == false) {
+                continue;
+            }
+            $pathname = $object->getPathname();
+            $basename = basename($pathname);
+            if (preg_match('/^.*' . $dname . '.*\.csv$/i', $basename) == false) {
+                continue;
+            }
+            $a = $now - filemtime($pathname);
+
+            $too_young = ($a < $age);
+            $n_files_total++;
+            if (!$verbose && $too_young) {
+                continue;
+            }
+            $this->SendDebug(__FUNCTION__, '  name=' . $object->getPathname() . ', age=' . $this->seconds2duration($a) . ' => ' . ($too_young ? 'skip' : 'delete'), 0);
+            if ($too_young) {
+                continue;
+            }
+            $n_files_deleted++;
+            if (unlink($pathname) == false) {
+                $this->SendDebug(__FUNCTION__, 'unable to delete file ' . $pathname, 0);
+            }
+        }
+
+        $this->SetBackupInterval();
     }
 }

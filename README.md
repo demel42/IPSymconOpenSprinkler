@@ -168,6 +168,10 @@ OpenSprinkler.WaterFlowrate,
 
 ## 7. Versions-Historie
 
+- 1.10 @ 07.07.2026 15:19
+  - Neu: optionales zyklisches Backup der Opensprinkler-Konfiguration
+  - Neu: optionaler Empfang von analogen Sensorwerten per MQTT
+
 - 1.9 @ 16.05.2026 12:53
   - Fix: Änderung von deprecated php code
   - update submodule CommonStubs
@@ -211,7 +215,7 @@ OpenSprinkler.WaterFlowrate,
 
 - 1.2 @ 13.04.2025 17:17
   - Neu: externe Wasseruhr zur Ermittlung des Wasserverbrauchs
-  - Neu: Script zur Ausgabe von Warnungen (derzeit Strömungsmenge und Monitoring (Bestandteil der Pakets "analogen Sensoren")
+  - Neu: Script zur Ausgabe von Warnungen (derzeit Strömungsmenge und Monitoring (Bestandteil des Software-Erweiterung des OpenSprinklerShop)
   - Fix: diverse Anpassungen und Korrekturen
 
 - 1.1 @ 23.03.2025 15:07

@@ -49,6 +49,11 @@
 			"Group": "Gruppe",
 			"Interface": "Anschluss",
 
+			"Sensor No.": "Sensor Nr.",
+			"Destination variable": "Zielvariable",
+			"Use": "verwenden",
+			"Variables to be received": "Zu empfangende Variablen",
+
 			"Contact variant": "Kontaktausführung",
 			"Resolution: {$fpr} l/pulse": "Auflösung: {$fpr} l/Impuls",
 
@@ -124,6 +129,11 @@
 			"Log": "Protokoll",
 			"Maximum age of log until deletion": "maximales Alter von Logs bis zur Löschung",
 			"days": "Tage",
+
+			"Backup of the opensprinkler configuration": "Sicherung der OpenSprinkler-Konfiguration",
+			"Path to backup directory": "Pfad zum Sicherungsverzeichnis",
+			"Maximum age until deletion": "Maximales Alter bis zur Löschung",
+			"Time for the cyclical backup": "Zeitpunkt für die regelmäßige Sicherung",
 
 			"Disabled": "Ausgeschaltet",
 
@@ -251,6 +261,7 @@
 			"This adjusts the first part von the variable name acording to the retrived configuration":
 				"Hiermit wird der erste Teil des Variablennamens entsprechend der abgerufenen Konfiguration angepasst",
 			"Get controller logdata": "Controller-Logdaten abrufen",
+			"Backup controller": "Controller-Konfiguration sichern",
 
 			"__end__": ""
 		}
